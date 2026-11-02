@@ -1,0 +1,14 @@
+{
+  "scoringVersion": 1,
+  "grades": { "S": 90, "A": 80, "B": 65, "C": 50 },
+  "weights": { "objectives": 30, "survival": 25, "combat": 20, "efficiency": 15, "exploration": 10 },
+  "chapters": {
+    "ch01": {
+      "parTimeSec": 720, "maxDamage": 120, "deathPenalty": 8, "healPenalty": 1.5, "maxHeals": 6,
+      "chainTarget": 4, "styleTarget": 600, "styleCapPerEncounter": 450, "diversityTypes": 4,
+      "optionalObjectives": 0,
+      "explorationNodes": ["tower_visited", "beacon_area", "route_taken", "east_trail", "west_trail", "recon_camp"],
+      "creditsTarget": 1800
+    }
+  }
+}

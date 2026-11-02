@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "species": {
+    "forest_runner": {
+      "id": "forest_runner", "code": "R-4", "name": "Corredor-de-mata", "dossier": "BIO_01",
+      "hp": 100, "baseCC": 300, "scale": 1.0, "color": "#3d5a3a", "accent": "#b9893a",
+      "patrolSpeed": 1.7, "chaseSpeed": 5.1, "turnRate": 5.5,
+      "vision": { "range": 26, "fovDeg": 130 }, "hearingScale": 1.0,
+      "attack": { "windupMs": 850, "lungeMs": 380, "lungeDist": 4.4, "reach": 1.7, "damage": 18, "recoverMs": 1150, "triggerRange": 4.8, "bleedChance": 0.25 },
+      "hit": { "head": { "y": 1.3, "fwd": 0.62, "r": 0.3 }, "torso": { "y": 0.85, "fwd": 0.0, "r": 0.58 }, "legs": { "y": 0.38, "fwd": 0.0, "r": 0.42 } },
+      "hurtRadius": 0.55
+    },
+    "forest_runner_juvenile": {
+      "id": "forest_runner_juvenile", "code": "R-4J", "name": "Juvenil R-4J", "dossier": "BIO_02",
+      "hp": 38, "baseCC": 100, "scale": 0.58, "color": "#4b6a43", "accent": "#d3a24a",
+      "patrolSpeed": 2.0, "chaseSpeed": 6.0, "turnRate": 8,
+      "vision": { "range": 20, "fovDeg": 140 }, "hearingScale": 1.0,
+      "attack": { "windupMs": 560, "lungeMs": 300, "lungeDist": 3.0, "reach": 1.2, "damage": 8, "recoverMs": 850, "triggerRange": 3.4, "bleedChance": 0.05 },
+      "hit": { "head": { "y": 0.78, "fwd": 0.36, "r": 0.2 }, "torso": { "y": 0.5, "fwd": 0.0, "r": 0.36 }, "legs": { "y": 0.22, "fwd": 0.0, "r": 0.26 } },
+      "hurtRadius": 0.35
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "weapons": {
+    "pistol": {
+      "id": "pistol", "name": "Pistola de serviço", "ammoType": "pistol",
+      "damage": 28, "headMult": 2.0, "limbMult": 0.7, "magSize": 12, "reserveCap": 120,
+      "fireIntervalMs": 280, "reloadMs": 1400, "range": 60,
+      "spreadAimDeg": 0.45, "spreadHipDeg": 1.6, "spreadMoveDeg": 2.4, "recoilKickDeg": 0.9,
+      "noiseRadius": 30, "implemented": true
+    }
+  },
+  "utility": {
+    "electric_tool": { "id": "electric_tool", "name": "Ferramenta elétrica (Lia)", "range": 3.2, "stunMs": 2200, "cooldownMs": 6000, "noiseRadius": 6 }
+  },
+  "start": { "weapon": "pistol", "ammoInMag": 12, "reserve": 24, "consumables": { "medkit": 1, "hemostatic": 1 } }
+}

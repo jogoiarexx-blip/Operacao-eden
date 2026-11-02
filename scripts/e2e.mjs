@@ -1,0 +1,25 @@
+import { chromium } from 'playwright';
+const URL = process.env.URL || 'http://localhost:4177/?debug=1';
+const SHOT = process.env.SHOT_DIR || '.';
+const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const pg = await b.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+pg.on('pageerror', (e) => errs.push('PAGEERR ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 5).join('\n')));
+const st = () => pg.evaluate(() => window.__eden.state());
+const log = async (n) => console.log(n, JSON.stringify(await st()).slice(0, 400));
+await pg.goto(URL); await pg.waitForTimeout(2000);
+await pg.click('text=Novo jogo'); await pg.waitForTimeout(600);
+await pg.screenshot({ path: SHOT + '/diff.png' });
+await pg.click('text=Iniciar Capítulo 01');
+await pg.waitForTimeout(1500); await log('after-start');
+await pg.screenshot({ path: SHOT + '/cine.png' });
+await pg.evaluate(() => window.__eden.skip()); await pg.waitForTimeout(1500); await log('playing');
+await pg.screenshot({ path: SHOT + '/play1.png' });
+await pg.evaluate(() => window.__eden.hold('KeyW', 2500)); await pg.waitForTimeout(3000); await log('moved');
+for (let i = 0; i < 6; i++) { await pg.evaluate(() => window.__eden.look(300, 0)); await pg.waitForTimeout(250); }
+await pg.screenshot({ path: SHOT + '/play2.png' });
+await pg.evaluate(() => window.__eden.press('Escape')); await pg.waitForTimeout(500); await log('esc');
+await pg.screenshot({ path: SHOT + '/pause.png' });
+console.log('ERRS', errs.slice(0, 6));
+await b.close();

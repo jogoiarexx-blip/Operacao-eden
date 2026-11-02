@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "presets": {
+    "explorer": {
+      "label": "Explorador", "playerDamageMult": 0.65, "enemyHpMult": 0.9, "ammoMult": 1.4,
+      "warningMult": 1.3, "maxContactAttackers": 1, "assist": 0.7, "assistLabel": "Alta",
+      "aiProfile": "simplified", "flankChance": 0.15, "unlock": null,
+      "description": "Foco na narrativa. Avisos mais longos, mais munição e mira assistida alta."
+    },
+    "standard": {
+      "label": "Padrão", "playerDamageMult": 1.0, "enemyHpMult": 1.0, "ammoMult": 1.0,
+      "warningMult": 1.0, "maxContactAttackers": 2, "assist": 0.35, "assistLabel": "Discreta",
+      "aiProfile": "full", "flankChance": 0.35, "unlock": null,
+      "description": "Ritmo recomendado de ação e tensão. Economia calculada para quem erra e compra cura."
+    },
+    "veteran": {
+      "label": "Veterano", "playerDamageMult": 1.35, "enemyHpMult": 1.05, "ammoMult": 0.85,
+      "warningMult": 0.9, "maxContactAttackers": 2, "assist": 0.35, "assistLabel": "Discreta",
+      "aiProfile": "flanking", "flankChance": 0.6, "unlock": null,
+      "description": "Munição mais curta e flanqueamento frequente. Nenhuma pista é removida."
+    },
+    "extinction": {
+      "label": "Extinção", "playerDamageMult": 1.65, "enemyHpMult": 1.1, "ammoMult": 0.7,
+      "warningMult": 0.85, "minWarningMs": 450, "maxContactAttackers": 2, "assist": 0.0, "assistLabel": "Opcional",
+      "aiProfile": "aggressive", "flankChance": 0.8, "unlock": "campaign_complete", "minAmmoGuarantee": 1,
+      "description": "Desbloqueado após concluir a campanha. Vencível por habilidade e movimentação."
+    }
+  }
+}

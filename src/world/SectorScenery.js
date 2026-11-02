@@ -1,0 +1,251 @@
+import * as THREE from 'three';
+import { createRng } from '../core/rng.js';
+
+/**
+ * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
+ * Cria também os colisores simplificados (árvores, rochas, paredes) e devolve ganchos de runtime.
+ */
+const COLORS = {
+  fog: 0x0a1719, sky: 0x0d1d20,
+  wood: 0x5a4430, woodDark: 0x3b2c20, metal: 0x58666c, rock: 0x4b4f4a, concrete: 0x7b8279, shelter: 0x4a4636,
+  tent: 0x5a6a46, crate: 0x6b5a3a, terminal: 0x2a3438, ravine: 0x050809, gate: 0x6a7176, dirt: 0x5b4a33,
+};
+const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
+
+function distToPolyline(x, z, pts) {
+  let best = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+    best = Math.min(best, Math.hypot(x - (ax + dx * t), z - (az + dz * t)));
+  }
+  return best;
+}
+
+export function buildScenery({ world, data, quality }) {
+  const group = new THREE.Group();
+  const meshes = new Map();           // id → Object3D
+  const fadeMats = new Map();         // id → material[] (oclusão localizada)
+  const updaters = [];
+  const [bx0, bz0, bx1, bz1] = data.bounds;
+  const rng = createRng(data.treeSeed);
+
+  // ---------- chão ----------
+  const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
+  const gg = new THREE.PlaneGeometry(gW, gD, 70, 78); gg.rotateX(-Math.PI / 2);
+  const col = new Float32Array(gg.attributes.position.count * 3);
+  const c1 = new THREE.Color(0x1f3a22), c2 = new THREE.Color(0x2c4a2a), c3 = new THREE.Color(0x1a2b1c), tmp = new THREE.Color();
+  for (let i = 0; i < gg.attributes.position.count; i++) {
+    const n = rng.next(); tmp.copy(c1).lerp(n < 0.5 ? c2 : c3, rng.next()); col.set([tmp.r, tmp.g, tmp.b], i * 3);
+  }
+  gg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const ground = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  ground.receiveShadow = true; ground.position.set((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2); group.add(ground);
+
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(gW, 40).rotateX(-Math.PI / 2), mat(0x0f2a36, { transparent: true, opacity: 0.92 }));
+  water.position.set(0, -0.35, bz1 + 17); group.add(water);
+  updaters.push((t) => { water.position.y = -0.35 + Math.sin(t * 0.9) * 0.03; });
+
+  // ---------- trilhas de terra ----------
+  const dirtMat = mat(COLORS.dirt); dirtMat.polygonOffset = true; dirtMat.polygonOffsetFactor = -2;
+  for (const p of data.paths) for (let i = 0; i < p.pts.length - 1; i++) {
+    const [ax, az] = p.pts[i], [bx, bz] = p.pts[i + 1];
+    const len = Math.hypot(bx - ax, bz - az);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.03, len + p.w * 0.4), dirtMat);
+    m.position.set((ax + bx) / 2, 0.02, (az + bz) / 2); m.rotation.y = Math.atan2(bx - ax, bz - az); m.receiveShadow = true; group.add(m);
+  }
+
+  // ---------- estruturas ----------
+  const wood = mat(COLORS.wood), woodDark = mat(COLORS.woodDark), rockMat = mat(COLORS.rock), metal = mat(COLORS.metal);
+  const glowCyan = new THREE.MeshBasicMaterial({ color: 0x57e6e0 });
+  const redLamp = new THREE.MeshBasicMaterial({ color: 0xd92d2d });
+  let beaconLamp = null, gateMesh = null, coroRings = [];
+  const matFor = (v) => ({
+    wood, metal, rock: rockMat, concrete: mat(COLORS.concrete), shelter: mat(COLORS.shelter), shelter_roof: mat(0x3a3f35),
+    tent: mat(COLORS.tent), crate: mat(COLORS.crate), terminal: mat(COLORS.terminal), ravine: mat(COLORS.ravine), gate: mat(COLORS.gate), radio: mat(0x3d4440), coro: mat(0x5c666b),
+  }[v] || wood);
+
+  for (const s of data.structures) {
+    const y0 = s.y ?? 0;
+    let mesh;
+    if (s.kind === 'box') {
+      const [w, h, d] = s.size;
+      const geo = new THREE.BoxGeometry(w, h, d);
+      if (s.visual === 'rock') { const pa = geo.attributes.position; for (let i = 0; i < pa.count; i++) pa.setXYZ(i, pa.getX(i) + (rng.next() - 0.5) * 0.18, pa.getY(i) + (rng.next() - 0.5) * 0.14, pa.getZ(i) + (rng.next() - 0.5) * 0.18); geo.computeVertexNormals(); }
+      mesh = new THREE.Mesh(geo, s.fade ? matFor(s.visual).clone() : matFor(s.visual));
+      mesh.position.set(s.pos[0], y0 + h / 2, s.pos[1]);
+      if (s.flags.length) world.add({ id: s.id, type: 'box', x0: s.pos[0] - w / 2, x1: s.pos[0] + w / 2, z0: s.pos[1] - d / 2, z1: s.pos[1] + d / 2, y0, y1: y0 + h, fade: !!s.fade, gate: !!s.gate, pit: !!s.pit, ...Object.fromEntries(s.flags.map((f) => [f, true])) });
+      if (s.visual === 'ravine') {           // abismo: plano escuro ao nível do chão (o colisor `move` impede a entrada)
+        mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x020405 }));
+        mesh.position.set(s.pos[0], 0.045, s.pos[1]);
+      }
+    } else {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(s.r, s.r * 1.1, s.h, 10), matFor(s.visual));
+      mesh.position.set(s.pos[0], y0 + s.h / 2, s.pos[1]);
+      if (s.flags.length) world.add({ id: s.id, type: 'cyl', x: s.pos[0], z: s.pos[1], r: s.r, y0, y1: y0 + s.h, ...Object.fromEntries(s.flags.map((f) => [f, true])) });
+    }
+    mesh.castShadow = s.flags?.includes('bullet') || s.visual === 'wood'; mesh.receiveShadow = true;
+    if (s.fade) { mesh.material.transparent = true; fadeMats.set(s.id, mesh.material); }
+    group.add(mesh); meshes.set(s.id, mesh);
+
+    // detalhes
+    if (s.visual === 'terminal') {
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.38), glowCyan); scr.position.set(0, 0.2, s.size ? s.size[2] / 2 + 0.01 : 0.3); mesh.add(scr);
+      scr.rotation.y = 0; mesh.rotation.y = s.id === 'terminal_b' ? 0.5 : -0.4;
+    }
+    if (s.id === 'beacon_mast') { beaconLamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), redLamp.clone()); beaconLamp.position.set(0, s.h / 2 + 0.2, 0); mesh.add(beaconLamp); }
+    if (s.visual === 'tent') { const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.2, 4), mat(0x6c7c52)); roof.position.y = s.size[1] / 2 + 0.6; roof.rotation.y = Math.PI / 4; mesh.add(roof); }
+    if (s.visual === 'radio') { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 4), metal); ant.position.set(0.3, 1.0, 0); mesh.add(ant); const led = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.02), new THREE.MeshBasicMaterial({ color: 0xffb347 })); led.position.set(-0.2, 0.2, 0.31); mesh.add(led); }
+    if (s.visual === 'gate') { gateMesh = mesh; for (let i = -1; i <= 1; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 0.05), mat(0xb08c22)); st.position.set(i * 1.3, 0, 0.43); st.rotation.z = 0.5; mesh.add(st); } }
+    if (s.visual === 'coro') {
+      for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(s.r * 1.25, 0.12, 6, 14), new THREE.MeshBasicMaterial({ color: 0x57e6e0 })); ring.rotation.x = Math.PI / 2; ring.position.y = -s.h / 2 + 4 + i * 3.4; mesh.add(ring); coroRings.push(ring); }
+    }
+    if (s.visual === 'crate') { const lid = new THREE.Mesh(new THREE.BoxGeometry(s.size[0] * 1.04, 0.08, s.size[2] * 1.04), wood); lid.position.y = s.size[1] / 2; mesh.add(lid); }
+    if (s.visual === 'ravine') {
+      // borda de pedra para o abismo ler como abismo
+      for (const sz of [-1, 1]) { const lip = new THREE.Mesh(new THREE.BoxGeometry(s.size[0], 0.3, 0.55), rockMat); lip.position.set(0, 0.12, sz * (s.size[2] / 2 - 0.1)); mesh.add(lip); }
+    }
+  }
+  // corrimãos da passarela (visuais)
+  for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 0.1), woodDark); post.position.set(8 + sx * 1.0, 0.5, -11.5 + k * 1.4); group.add(post);
+  }
+  for (const sx of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 5.8), woodDark); rail.position.set(8 + sx * 1.0, 0.95, -9); group.add(rail); }
+
+  // ---------- passarela: tábuas que cedem ----------
+  const planks = [];
+  const bridgeGroup = new THREE.Group(); group.add(bridgeGroup);
+  for (let i = 0; i < 12; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.42), wood); p.position.set(8, 0.02, -11.7 + i * 0.5); p.castShadow = true; bridgeGroup.add(p); planks.push(p);
+  }
+  const collapse = { t: -1 };
+  const startCollapse = () => { if (collapse.t < 0) collapse.t = 0; };
+  updaters.push((t, dt) => {
+    if (collapse.t < 0) return;
+    collapse.t += dt;
+    for (let i = 4; i < 8; i++) { const p = planks[i], k = Math.min(1, collapse.t / 0.9); p.position.y = 0.02 - k * 0.45 * (1 + (i % 2) * 0.4); p.rotation.z = (i % 2 ? 1 : -1) * k * 0.35; p.rotation.x = k * 0.2; }
+  });
+
+  // ---------- árvores (InstancedMesh + colisores) ----------
+  const trees = [];
+  const nearStruct = (x, z) => data.structures.some((s) => s.kind === 'box' && Math.abs(x - s.pos[0]) < s.size[0] / 2 + 2 && Math.abs(z - s.pos[1]) < s.size[2] / 2 + 2);
+  for (let attempt = 0; attempt < 2600 && trees.length < 190; attempt++) {
+    const x = rng.range(bx0 + 2, bx1 - 2), z = rng.range(bz0 + 2, bz1 - 2);
+    if (z > 33) continue;
+    if (data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 1.7)) continue;
+    if (data.clearings.some((c) => Math.hypot(x - c.pos[0], z - c.pos[1]) < c.r)) continue;
+    if (nearStruct(x, z)) continue;
+    if (trees.some((t) => Math.hypot(x - t.x, z - t.z) < 3.4)) continue;
+    trees.push({ x, z, r: rng.range(0.32, 0.55), h: rng.range(7, 11), lean: rng.range(-0.05, 0.05), tone: rng.next() });
+  }
+  const trunkGeo = new THREE.CylinderGeometry(0.7, 1, 1, 6), canopyGeo = new THREE.ConeGeometry(1, 1, 7);
+  const trunks = new THREE.InstancedMesh(trunkGeo, mat(0x3f2f22), trees.length);
+  const canopyA = new THREE.InstancedMesh(canopyGeo, mat(0x1d3d24), trees.length);
+  const canopyB = new THREE.InstancedMesh(canopyGeo, mat(0x264a2a), trees.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+  trees.forEach((t, i) => {
+    e.set(t.lean, 0, t.lean * 0.6); q.setFromEuler(e);
+    ps.set(t.x, t.h / 2, t.z); sc.set(t.r, t.h, t.r); m4.compose(ps, q, sc); trunks.setMatrixAt(i, m4);
+    ps.set(t.x, t.h * 0.72, t.z); sc.set(2.6 + t.tone * 0.9, t.h * 0.55, 2.6 + t.tone * 0.9); m4.compose(ps, q, sc); canopyA.setMatrixAt(i, m4);
+    ps.set(t.x, t.h * 0.98, t.z); sc.set(1.9 + t.tone * 0.6, t.h * 0.42, 1.9 + t.tone * 0.6); m4.compose(ps, q, sc); canopyB.setMatrixAt(i, m4);
+    world.addCyl(`tree_${i}`, t.x, t.z, t.r * 0.85, t.h, 0, ['move', 'bullet', 'camera']);
+  });
+  for (const m of [trunks, canopyA, canopyB]) { m.castShadow = true; m.frustumCulled = false; group.add(m); }
+
+  // ---------- folhagem rasteira (reduzível por qualidade; sem colisão) ----------
+  const bushCountMax = 420;
+  const bushes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.7, 0), mat(0x2e5a2f), bushCountMax);
+  let placed = 0;
+  for (let a = 0; a < 3000 && placed < bushCountMax; a++) {
+    const x = rng.range(bx0 + 1, bx1 - 1), z = rng.range(bz0 + 1, bz1 - 1);
+    if (z > 33 || data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 0.4) || nearStruct(x, z)) continue;
+    const s = rng.range(0.5, 1.3);
+    ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc); bushes.setMatrixAt(placed++, m4);
+  }
+  bushes.count = placed; bushes.userData.max = placed; group.add(bushes);
+
+  // ---------- pistas ambientais ----------
+  const clawMat = mat(0x2a1612);
+  for (const [cx, cz] of data.clawMarks) for (let k = -1; k <= 1; k++) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.9), clawMat); c.position.set(cx + k * 0.18, 0.05, cz); c.rotation.y = 0.5 + k * 0.08; group.add(c);
+  }
+  const tape = mat(0xff7a1a, { emissive: 0x7a2f00 });
+  for (const [rx, rz] of data.ribbons) {
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.7, 5), woodDark); st.position.set(rx, 0.85, rz); group.add(st);
+    const ta = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.03), tape); ta.position.set(rx + 0.15, 1.55, rz); ta.rotation.y = 0.7; group.add(ta);
+  }
+  // símbolo de abrigo (placa) perto do início da trilha oeste
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.05), mat(0xe8dcc0, { emissive: 0x2a2418 })); sign.position.set(-16.5, 1.7, 12.6); sign.rotation.y = 0.6; group.add(sign);
+  const signPost = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.8, 5), woodDark); signPost.position.set(-16.5, 0.9, 12.6); group.add(signPost);
+
+  // ---------- luzes, névoa, chuva ----------
+  const hemi = new THREE.HemisphereLight(0x5c7f90, 0x1a2418, 0.95); group.add(hemi);
+  const moon = new THREE.DirectionalLight(0x9db9d4, 0.85); moon.position.set(-20, 40, 14); moon.castShadow = false; group.add(moon); group.add(moon.target);
+  const flash = new THREE.SpotLight(0xfff1d0, 0, 34, 0.5, 0.65, 1.2); group.add(flash); group.add(flash.target);
+
+  const RAIN = 520;
+  const rainGeo = new THREE.BufferGeometry(); const rp = new Float32Array(RAIN * 3);
+  for (let i = 0; i < RAIN; i++) { rp[i * 3] = (rng.next() - 0.5) * 36; rp[i * 3 + 1] = rng.next() * 18; rp[i * 3 + 2] = (rng.next() - 0.5) * 36; }
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+  const rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0x9fc4d6, size: 0.07, transparent: true, opacity: 0.55, depthWrite: false }));
+  rain.frustumCulled = false; group.add(rain);
+
+  const vrng = createRng(9001);              // aleatoriedade SÓ visual (relâmpagos), fora da simulação
+  const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
+
+  const api = {
+    group, meshes, fadeMats, trees, beaconLamp, gateMesh, coroRings, planks,
+    startCollapse,
+    setBeaconPowered(on) { if (beaconLamp) beaconLamp.material.color.setHex(on ? 0x38e07a : 0xd92d2d); },
+    setGateOpen(open, instant) { if (gateMesh) { gateMesh.userData.target = open ? 3.8 : 0; if (instant) gateMesh.position.y = 1.8 + gateMesh.userData.target; } },
+    setReduceFlash(v) { light.reduceFlash = v; },
+    setQuality(qc) {
+      bushes.count = Math.floor(bushes.userData.max * qc.foliage);
+      rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
+      moon.castShadow = qc.shadows;
+      if (qc.shadows) {
+        if (moon.shadow.mapSize.x !== qc.shadowMap) { moon.shadow.mapSize.set(qc.shadowMap, qc.shadowMap); moon.shadow.map?.dispose(); moon.shadow.map = null; }
+        const sc = moon.shadow.camera; sc.left = -26; sc.right = 26; sc.top = 26; sc.bottom = -26; sc.near = 1; sc.far = 110; sc.updateProjectionMatrix(); moon.shadow.bias = -0.0008;
+      }
+      group.userData.q = qc;
+    },
+    /** Pulsos da torre CORO: 3 pulsos – pausa – 3 pulsos. */
+    coroPattern: { active: false, t: 0 },
+    update(t, dt, camPos, camDir, playerPos) {
+      for (const u of updaters) u(t, dt);
+      // portão
+      if (gateMesh && gateMesh.userData.target !== undefined) {
+        const base = 1.8, tgt = base + gateMesh.userData.target; gateMesh.position.y += (tgt - gateMesh.position.y) * Math.min(1, dt * 1.6);
+      }
+      // chuva segue a câmera
+      if (rain.visible) {
+        const a = rainGeo.attributes.position; rain.position.set(camPos.x, camPos.y - 6, camPos.z);
+        for (let i = 0; i < RAIN; i++) { let y = a.getY(i) - dt * 14; if (y < 0) y += 18; a.setY(i, y); }
+        a.needsUpdate = true;
+      }
+      // relâmpago
+      light.next -= dt;
+      if (light.next <= 0) { light.flashT = 0; light.next = vrng.range(16, 34); }
+      let boost = 0;
+      if (light.flashT >= 0) { light.flashT += dt; const f = light.flashT; boost = (f < 0.08 ? 1 : f < 0.16 ? 0.15 : f < 0.26 ? 0.8 : 0) * (light.reduceFlash ? 0.25 : 1); if (f > 0.4) light.flashT = -1; if (f < 0.02 && api.onLightning) api.onLightning(); }
+      hemi.intensity = light.hemiBase + boost * 1.5; moon.intensity = 0.85 + boost * 1.4;
+      // lanterna e lua seguem o jogador
+      moon.position.set(playerPos.x - 20, 40, playerPos.z + 14); moon.target.position.set(playerPos.x, 0, playerPos.z);
+      flash.position.set(camPos.x, camPos.y, camPos.z); flash.target.position.set(camPos.x + camDir.x * 10, camPos.y + camDir.y * 10, camPos.z + camDir.z * 10);
+      // torre CORO
+      const cp = api.coroPattern;
+      let on = 0.35 + 0.15 * Math.sin(t * 2);
+      if (cp.active) {
+        cp.t += dt; const cycle = cp.t % 3.6;                // 3 pulsos (0–1.5s), pausa, 3 pulsos
+        const pulse = (cycle < 1.5 && Math.floor(cycle / 0.5) % 2 === 0) || (cycle > 2.1 && cycle < 3.6 && Math.floor((cycle - 2.1) / 0.5) % 2 === 0);
+        on = pulse ? 1 : 0.1;
+      }
+      for (const r of coroRings) r.material.color.setRGB(0.2 * on + 0.1, 0.9 * on, 0.88 * on);
+    },
+    setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
+    dispose() { group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
+  };
+  api.onLightning = null;
+  return api;
+}
