@@ -202,7 +202,13 @@ export function buildScenery({ world, data, quality }) {
       api.onUpdate?.(t, dt);
     },
     setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
-    dispose() { group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
+    dispose() {
+      group.traverse((o) => {
+        o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
+        if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
+      });
+      rainGeo.dispose();
+    },
   };
   api.onLightning = null;
   return api;

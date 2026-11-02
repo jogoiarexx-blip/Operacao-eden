@@ -87,6 +87,12 @@ export function completeTomasDefense(save) {
   return save;
 }
 
+/** Checkpoint automático ao abrir o portão do pátio (pura, idempotente): morrer na defesa volta para cá, não ao início. */
+export function markYardCheckpoint(save) {
+  save.checkpointId = 'yard_open'; save.checkpoint = { pos: [...data.yardCheckpoint.pos], yaw: data.yardCheckpoint.yaw };
+  return save;
+}
+
 // ---------------------------------------------------------------- spawns fora da visão
 function visibleFromCamera(g, x, z) {
   const yawC = g.camera.yaw, hfov = 2 * Math.atan(Math.tan((g.camera.fov * Math.PI) / 360) * g.camera.aspect);
@@ -300,33 +306,49 @@ function buildProps({ scene, data: d, scenery }) {
     setLeaf(id, open, instant, up = 3.6) { const L = leaves[id]; if (!L) return; L.target = open ? up : 0; if (instant) L.m.position.y = L.base + L.target; if (id === 'yard_gate_leaf') { this._yard = open; yardLamp?.material.color.setHex(open ? 0x38e07a : 0xffb347); } },
     dropGate() { drop.t = 0; },
     setGatePanel(st, live) { if (gateLamp) gateLamp.material.color.setHex(!live ? 0x333333 : st.ready ? 0x38e07a : 0xffb347); },
-    setTomas({ retreat = false, working = false, visible = true } = {}) {
+    setTomas({ retreat = false, working = false, visible = true, at = null, instant = false } = {}) {
       tomas.visible = visible; T.working = working;
-      const p = retreat ? d.tomas.retreat : d.tomas.pos; T.tx = p[0]; T.tz = p[1];
+      const p = at ?? (retreat ? d.tomas.retreat : d.tomas.pos); T.tx = p[0]; T.tz = p[1];
+      if (instant) { T.x = p[0]; T.z = p[1]; tomas.position.set(T.x, 0, T.z); }
     },
     update(dt, t = 0) { for (const u of updaters) u(t, dt); },
     dispose() { (scenery?.group ?? scene).remove(group); group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
   };
 }
 
-// ---------------------------------------------------------------- cutscenes provisórias (a Task 8 substitui)
+// ---------------------------------------------------------------- cutscenes
 const dlgSec = (id) => (lines[id] ?? []).reduce((s, l) => s + l.ms, 0) / 1000;
+const sstep = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+const mix = (a, b, k) => a + (b - a) * k;
+/** Foco da câmera na abertura: portão trancado por dentro → sinalizadores vermelhos → Caio na brecha. */
+export function introShot(t, dur) {
+  const [sx, sz] = data.spawn.pos, fl = data.flares[0], k1 = sstep(0.28 * dur, 0.5 * dur, t), k2 = sstep(0.62 * dur, 0.84 * dur, t);
+  const pos = [mix(-3, 5, k1) + t * 0.02, mix(1.8, 1.5, k1), mix(38, 37, k1)];
+  const tgt = [mix(mix(0, fl[0], k1), sx, k2), mix(mix(2.3, 0.3, k1), 1.2, k2), mix(mix(28, fl[1], k1), sz, k2)];
+  return { pos, tgt };
+}
 const cutscenes = {
   intro: {
     dur: dlgSec('ch02_intro_radio') + 0.6,
     start(g) { g.dialogue.play('ch02_intro_radio'); g.player.teleport(data.spawn.pos[0], data.spawn.pos[1], data.spawn.yaw); g.playerView.root.visible = true; },
     update(g, c, dt) {
-      const cam = g.threeCam, t = c.t, [sx, sz] = data.spawn.pos;
-      cam.position.set(sx - 4 + t * 0.12, 2.2, sz + 4.5); cam.lookAt(sx, 1.0, sz - 6); cam.fov = 62; cam.updateProjectionMatrix();
+      const cam = g.threeCam, s = introShot(c.t, c.dur);
+      cam.position.set(...s.pos); cam.lookAt(...s.tgt); cam.fov = 62; cam.updateProjectionMatrix();
       g.playerView.sync(1, dt, 1);
     },
   },
   ending: {
-    dur: 8,
-    start(g) { g.props.setTomas({ working: false }); },
-    update(g, c) {
-      const cam = g.threeCam, a = c.t * 0.16;
-      cam.position.set(Math.cos(a + 1.2) * 16, 7 + c.t * 0.2, -15 + Math.sin(a + 1.2) * 16); cam.lookAt(0, 1.5, -18); cam.fov = 60; cam.updateProjectionMatrix();
+    dur: dlgSec('ch02_noite_branca') + 0.8,
+    start(g) {
+      const [ex, ez] = data.exitCheckpoint.pos;
+      g.props.setTomas({ at: [ex - 1.6, ez + 0.4], instant: true, working: false });
+      g.player.teleport(ex, ez, data.exitCheckpoint.yaw); g.playerView.root.visible = true;
+      g.dialogue.play('ch02_noite_branca');
+    },
+    update(g, c, dt) {
+      const cam = g.threeCam, [ex, ez] = data.exitCheckpoint.pos, a = 0.9 + c.t * 0.05, r = 6.2 - c.t * 0.04;
+      cam.position.set(ex - 0.8 + Math.cos(a) * r, 1.7 + c.t * 0.01, ez + 0.4 + Math.sin(a) * r); cam.lookAt(ex - 0.8, 1.45, ez + 0.4); cam.fov = 58; cam.updateProjectionMatrix();
+      g.playerView.sync(1, dt, 1);
     },
   },
 };
@@ -394,7 +416,7 @@ export default {
     // vitória sobre o K-1
     if (!STORY(save, 'k1_defeated') && save.persistentWorldFlags.defeatedEnemies.includes('k1')) {
       rt.flag('k1_defeated'); g.props.setLeaf('exit_gate', true); g.world.setEnabled('exit_gate', false);
-      g.audio.play('gate'); g.dialogue.play('ch02_noite_branca'); g.hud.toast('K-1 neutralizado. O portão de serviço norte foi liberado.', 'good');
+      g.audio.play('gate'); g.hud.toast('K-1 neutralizado. O portão de serviço norte foi liberado.', 'good');
     }
     // painel do portão de carga: luz pronto/carregando; recarga restante gravada no estado do capítulo
     const live = STORY(save, 'tomas_found') && !STORY(save, 'k1_defeated') && STORY(save, 'outpost_generator');
@@ -452,7 +474,9 @@ export default {
       case 'yard_gate_panel':
         if (!canOpenYard(save)) { deny('Painel recusa: o cercado K-1 ainda se comunica com o pátio. Tranque o cercado (painel a oeste) antes de abrir.'); return true; }
         rt.flag('yard_open'); g.props.setLeaf('yard_gate_leaf', true); g.world.setEnabled('yard_gate_leaf', false); g.audio.play('gate');
-        g.hud.toast('Portão do pátio aberto.', 'good');
+        g.syncSaveFromRuntime(); markYardCheckpoint(save); g.syncRuntimeFromSave();
+        g.checkpointSnap = JSON.stringify(g._snapshotForCheckpoint());           // checkpoint automático yard_open (antes da defesa de Tomás)
+        g.hud.toast('Portão do pátio aberto. Checkpoint: pátio.', 'good');
         return true;
       case 'archive_door': startDefense(rt); return true;
       case 'gate_drop': useGate(rt); return true;

@@ -15,6 +15,7 @@ import { drawMap } from './ui/MapView.js';
 import { Dialogue } from './gameplay/Dialogue.js';
 import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
 import { getChapter, CHAPTER_IDS } from './chapters/index.js';
+import { advanceToChapter, nextChapterId, exitCheckpoint } from './gameplay/ChapterTransition.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -183,6 +184,9 @@ export class Game {
     return {
       menu() { if (!g.sm.is(S.MAIN_MENU)) g.sm.go(S.MAIN_MENU); g.hud.hide(); g.appEl.classList.remove('playing'); g.setScreen(Screens.mainMenu(g, { hasSave: g.hasSave })); },
       difficulty() { g.sm.go(S.DIFFICULTY_SELECT); g.setScreen(Screens.difficultyScreen(g, g.profile)); },
+      /** Oferta de dificuldade no início do capítulo seguinte (aumentar é permitido aqui). */
+      nextChapterDifficulty() { g.setScreen(Screens.difficultyScreen(g, g.profile, { current: g.save.difficulty.current, label: `Iniciar Capítulo ${String(g.chapterNumber + 1).padStart(2, '0')}`, onConfirm: (id) => g.startChapter(nextChapterId(g.chapterId), { difficultyId: id }), onBack: () => g.ui.results() })); },
+      results() { if (g._results) g.setScreen(Screens.resultsScreen(g, g._results)); },
       async loadSlots() { const metas = await Promise.all([0, 1, 2, 3].map(async (n) => (await g.saveManager.meta(n)) ?? { slot: n, empty: true })); metas.forEach((m, i) => { m.slot = i; }); g.setScreen(Screens.loadScreen(g, metas)); },
       extras() { if (g.sm.is(S.MAIN_MENU, S.BENCH_RESULTS, S.BENCHMARK)) g.sm.go(S.EXTRAS); g.setScreen(Screens.extrasScreen(g, { records: g.records.data, profile: g.profile })); },
       options(back) { if (g.sm.is(S.MAIN_MENU, S.PAUSED)) { g._optBack = g.sm.state; g.sm.go(S.OPTIONS); } g.setScreen(Screens.optionsScreen(g, () => { if (g.sm.is(S.OPTIONS)) g.sm.go(g._optBack); back(); })); },
@@ -207,6 +211,21 @@ export class Game {
     this.camera.preferredSide = this.settings.shoulder; this.camera.sideCur = this.settings.shoulder === 'right' ? 1 : -1;
     this.stats = new RunStats({ objectivesTotal: this.chapterDef.data.objectives.length });
     this._startRun(true);
+    this.startCutscene('intro');
+  }
+  /**
+   * Avança a campanha para o capítulo `id` a partir do save atual (tela de resultados → Continuar):
+   * `advanceToChapter`, dificuldade opcional (início de capítulo novo), autosave no slot 0 e cutscene `intro`.
+   */
+  async startChapter(id, { difficultyId = null } = {}) {
+    this.audio.ensure(); this.audio.play('ui');
+    await this._loading();
+    const s = advanceToChapter(this.save, id);
+    if (difficultyId) difficulty.change(s, difficultyId, { newChapterStart: true });
+    this.save = s;
+    this.stats = new RunStats({ objectivesTotal: getChapter(id).data.objectives.length });
+    this._startRun(true);
+    try { this.syncSaveFromRuntime(); await this.saveManager.save(0, this.save); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.startCutscene('intro');
   }
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
@@ -376,10 +395,11 @@ export class Game {
     const eligibility = computeEligibility(s, { debug: this.debugUsed });
     s.chapterStats[cid] = { maxChain: st.maxChain, activeSeconds: Math.round(st.activeSeconds), deaths: st.deaths, score: score.total, grade: score.grade };
     const rec = await this.records.submit({ runId: s.runId, attempt: 0, chapterId: cid, difficulty: s.difficulty.current, protagonist: s.playerId, mode: s.runRules.mode, assists: this.settings.assist, score: score.total, grade: score.grade, time: st.activeSeconds, eligibility, eventsDigest: { k: st.kills, cc: st.ccEarned, ch: st.maxChain, d: Math.round(st.damageTaken) } });
-    s.checkpointId = 'chapter_complete'; s.checkpoint = { pos: [0, -38], yaw: 0 };
+    s.checkpointId = 'chapter_complete'; s.checkpoint = exitCheckpoint(this.chapterDef.data);
     try { await this.saveManager.save(0, s); await this.saveManager.saveProfile(this.profile); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.sm.go(S.CHAPTER_COMPLETE); this.hud.hide(); this.appEl.classList.remove('playing'); this.input.setEnabled(false); this.input.unlock();
-    this.setScreen(Screens.resultsScreen(this, { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length }));
+    this._results = { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length, chapterNumber: this.chapterNumber, title: this.chapterDef.data.title, nextChapter: nextChapterId(cid) };
+    this.setScreen(Screens.resultsScreen(this, this._results));
   }
 
   // ---------------------------------------------------------------- cutscenes
@@ -683,7 +703,7 @@ export class Game {
       press: (code) => { this.input._press(code); }, release: (code) => { this.input._release(code); },
       hold: (code, ms) => { this.input._press(code); setTimeout(() => this.input._release(code), ms); },
       skip: () => this.skipCutscene(),
-      /** Começa um capítulo direto (ex.: `startChapter('ch02')` → Caio no Posto Norte). Provisório até a transição da Task 8. */
+      /** Atalho de depuração: começa um capítulo direto (ex.: `startChapter('ch02')` → Caio no Posto Norte), sem passar pelo Cap. 01. */
       startChapter: async (id = 'ch02', difficultyId = 'standard') => {
         this.audio.ensure(); await this._loading();
         const d = getChapter(id).data, s = createNewSave({ slot: 1, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });

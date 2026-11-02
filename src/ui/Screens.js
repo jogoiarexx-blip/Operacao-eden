@@ -3,6 +3,7 @@ import { ACTION_LABELS, QUALITY, DEFAULT_BINDINGS, keyLabel } from '../core/Sett
 import { difficulty } from '../gameplay/DifficultyManager.js';
 import { DOSSIER_IDS, getDossier } from '../gameplay/SecretManager.js';
 import docs from '../data/documents.json';
+import { getCharacter } from '../gameplay/Characters.js';
 
 /** Telas de menu (DOM/CSS). Cada função devolve um elemento <div.screen>. */
 const btn = (label, onclick, cls = '', extra = {}) => h(`button${cls ? '.' + cls : ''}`, { onclick, ...extra }, label);
@@ -24,10 +25,11 @@ export function mainMenu(game, { hasSave }) {
       h('p.dim.small', { style: { marginTop: '26px' } }, 'R0 + R1 · Capítulo 01 — O Sinal na Mata · jogo original, inspirado apenas em convenções de gênero')));
 }
 
-export function difficultyScreen(game, profile) {
-  let sel = 'standard';
+/** `opts` (início de capítulo novo): { current, label, onConfirm(id), onBack() } — reaproveita as mesmas cartas. */
+export function difficultyScreen(game, profile, opts = null) {
+  let sel = opts?.current ?? 'standard';
   const cards = h('div.grid2');
-  const confirm = btn('Iniciar Capítulo 01', () => game.newCampaign(sel), 'primary');
+  const confirm = btn(opts?.label ?? 'Iniciar Capítulo 01', () => (opts ? opts.onConfirm(sel) : game.newCampaign(sel)), 'primary');
   const render = () => {
     cards.replaceChildren(...difficulty.list().map((p) => {
       const locked = !difficulty.isUnlocked(p.id, profile);
@@ -40,13 +42,13 @@ export function difficultyScreen(game, profile) {
   render();
   return h('div.screen.solid.fade-in', h('div.panel', h('h2', 'Dificuldade'),
     h('p.dim', 'Pressão, disponibilidade de recursos e padrões — nunca barras de vida infladas. A história e as pistas são idênticas. Reduzir a dificuldade em um terminal é sempre permitido (o ranking daquela execução passa a “Livre”).'),
-    cards, h('div.row', { style: { marginTop: '16px' } }, confirm, btn('Voltar', () => game.ui.menu()))));
+    cards, h('div.row', { style: { marginTop: '16px' } }, confirm, btn('Voltar', () => (opts ? opts.onBack() : game.ui.menu())))));
 }
 
 export function loadScreen(game, metas) {
   return h('div.screen.solid.fade-in', h('div.panel.narrow', h('h2', 'Carregar jogo'),
     ...metas.map((m) => h('div.card', { style: { marginBottom: '8px' } },
-      h('div.row.between', h('b', m.slot === 0 ? 'Autosave' : `Slot ${m.slot}`), m.corrupted ? h('span.red', 'corrompido') : m.empty ? h('span.dim', 'vazio') : h('span.dim.small', `${m.chapterId?.toUpperCase()} · ${m.difficulty} · ${fmtTime(m.playtimeSeconds ?? 0)}`)),
+      h('div.row.between', h('b', m.slot === 0 ? 'Autosave' : `Slot ${m.slot}`), m.corrupted ? h('span.red', 'corrompido') : m.empty ? h('span.dim', 'vazio') : h('span.dim.small', `${m.chapterId?.toUpperCase()} · ${m.playerId ? getCharacter(m.playerId).name + ' · ' : ''}${m.difficulty} · ${fmtTime(m.playtimeSeconds ?? 0)}`)),
       m.empty || m.corrupted ? null : h('div.row', { style: { marginTop: '8px' } }, btn('Carregar', () => game.loadSlot(m.slot), 'primary'), btn('Exportar JSON', () => game.exportSlot(m.slot)), btn('Apagar', () => game.deleteSlot(m.slot), 'danger')))),
     h('div.row', { style: { marginTop: '10px' } },
       h('label.small', 'Importar JSON: ', h('input', { type: 'file', accept: '.json,application/json', onchange: (e) => game.importFile(e.target.files?.[0]) })),
@@ -132,7 +134,9 @@ export function journalScreen(game, { save, profile }, back) {
     h('div.row', { style: { marginTop: '12px' } }, btn('Voltar', back, 'primary'))));
 }
 
+const LATER = { 2: 'Capítulo 03 chega no marco R4 do roteiro.' };
 export function resultsScreen(game, r) {
+  const nextNum = String((r.chapterNumber ?? 1) + 1).padStart(2, '0');
   const rows = [
     ['Tempo ativo', fmtTime(r.stats.activeSeconds)], ['Precisão', `${Math.round(r.stats.accuracy * 100)}%`], ['Dano sofrido', Math.round(r.stats.damageTaken)],
     ['Mortes/tentativas', `${r.stats.deaths}`], ['Maior cadeia', `x${r.stats.maxChain}`], ['Contra-ataques', r.stats.counters],
@@ -141,14 +145,16 @@ export function resultsScreen(game, r) {
   const det = h('div.hidden', h('h3', 'Detalhamento da nota'), h('table.stats', ...Object.entries(r.score.parts).map(([k, v]) => h('tr', h('td', { objectives: 'Objetivos', survival: 'Sobrevivência', combat: 'Domínio de combate', efficiency: 'Eficiência', exploration: 'Exploração' }[k]), h('td', v.toFixed(1))))),
     h('p.dim.small', `Versão de pontuação ${r.score.scoringVersion}. Segredos não são necessários para a nota S. Modo de ranking: ${r.eligibility === 'classified' ? 'Classificado' : 'Livre/Personalizado'}${r.newBest ? ' · novo recorde!' : ''}`));
   return h('div.screen.solid.fade-in', h('div.panel',
-    h('div.row.between', h('div', h('h2', 'Capítulo 01 concluído'), h('p.dim', 'O Sinal na Mata')), h('div', { style: { textAlign: 'center' } }, h('div.grade', r.score.grade), h('div.dim.small', `${r.score.total}/100`))),
+    h('div.row.between', h('div', h('h2', `Capítulo ${String(r.chapterNumber ?? 1).padStart(2, '0')} concluído`), h('p.dim', r.title ?? 'O Sinal na Mata')), h('div', { style: { textAlign: 'center' } }, h('div.grade', r.score.grade), h('div.dim.small', `${r.score.total}/100`))),
     h('table.stats', ...rows.map(([a, b]) => h('tr', h('td', a), h('td', b)))),
     det,
     h('div.row', { style: { marginTop: '16px' } },
-      btn('Continuar — Capítulo 02', () => {}, 'primary', { disabled: true, title: 'Capítulo 02 (Caio) chega no marco R2 do roteiro.' }),
+      r.nextChapter
+        ? btn(`Continuar — Capítulo ${nextNum}`, () => game.ui.nextChapterDifficulty(), 'primary')
+        : btn(`Continuar — Capítulo ${nextNum}`, () => {}, 'primary', { disabled: true, title: LATER[r.chapterNumber ?? 1] ?? `Capítulo ${nextNum} chega em um marco futuro do roteiro.` }),
       btn('Ver detalhes', (e) => { det.classList.toggle('hidden'); e.target.textContent = det.classList.contains('hidden') ? 'Ver detalhes' : 'Ocultar detalhes'; }),
       btn('Menu principal', () => game.quitToMenu())),
-    h('p.dim.small', 'Progresso gravado no Autosave. O Capítulo 02 faz parte do próximo marco do roteiro (R2).')));
+    h('p.dim.small', r.nextChapter ? 'Progresso gravado no Autosave. Ao continuar, você pode ajustar a dificuldade do próximo capítulo.' : `Progresso gravado no Autosave. ${LATER[r.chapterNumber ?? 1] ?? ''}`)));
 }
 
 export function benchIntro(game) {

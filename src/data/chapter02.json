@@ -145,6 +145,8 @@
   ],
  "tomas": {"pos": [11, -28.7], "retreat": [11, -29.5], "yaw": 0},
  "preK1": {"pos": [11, -27.2], "yaw": 3.14},
+ "yardCheckpoint": {"pos": [0, -6.5], "yaw": 3.14},
+ "exitCheckpoint": {"pos": [26, -37], "yaw": 0},
  "encounters": [
    {"id": "ch02_court_r4", "title": "Corredor no pátio de serviço", "enemies": [
      {"id": "r4_court", "type": "forest_runner", "pos": [-4, 16], "patrol": [[-4, 16], [-8, 22], [2, 22], [4, 8]]}

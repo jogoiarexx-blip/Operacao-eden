@@ -12,6 +12,7 @@
   44
  ],
  "treeSeed": 1042,
+ "exitCheckpoint": {"pos": [0, -38], "yaw": 0},
  "spawn": {
   "id": "south_entry",
   "pos": [

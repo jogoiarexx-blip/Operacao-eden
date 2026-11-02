@@ -1,5 +1,5 @@
 import weapons from '../data/weapons.json';
-import { newInventory } from './Characters.js';
+import { newInventory, getCharacter } from './Characters.js';
 
 export const SCHEMA_VERSION = 5;
 export const SCORING_VERSION = 1;
@@ -12,7 +12,7 @@ export function createNewSave({ slot = 1, profileId = 'local_profile_01', diffic
     schemaVersion: SCHEMA_VERSION, slot, runId,
     chapterId: 'ch01', sectorId: 'jungle_north_01', checkpointId: 'start', checkpoint: { pos: [0, 36], yaw: 0 },
     playerId: 'lia',
-    health: { lia: 100, caio: 100 }, bleeding: { lia: false, caio: false },
+    health: { lia: getCharacter('lia').maxHp, caio: getCharacter('caio').maxHp }, bleeding: { lia: false, caio: false },
     credits: 0,
     economyLedger: { credits: 0, claimedRewardIds: [], claimedEncounterIds: [], purchaseIds: [], respawnPaid: {}, totalEarned: 0, totalSpent: 0 },
     secretFlags: {}, secretMeta: {}, storySecrets: [], dossiersInRun: [], documents: [], journal: [],

@@ -1,0 +1,25 @@
+// Transição Cap. 01 → Cap. 02 pela tela de resultados (?debug=1): Continuar → dificuldade → intro → Caio com escopeta e 120 HP.
+import { chromium } from 'playwright';
+const URL = process.env.URL || 'http://localhost:4177/?debug=1';
+const SHOT = process.env.SHOT_DIR || '.';
+const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const pg = await b.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+pg.on('pageerror', (e) => errs.push('PAGEERR ' + e.message));
+const ev = (fn, arg) => pg.evaluate(fn, arg);
+const S = () => ev(() => { const g = window.__game; return { st: g.sm.state, ch: g.chapterId, pl: g.save?.playerId, w: g.player.weaponId, hp: g.player.hp, hpSave: g.save?.health, cp: g.save?.checkpointId, diff: g.save?.difficulty?.current, cc: g.ledger?.credits, ch01: g.save?.chapterStats?.ch01?.grade, cine: g.cine ? [g.cine.kind, +g.cine.t.toFixed(1), +g.cine.dur.toFixed(1)] : null }; });
+const step = async (n, fn) => { try { console.log(n, JSON.stringify(await fn())); } catch (e) { errs.push(n + ' THREW ' + e.message); console.log(n, 'THREW', e.message); } };
+await pg.goto(URL); await pg.waitForTimeout(2000);
+await pg.click('text=Novo jogo'); await pg.waitForTimeout(500); await pg.click('text=Iniciar Capítulo 01'); await pg.waitForTimeout(1500);
+await ev(() => window.__eden.skip()); await pg.waitForTimeout(1500);
+await step('finish-ch01', async () => { await ev(() => { window.__eden.giveCC(777); window.__game.player.hp = 33; window.__game.finishChapter(); }); await pg.waitForTimeout(500); await ev(() => window.__eden.skip()); await pg.waitForFunction(() => window.__game.sm.state === 'CHAPTER_COMPLETE', null, { timeout: 15000 }); await pg.waitForTimeout(500); await pg.screenshot({ path: SHOT + '/t8-results-ch01.png' }); return { ...(await S()), btn: await ev(() => { const bt = [...document.querySelectorAll('button')].find((x) => x.textContent.startsWith('Continuar')); return [bt.textContent, bt.disabled]; }) }; });
+await step('continue-click', async () => { await pg.click('text=Continuar — Capítulo 02'); await pg.waitForTimeout(500); await pg.screenshot({ path: SHOT + '/t8-difficulty.png' }); return { title: await ev(() => document.querySelector('h2')?.textContent), confirm: await ev(() => [...document.querySelectorAll('button')].map((x) => x.textContent).filter((t) => /Iniciar|Voltar/.test(t))) }; });
+await step('pick-veteran+start', async () => { await pg.click('text=Veterano').catch(() => {}); await pg.click('text=Iniciar Capítulo 02'); await pg.waitForFunction(() => window.__game.sm.state === 'CUTSCENE', null, { timeout: 15000 }); await pg.waitForTimeout(3000); await pg.screenshot({ path: SHOT + '/t8-intro-a.png' }); return S(); });
+await step('intro-mid', async () => { await ev(() => { window.__game.cine.t = 11; }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-intro-b.png' }); await ev(() => { window.__game.cine.t = 19; }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-intro-c.png' }); return S(); });
+await step('intro-end', async () => { await ev(() => window.__eden.skip()); await pg.waitForFunction(() => window.__game.sm.state === 'PLAYING', null, { timeout: 8000 }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-playing-caio.png' }); return S(); });
+await step('autosave+slots', async () => { await ev(() => window.__game.ui.loadSlots?.()); const meta = await ev(async () => { const m = await window.__game.saveManager.meta(0); return m; }); return { meta }; });
+await step('ending-ch02', async () => { await ev(() => { window.__eden.god(true); const g = window.__game; g.save.storyFlags.k1_defeated = true; g.finishChapter(); }); await pg.waitForTimeout(1500); await ev(() => { window.__game.cine.t = 6; }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-ending.png' }); return S(); });
+await step('results-ch02', async () => { await ev(() => window.__eden.skip()); await pg.waitForFunction(() => window.__game.sm.state === 'CHAPTER_COMPLETE', null, { timeout: 15000 }); await pg.waitForTimeout(500); await pg.screenshot({ path: SHOT + '/t8-results-ch02.png' }); return { cp: await ev(() => window.__game.save.checkpoint), btn: await ev(() => { const bt = [...document.querySelectorAll('button')].find((x) => x.textContent.startsWith('Continuar')); return [bt.textContent, bt.disabled, bt.title]; }) }; });
+console.log('ERRS', errs.slice(0, 10));
+await b.close();
