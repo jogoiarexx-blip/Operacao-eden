@@ -716,6 +716,19 @@ export class Game {
         this.stats = new RunStats({ objectivesTotal: d.objectives.length });
         this._startRun(true); this.startCutscene('intro');
       },
+      /** Encerra o capítulo atual (cutscene de saída → resultados). */
+      finishChapter: () => { mark(); this.finishChapter(); },
+      /** Vai a um checkpoint: `goto('ch02','pre_k1')` = defesa de Tomás concluída, K-1 em jogo; `goto(id)` reinicia o capítulo. */
+      goto: async (id = 'ch02', cp = 'start') => {
+        mark();
+        if (!this.sm.is(S.PLAYING) || this.chapterId !== id) { await window.__eden.startChapter(id); this.skipCutscene(); }
+        if (cp === 'pre_k1' && id === 'ch02') {
+          const m = await import('./chapters/ch02.js'); this.syncSaveFromRuntime(); m.completeTomasDefense(this.save);
+          this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint()); await this.retry(false);
+        }
+      },
+      /** Derruba o chefe vivo (K-1). */
+      killBoss: () => { mark(); const ctx = this.aiCtx(); for (const a of this.liveAgents()) if (a.species?.boss) a.takeDamage(99999, 'torso', ctx); },
     };
   }
 }

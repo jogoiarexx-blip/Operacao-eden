@@ -7,7 +7,7 @@ export const DEFAULT_BINDINGS = {
 export const ACTION_LABELS = {
   forward: 'Andar para frente', back: 'Andar para trás', left: 'Andar à esquerda', right: 'Andar à direita', run: 'Corrida',
   aim: 'Mirar', fire: 'Atirar', dodge: 'Esquivar', reload: 'Recarregar', interact: 'Interagir', swap: 'Trocar ombro',
-  utility: 'Ferramenta elétrica', turn180: 'Meia-volta', map: 'Mapa', inventory: 'Diário/Inventário', medkit: 'Usar kit médico', hemo: 'Usar hemostático', pause: 'Pausa', weapon1: 'Arma 1 (pistola)', weapon2: 'Arma 2 (escopeta)',
+  utility: 'Ferramenta (elétrica da Lia · impacto do Caio)', turn180: 'Meia-volta', map: 'Mapa', inventory: 'Diário/Inventário', medkit: 'Usar kit médico', hemo: 'Usar hemostático', pause: 'Pausa', weapon1: 'Arma 1 (pistola)', weapon2: 'Arma 2 (escopeta)',
 };
 export const DEFAULTS = {
   version: 1, sensX: 1, sensY: 1, invertY: false, fovOffset: 0, shoulder: 'right',
