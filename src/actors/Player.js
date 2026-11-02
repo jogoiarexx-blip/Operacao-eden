@@ -1,5 +1,6 @@
 import { clamp, damp, wrapAngle } from '../core/math.js';
 import { WEAPONS, UTILITY } from '../gameplay/GameState.js';
+import { getCharacter, activeInventory } from '../gameplay/Characters.js';
 
 /**
  * Lia — lógica do jogador (sem THREE). Movimento relativo à câmera, strafe ao mirar, esquiva com i-frames,
@@ -15,7 +16,7 @@ export class Player {
     this.world = world;
     this.x = 0; this.z = 36; this.px = 0; this.pz = 36;       // atual e anterior (interpolação)
     this.vx = 0; this.vz = 0; this.yaw = 0; this.pYaw = 0;
-    this.hp = 100; this.maxHp = 100; this.bleeding = false; this._bleedT = 0; this.dead = false;
+    this.hp = 100; this.maxHp = 100; this.dmgMult = 1; this.dodgeCdS = DODGE_CD; this.bleeding = false; this._bleedT = 0; this.dead = false;
     this.aiming = false; this.sprinting = false; this.moving = false; this.speed = 0;
     this.dodgeT = -1; this.dodgeCd = 0; this.dodgeDir = { x: 0, z: -1 }; this.dodgeBuf = 0; this.dodgeId = 0;
     this.fireBuf = 0; this.fireCd = 0; this.reloadT = -1; this.lastFireT = -99; this.utilityCd = 0;
@@ -33,14 +34,15 @@ export class Player {
   teleport(x, z, yaw = this.yaw) { this.x = this.px = x; this.z = this.pz = z; this.yaw = this.pYaw = yaw; this.vx = this.vz = 0; this.dodgeT = -1; this.reloadT = -1; this.using = null; }
 
   loadFromSave(save) {
-    const inv = save.inventory;
+    const inv = activeInventory(save), ch = getCharacter(save.playerId);
+    this.maxHp = ch.maxHp; this.dmgMult = ch.damageTakenMult; this.dodgeCdS = ch.dodgeCdS;
     this.weaponId = inv.equipped; this.upgrades = [...inv.upgrades];
     this.mag = inv.weapons[this.weaponId]?.mag ?? 0; this.reserve = inv.ammoReserve[this.weaponId] ?? 0;
     this.hp = save.health[save.playerId]; this.bleeding = !!save.bleeding[save.playerId];
     this.infiniteAmmo = !!save.runRules.infiniteAmmo; this.dead = this.hp <= 0;
   }
   writeToSave(save) {
-    const inv = save.inventory;
+    const inv = activeInventory(save);
     inv.equipped = this.weaponId; inv.weapons[this.weaponId] = { mag: this.mag }; inv.ammoReserve[this.weaponId] = this.reserve;
     save.health[save.playerId] = Math.round(this.hp); save.bleeding[save.playerId] = this.bleeding;
   }
@@ -56,6 +58,7 @@ export class Player {
 
   takeDamage(amount, simMs, bleedChance = 0, rngVal = 1) {
     if (this.dead || this.invulnerable || amount <= 0) return 0;
+    amount = Math.max(1, Math.round(amount * this.dmgMult));
     if (this.upgrades.includes('vest_1')) amount = Math.max(1, Math.round(amount * 0.85));
     this.hp = Math.max(0, this.hp - amount); this.hurtT = 0.35;
     if (rngVal < bleedChance) this.bleeding = true;
@@ -90,7 +93,7 @@ export class Player {
       return ev;
     }
     if (this.dodgeBuf > 0 && this.dodgeCd <= 0 && !this.using) {
-      this.dodgeBuf = 0; this.dodgeT = 0; this.dodgeCd = DODGE_CD; this.dodgeId++;
+      this.dodgeBuf = 0; this.dodgeT = 0; this.dodgeCd = this.dodgeCdS; this.dodgeId++;
       const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
       let dx = fx * input.moveY + rx * input.moveX, dz = fz * input.moveY + rz * input.moveX;
       const l = Math.hypot(dx, dz);

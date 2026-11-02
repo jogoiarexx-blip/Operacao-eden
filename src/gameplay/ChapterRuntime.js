@@ -8,6 +8,7 @@ import { CreatureView } from '../actors/CreatureView.js';
 import { claimSecret, hint, discover, CollectibleManager, getDossier } from './SecretManager.js';
 import { difficulty } from './DifficultyManager.js';
 import { WEAPONS } from './GameState.js';
+import { activeInventory } from './Characters.js';
 import { keyLabel } from '../core/Settings.js';
 
 /** Lógica do Capítulo 01 — O Sinal na Mata: encontros, pickups, interações, zonas, objetivos, tutoriais, flags. */
@@ -61,7 +62,7 @@ export class ChapterRuntime {
       for (const e of alive) g.spawnAgent(e, enc.id);
     }
     g.scenery.setBeaconPowered(STORY(save, 'beacon_repaired'));
-    g.scenery.setGateOpen(this.wf.gateOpen, true); g.world.setEnabled('gate_leaf', !this.wf.gateOpen);
+    g.scenery.setGateOpen(this.wf.chapter.ch01.gateOpen, true); g.world.setEnabled('gate_leaf', !this.wf.chapter.ch01.gateOpen);
     if (this.wf.bridgeCollapsed) g.scenery.startCollapse();
     g.scenery.coroPattern.active = false;
   }
@@ -102,7 +103,7 @@ export class ChapterRuntime {
     }
     this.interactions(dt, simMs, inp);
     this.objectives();
-    if (this.wf.gateOpen && STORY(save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z) && !this.exiting) { this.exiting = true; g.finishChapter(); }
+    if (this.wf.chapter.ch01.gateOpen && STORY(save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z) && !this.exiting) { this.exiting = true; g.finishChapter(); }
     // animação de pickups
     for (const k of this.pickups) k.mesh.rotation.y += dt * 0.5;
   }
@@ -176,7 +177,7 @@ export class ChapterRuntime {
     else if (n.type === 'gate_panel') {
       if (!STORY(g.save, 'beacon_repaired')) { g.hud.toast('Painel sem energia: religue a baliza primeiro.', 'warn'); g.audio.play('deny'); }
       else if (!STORY(g.save, 'recon_found')) { g.hud.toast('Sem sinal verde do grupo de reconhecimento: ouça o rádio do acampamento antes.', 'warn'); g.audio.play('deny'); }
-      else { this.flag('outpost_access'); this.wf.gateOpen = true; g.scenery.setGateOpen(true); g.world.setEnabled('gate_leaf', false); g.audio.play('gate'); g.dialogue.play('ch01_gate_open'); }
+      else { this.flag('outpost_access'); this.wf.chapter.ch01.gateOpen = true; g.scenery.setGateOpen(true); g.world.setEnabled('gate_leaf', false); g.audio.play('gate'); g.dialogue.play('ch01_gate_open'); }
     }
   }
   repairBeacon() {
@@ -190,7 +191,7 @@ export class ChapterRuntime {
     const g = this.g, save = g.save, p = k.def; g.syncSaveFromRuntime();
     let taken = true, msg = '';
     const ammoScale = (n) => difficulty.ammoPickup(n, save.difficulty.current);
-    const inv = save.inventory;
+    const inv = activeInventory(save);
     const capAmmo = (w) => { const cap = WEAPONS[w]?.reserveCap ?? 999; inv.ammoReserve[w] = Math.min(cap, inv.ammoReserve[w] ?? 0); };
     const capCons = (c) => { inv.consumables[c] = Math.min(5, inv.consumables[c] ?? 0); };
     if (p.kind === 'supplies') {

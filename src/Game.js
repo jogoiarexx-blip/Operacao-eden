@@ -31,6 +31,7 @@ import { difficulty } from './gameplay/DifficultyManager.js';
 import { purchase } from './gameplay/ShopSystem.js';
 import { SaveManager } from './gameplay/SaveManager.js';
 import { createNewSave, WEAPONS, UTILITY } from './gameplay/GameState.js';
+import { activeInventory } from './gameplay/Characters.js';
 import { RunStats, scoreChapter } from './gameplay/ScoringSystem.js';
 import { RecordBook } from './gameplay/RecordBook.js';
 import { CollectibleManager } from './gameplay/SecretManager.js';
@@ -195,7 +196,7 @@ export class Game {
     this.coordinator.setMax(this.diffPreset.maxContactAttackers); this.coordinator.clear();
     this.ledger = new EconomyLedger(s.economyLedger);
     this.combo?.dispose();
-    this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => this.save.inventory.upgrades.includes('chain_module') });
+    this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => activeInventory(this.save).upgrades.includes('chain_module') });
     if (s.stats) { this.stats = new RunStats(s.stats); this.combo.style.restore(this.stats.style); this.combo.chain.maxCount = this.stats.maxChain; }
     this.stats.objectivesTotal = chapterData.objectives.length;
     this.simMs = 0; this.deathAt = null; this.mapOpen = false; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
@@ -287,7 +288,7 @@ export class Game {
   }
   drawMapInto(cv) {
     const susp = this.save.secretFlags.SEC_01 ? [this.chapter.suspiciousCenter] : [];
-    drawMap(cv, { data: chapterData, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: chapterData.terminals, gateOpen: this.save.persistentWorldFlags.gateOpen });
+    drawMap(cv, { data: chapterData, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: chapterData.terminals, gateOpen: this.save.persistentWorldFlags.chapter.ch01.gateOpen });
   }
   quitToMenu() {
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
@@ -411,7 +412,7 @@ export class Game {
     const p = this.player, tick = this.loop.tick; this.simMs += dt * 1000;
     const inp = this.input.snapshot();
     this.noises.length = 0;
-    const evs = p.step(dt, this.simMs, inp, this.camera.yaw, this.save.inventory.consumables);
+    const evs = p.step(dt, this.simMs, inp, this.camera.yaw, activeInventory(this.save).consumables);
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
     const nr = p.noiseRadius(); if (nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
@@ -437,7 +438,7 @@ export class Game {
       case 'dodge': this.audio.play('lunge', p.x, p.z); break;
       case 'itemStart': this.audio.play('ui'); break;
       case 'itemUsed': {
-        const c = this.save.inventory.consumables; c[e.kind] = Math.max(0, (c[e.kind] ?? 0) - 1); if (e.kind !== 'hemostatic') this.stats.healsUsed++;
+        const c = activeInventory(this.save).consumables; c[e.kind] = Math.max(0, (c[e.kind] ?? 0) - 1); if (e.kind !== 'hemostatic') this.stats.healsUsed++;
         this.hud.toast(e.kind === 'hemostatic' ? 'Sangramento estancado.' : 'Vida recuperada.', 'good'); this.audio.play('pickup'); break;
       }
       case 'itemDenied': this.hud.toast(`Não é possível: ${e.reason}`, 'warn'); this.audio.play('deny'); break;
@@ -528,7 +529,7 @@ export class Game {
     const p = this.player, cam = this.camera, w = p.weapon, hud = this.hud;
     const muzzle = p.muzzle(cam.yaw), live = this.liveAgents();
     const retic = reticleState({ world: this.world, enemies: live, camera: cam, muzzle, weapon: w });
-    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), fov: cam.fov, reticle: retic, consumables: this.save.inventory.consumables, infinite: p.infiniteAmmo }, frameDt);
+    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), fov: cam.fov, reticle: retic, consumables: activeInventory(this.save).consumables, infinite: p.infiniteAmmo }, frameDt);
     const ch = this.combo.chain;
     hud.setChain(ch.count, ch.remainingMs(this.simMs), ch.windowMs, ch.count >= 10 ? 'EXTINÇÃO' : ch.count >= 6 ? 'IMPLACÁVEL' : ch.count >= 4 ? 'PREDADOR' : 'CADEIA', this.settings.hideComboHud);
     const obj = this.chapter.currentObjective(); hud.setObjective(obj ? obj.text : 'Capítulo concluído.');
