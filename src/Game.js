@@ -154,7 +154,7 @@ export class Game {
     if (this.sm.is(S.CUTSCENE) && (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space')) { this.skipCutscene(); return; }
     if (this.sm.is(S.BENCHMARK) && e.code === 'Escape') { this.bench.collector.cancel(); return; }
     if (this.sm.is(S.SHOP) && e.code === 'Escape') { this.closeTerminal(); return; }
-    if (this.sm.is(S.PAUSED) && (e.code === 'Escape') && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { this.resume(); }
+    if (this.sm.is(S.PAUSED) && !e.repeat && (e.code === 'Escape' || (this.mapOpen && e.code === this.settings.bindings.map)) && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { this.resume(); }
   }
 
   // ---------------------------------------------------------------- UI helpers
@@ -284,7 +284,7 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', 'Mapa — Selva Norte'), cv, h('p.dim.small', 'Losango = objetivo · “?” = área suspeita (aproximada) · clique ou M para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', 'Mapa — Selva Norte'), cv, h('p.dim.small', 'Losango = objetivo · quadrados = terminais · “?” = área suspeita · toque no mapa ou use a tecla de mapa para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {

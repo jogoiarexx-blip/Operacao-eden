@@ -73,3 +73,26 @@ describe('progressão completa do capítulo', () => {
     chapter.step(.016, 1416, {}); expect(g.finishChapter).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('continuidade do cenário e dos encontros', () => {
+  it('restaura as tábuas quando uma nova tentativa volta a um ponto anterior à queda', async () => {
+    const { buildScenery } = await import('../src/world/SectorScenery.js');
+    const { CollisionWorld } = await import('../src/world/CollisionWorld.js');
+    const { chapterData } = await import('../src/gameplay/ChapterRuntime.js');
+    const scene = buildScenery({ world: new CollisionWorld(chapterData.bounds), data: chapterData, quality: 'low' });
+    scene.startCollapse(); scene.update(1, 1, { x: 0, y: 2, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, z: 0 });
+    expect(scene.planks[4].position.y).toBeLessThan(0);
+    scene.resetCollapse(); expect(scene.planks[4].position.y).toBeCloseTo(.02);
+    expect(scene.planks[4].rotation.z).toBe(0);
+    scene.dispose();
+  });
+  it('restaura o predador já encontrado em um ponto seguro mesmo quando os pontos distantes estão bloqueados', () => {
+    const g = { player: { x: 0, z: 0 }, rng: { next: () => .5 }, camera: { yaw: 0, fov: 60, aspect: 1, pos: { x: 0, y: 1, z: 0 } },
+      save: { persistentWorldFlags: {} }, world: { blockedAt: (x) => x > 20, segmentBlocked: () => false },
+      spawnAgent: vi.fn(() => ({ setState() {} })) };
+    const chapter = new ChapterRuntime(g);
+    const enemy = { spawnCandidates: [[30, 0], [12, 0]] };
+    expect(chapter._spawnLate({ id: 'enc' }, enemy, true)).toBe(true);
+    expect(g.spawnAgent.mock.calls[0][0].pos).toEqual([12, 0]);
+  });
+});

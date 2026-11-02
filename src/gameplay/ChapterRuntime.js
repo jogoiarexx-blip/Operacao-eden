@@ -43,7 +43,10 @@ export class ChapterRuntime {
     const g = this.g, save = g.save;
     this.dispose();
     this.group = new THREE.Group(); g.scene.add(this.group);
-    this.holdMs = 0; this.lateAt = null; this.pickups = []; this.lastZones = new Set();
+    // Um sinal leve indica o objetivo atual sem criar luzes adicionais.
+    this.marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.88, depthWrite: false }));
+    this.group.add(this.marker);
+    this.holdMs = 0; this.promptTarget = null; this.lateAt = null; this.pickups = []; this.lastZones = new Set();
     // pickups ainda não coletados
     for (const p of data.pickups) {
       if (this.wf.pickedUp.includes(p.id)) continue;
@@ -54,7 +57,7 @@ export class ChapterRuntime {
       const alive = enc.enemies.filter((e) => !this.wf.defeatedEnemies.includes(e.id));
       g.combo.registerEncounter(enc.id, alive.length, true);
       if (enc.late) {
-        if (alive.length && this.wf.lateSpawned) this._spawnLate(enc, alive[0], true);
+        if (alive.length && this.wf.lateSpawned && !this._spawnLate(enc, alive[0], true)) { this.wf.lateSpawned = false; this.wf.lateScheduled = true; this.lateAt = g.simMs + 2500; }
         else if (alive.length && this.wf.lateScheduled) this.lateAt = g.simMs + 2500;
         continue;
       }
@@ -62,6 +65,7 @@ export class ChapterRuntime {
     }
     g.scenery.setBeaconPowered(STORY(save, 'beacon_repaired'));
     g.scenery.setGateOpen(this.wf.gateOpen, true); g.world.setEnabled('gate_leaf', !this.wf.gateOpen);
+    g.scenery.resetCollapse();
     if (this.wf.bridgeCollapsed) g.scenery.startCollapse();
     g.scenery.coroPattern.active = false;
   }
@@ -102,6 +106,11 @@ export class ChapterRuntime {
     }
     this.interactions(dt, simMs, inp);
     this.objectives();
+    const target = this.objectiveTarget();
+    if (this.marker) {
+      this.marker.visible = !!target;
+      if (target) { this.marker.position.set(target.x, 2.5 + Math.sin(simMs / 450) * 0.22, target.z); this.marker.rotation.y = simMs / 900; }
+    }
     if (this.wf.gateOpen && STORY(save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z) && !this.exiting) { this.exiting = true; g.finishChapter(); }
     // animação de pickups
     for (const k of this.pickups) k.mesh.rotation.y += dt * 0.5;
@@ -155,7 +164,9 @@ export class ChapterRuntime {
   interactions(dt, simMs, inp) {
     const g = this.g, p = g.player, key = g.input.touchActive ? 'Interagir' : keyLabel(g.settings.bindings.interact);
     if (p.dead || p.dodging) { g.hud.setPrompt(null); this.holdMs = 0; return; }
-    const n = this.nearest(p); this.promptTarget = n;
+    const n = this.nearest(p);
+    if (this.promptTarget?.type === 'beacon' && n?.type !== 'beacon') this.holdMs = 0;
+    this.promptTarget = n;
     if (!n) { g.hud.setPrompt(null); this.holdMs = 0; return; }
     if (n.type === 'terminal') this.tutorial('tut_terminal');
     if (n.type === 'beacon') this.tutorial('tut_interact');
@@ -219,7 +230,7 @@ export class ChapterRuntime {
     const yawC = g.camera.yaw, hfov = 2 * Math.atan(Math.tan((g.camera.fov * Math.PI) / 360) * g.camera.aspect);
     for (const c of cands) {
       const d = dist(p.x, p.z, c.x, c.z);
-      if (d < 24) continue;
+      if (d < (restore ? 8 : 24)) continue;
       const ang = Math.abs(((Math.atan2(-(c.x - g.camera.pos.x), -(c.z - g.camera.pos.z)) - yawC + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
       const visible = ang < hfov / 2 + 0.25;
       const hidden = !visible || g.world.segmentBlocked(g.camera.pos.x, g.camera.pos.y, g.camera.pos.z, c.x, 1.0, c.z, 'bullet');

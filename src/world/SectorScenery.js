@@ -121,6 +121,7 @@ export function buildScenery({ world, data, quality }) {
   }
   const collapse = { t: -1 };
   const startCollapse = () => { if (collapse.t < 0) collapse.t = 0; };
+  const resetCollapse = () => { collapse.t = -1; for (const p of planks) { p.position.y = 0.02; p.rotation.set(0, 0, 0); } };
   updaters.push((t, dt) => {
     if (collapse.t < 0) return;
     collapse.t += dt;
@@ -196,7 +197,7 @@ export function buildScenery({ world, data, quality }) {
 
   const api = {
     group, meshes, fadeMats, trees, beaconLamp, gateMesh, coroRings, planks,
-    startCollapse,
+    startCollapse, resetCollapse,
     setBeaconPowered(on) { if (beaconLamp) beaconLamp.material.color.setHex(on ? 0x38e07a : 0xd92d2d); },
     setGateOpen(open, instant) { if (gateMesh) { gateMesh.userData.target = open ? 3.8 : 0; if (instant) gateMesh.position.y = 1.8 + gateMesh.userData.target; } },
     setReduceFlash(v) { light.reduceFlash = v; },
