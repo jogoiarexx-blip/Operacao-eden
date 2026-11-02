@@ -7,6 +7,7 @@ export class Hud {
     this.root = root; this.timers = [];
     this.vig = h('div#vignette'); this.threatsEl = h('div#threats');
     this.objText = h('div', ''); this.objective = h('div#hud-objective.hud-box', h('b', 'Objetivo'), this.objText);
+    this.nav = h('div#hud-nav'); this.objective.append(this.nav);
     this.hpFill = h('i'); this.hpBar = h('div.hpbar', this.hpFill); this.hpText = h('span'); this.bleed = h('span.red', '');
     this.items = h('div.small.dim');
     this.vitals = h('div#hud-vitals.hud-box', h('div.row.between', h('span', 'VIDA'), this.hpText), this.hpBar, h('div.row.between', this.items, this.bleed));
@@ -25,6 +26,14 @@ export class Hud {
   hide() { this.root.classList.add('hidden'); }
   setObjective(text) { if (text !== this._lastObj) { this.objText.textContent = text; this._lastObj = text; } }
 
+  setNavigation(target, player, yaw, done, total) {
+    if (!target) { this.nav.textContent = ''; return; }
+    const dx = target.x - player.x, dz = target.z - player.z;
+    const angle = Math.atan2(-dx, -dz) - yaw;
+    const arrows = ['↑', '↖', '←', '↙', '↓', '↘', '→', '↗'];
+    const arrow = arrows[((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8];
+    this.nav.textContent = `${arrow} ${Math.round(Math.hypot(dx, dz))} m em linha reta · Etapa ${Math.min(done + 1, total)}/${total}`;
+  }
   update(v, dt) {
     this.hpFill.style.width = `${Math.max(0, (v.hp / v.maxHp) * 100)}%`;
     this.hpBar.classList.toggle('low', v.hp / v.maxHp < 0.3);
