@@ -5,6 +5,9 @@ import { DinosaurAgent, AI, AttackCoordinator } from '../src/actors/DinosaurAgen
 import { WEAPONS } from '../src/gameplay/GameState.js';
 import { createRng } from '../src/core/rng.js';
 import { CollisionWorld } from '../src/world/CollisionWorld.js';
+import { loadSettings, DEFAULT_BINDINGS } from '../src/core/Settings.js';
+import { createNewSave } from '../src/gameplay/GameState.js';
+import { activeInventory } from '../src/gameplay/Characters.js';
 import bestiary from '../src/data/bestiary.json';
 
 const IN = { moveX: 0, moveY: 0, run: false, aim: false, firePressed: false, fireHeld: false, dodgePressed: false, reloadPressed: false, utilityPressed: false, medkitPressed: false, hemoPressed: false };
@@ -100,5 +103,46 @@ describe('escopeta', () => {
     expect(shouldInterrupt(WEAPONS.shotgun, { dist: 8, pellets: 8 }, false)).toBe(false);
     expect(shouldInterrupt(WEAPONS.shotgun, { dist: 4, pellets: 5 }, true)).toBe(false);
     expect(shouldInterrupt(WEAPONS.shotgun, { dist: 4, pellets: 6 }, true)).toBe(true);
+  });
+
+  it('dodge cancela recarga por cartucho mantendo cartuchos inseridos', () => {
+    const p = shotgunPlayer(2, 10);
+    runFor(p, 16, { ...IN, reloadPressed: true });
+    runFor(p, 250 + 520 - 16 + 30);
+    expect(p.mag).toBe(3);
+    const evs = runFor(p, 16, { ...IN, dodgePressed: true });
+    expect(evs.some((e) => e.type === 'reloadCancelled')).toBe(true);
+    expect(p.reloading).toBe(false); expect(p.mag).toBe(3); expect(p.reserve).toBe(9);
+  });
+
+  it('munição concedida a arma não equipada sobrevive a writeToSave/loadFromSave', () => {
+    const save = createNewSave(); save.playerId = 'caio';
+    const inv = activeInventory(save);
+    expect(inv.equipped).toBe('shotgun');
+    const p = new Player(mkWorld()); p.loadFromSave(save);
+    expect(p.switchWeapon('pistol')).toBe(true);
+    p.writeToSave(save);
+    const pistolBefore = inv.ammoReserve.pistol, shotBefore = inv.ammoReserve.shotgun;
+    inv.ammoReserve.shotgun += 6;                         // pickup/compra da arma não equipada
+    p.loadFromSave(save);                                 // fluxo real: syncRuntimeFromSave
+    p.writeToSave(save);
+    expect(inv.ammoReserve.shotgun).toBe(shotBefore + 6);
+    expect(inv.ammoReserve.pistol).toBe(pistolBefore);
+    expect(inv.equipped).toBe('pistol');
+  });
+});
+
+describe('migração de teclas', () => {
+  const store = (o) => ({ getItem: () => JSON.stringify(o) });
+  it('configurações antigas movem kit/hemostático para 3/4', () => {
+    const s = loadSettings(store({ bindings: { medkit: 'Digit1', hemo: 'Digit2', fire: 'Mouse0' } }));
+    expect(s.bindings.medkit).toBe('Digit3'); expect(s.bindings.hemo).toBe('Digit4');
+    expect(s.bindings.weapon1).toBe('Digit1'); expect(s.bindings.weapon2).toBe('Digit2');
+  });
+  it('configurações novas e remapeamentos do jogador são preservados', () => {
+    const s = loadSettings(store({ bindings: { ...DEFAULT_BINDINGS, medkit: 'KeyZ' } }));
+    expect(s.bindings.medkit).toBe('KeyZ');
+    const t = loadSettings(store({ bindings: { ...DEFAULT_BINDINGS, weapon1: 'Digit1', medkit: 'Digit1' } }));
+    expect(t.bindings.medkit).toBe('Digit1');
   });
 });

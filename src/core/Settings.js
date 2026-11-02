@@ -21,8 +21,17 @@ export const QUALITY = {
   high: { label: 'Alto', dpr: 2.0, shadows: true, shadowMap: 2048, foliage: 1.0, rain: true, flashlight: true, fogFar: 92, far: 180 },
 };
 const KEY = 'eden.settings.v1';
+/** Migração: configurações antigas (sem weapon1/weapon2) tinham kit médico/hemostático em 1/2; move para 3/4 para não colidir com as armas. */
+export function migrateBindings(saved) {
+  const b = { ...DEFAULT_BINDINGS, ...(saved ?? {}) };
+  if (saved && !('weapon1' in saved) && !('weapon2' in saved)) {
+    if (b.medkit === 'Digit1') b.medkit = DEFAULT_BINDINGS.medkit;
+    if (b.hemo === 'Digit2') b.hemo = DEFAULT_BINDINGS.hemo;
+  }
+  return b;
+}
 export function loadSettings(storage = globalThis.localStorage) {
-  try { const raw = storage?.getItem(KEY); if (raw) { const o = JSON.parse(raw); return { ...DEFAULTS, ...o, bindings: { ...DEFAULT_BINDINGS, ...(o.bindings ?? {}) } }; } } catch { /* sem storage */ }
+  try { const raw = storage?.getItem(KEY); if (raw) { const o = JSON.parse(raw); return { ...DEFAULTS, ...o, bindings: migrateBindings(o.bindings) }; } } catch { /* sem storage */ }
   return structuredClone(DEFAULTS);
 }
 export function saveSettings(s, storage = globalThis.localStorage) { try { storage?.setItem(KEY, JSON.stringify(s)); } catch { /* ignora */ } }

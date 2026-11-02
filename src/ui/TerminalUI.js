@@ -1,3 +1,4 @@
+import { keyLabel } from '../core/Settings.js';
 import { h, fmtNum } from './dom.js';
 import { SHOP_ITEMS, SHOP_TABS, itemState, ERROR_TEXT } from '../gameplay/ShopSystem.js';
 import { difficulty, ORDER } from '../gameplay/DifficultyManager.js';
@@ -88,7 +89,7 @@ export class TerminalUI {
     const g = this.game, s = g.save, p = g.player, inv = activeInventory(s);
     body.append(h('h3', 'Arma equipada'), h('div.card', h('b', WEAPONS[inv.equipped].name), h('p.small.dim', `Carregador ${p.mag}/${p.magSize} · Reserva ${p.reserve} · Dano ${WEAPONS[inv.equipped].damage} (cabeça ×${WEAPONS[inv.equipped].headMult})`)),
       h('h3', 'Suprimentos'), h('div.grid2', ...[['medkit', 'Kit médico'], ['medkit_adv', 'Kit médico avançado'], ['hemostatic', 'Hemostático']].map(([k, n]) => h('div.card', h('b', n), h('div.dim', `x${inv.consumables[k] ?? 0}`)))),
-      h('p.dim.small', 'Uso em campo: kit médico [1] · hemostático [2] (teclas configuráveis em Opções).'),
+      h('p.dim.small', `Uso em campo: kit médico [${keyLabel(g.settings.bindings.medkit)}] · hemostático [${keyLabel(g.settings.bindings.hemo)}] (teclas configuráveis em Opções).`),
       h('h3', `Melhorias (${getCharacter(s.playerId).name})`), h('p.dim', inv.upgrades.length ? inv.upgrades.join(', ') : 'Nenhuma instalada.'));
   }
   _docs(body) {
