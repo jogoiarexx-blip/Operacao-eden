@@ -1,17 +1,14 @@
 import * as THREE from 'three';
-import data from '../data/chapter01.json';
 import bestiary from '../data/bestiary.json';
 import docs from '../data/documents.json';
 import secrets from '../data/secrets.json';
-import { DinosaurAgent, AI } from '../actors/DinosaurAgent.js';
-import { CreatureView } from '../actors/CreatureView.js';
-import { claimSecret, hint, discover, CollectibleManager, getDossier } from './SecretManager.js';
+import { claimSecret, discover, CollectibleManager, getDossier } from './SecretManager.js';
 import { difficulty } from './DifficultyManager.js';
 import { WEAPONS } from './GameState.js';
 import { activeInventory } from './Characters.js';
 import { keyLabel } from '../core/Settings.js';
 
-/** Lógica do Capítulo 01 — O Sinal na Mata: encontros, pickups, interações, zonas, objetivos, tutoriais, flags. */
+/** Runtime genérico de capítulo: encontros, pickups, interações, zonas, objetivos, tutoriais, flags. Lógica específica vive no script do capítulo (hooks). */
 const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 const inZone = (z, x, zz) => dist(x, zz, z.pos[0], z.pos[1]) <= z.r;
 const STORY = (save, f) => !!save.storyFlags[f];
@@ -31,17 +28,15 @@ function pickupMesh(p) {
 }
 
 export class ChapterRuntime {
-  constructor(game) {
-    this.g = game; this.data = data; this.pickups = []; this.holdMs = 0; this.promptTarget = null; this.lateAt = null;
+  constructor(game, { data, script }) {
+    this.g = game; this.data = data; this.script = script ?? {}; this.pickups = []; this.holdMs = 0; this.promptTarget = null; this.lateAt = null;
     this.group = new THREE.Group(); this.suspiciousCenter = null;
-    // centro exibido da área suspeita = verdadeiro + deslocamento fixo (nunca o ponto exato do segredo)
-    const z = data.zones.find((q) => q.id === 'suspicious_west'); this.suspiciousCenter = { x: z.pos[0] + 3.5, z: z.pos[1] - 2.5, r: z.r };
   }
   get wf() { return this.g.save.persistentWorldFlags; }
 
   /** (Re)constrói entidades dinâmicas conforme o save. */
   load() {
-    const g = this.g, save = g.save;
+    const g = this.g, data = this.data;
     this.dispose();
     this.group = new THREE.Group(); g.scene.add(this.group);
     this.holdMs = 0; this.lateAt = null; this.pickups = []; this.lastZones = new Set();
@@ -54,24 +49,17 @@ export class ChapterRuntime {
     for (const enc of data.encounters) {
       const alive = enc.enemies.filter((e) => !this.wf.defeatedEnemies.includes(e.id));
       g.combo.registerEncounter(enc.id, alive.length, true);
-      if (enc.late) {
-        if (alive.length && this.wf.lateSpawned) this._spawnLate(enc, alive[0], true);
-        else if (alive.length && this.wf.lateScheduled) this.lateAt = g.simMs + 2500;
-        continue;
-      }
+      if (enc.late) continue;      // encontro tardio: o script decide quando/como surge
       for (const e of alive) g.spawnAgent(e, enc.id);
     }
-    g.scenery.setBeaconPowered(STORY(save, 'beacon_repaired'));
-    g.scenery.setGateOpen(this.wf.chapter.ch01.gateOpen, true); g.world.setEnabled('gate_leaf', !this.wf.chapter.ch01.gateOpen);
-    if (this.wf.bridgeCollapsed) g.scenery.startCollapse();
-    g.scenery.coroPattern.active = false;
+    this.script.onLoad?.(this);
   }
   dispose() { if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
 
   labels() { const b = this.g.settings.bindings; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>` }; }
   tutorial(id) {
     if (this.wf.tutorialSeen.includes(id)) return;
-    const t = data.tutorials.find((x) => x.id === id); if (!t) return;
+    const t = this.data.tutorials.find((x) => x.id === id); if (!t) return;
     this.wf.tutorialSeen.push(id);
     const L = this.labels(); const html = t.text.replace(/\{(\w+)\}/g, (_, k) => L[k] ?? k);
     const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; this.g.hud.toasts.append(el); setTimeout(() => el.remove(), 5300);
@@ -81,62 +69,43 @@ export class ChapterRuntime {
 
   // ---------- passo de simulação ----------
   step(dt, simMs, inp) {
-    const g = this.g, p = g.player, save = g.save;
+    const p = this.g.player;
     // zonas
-    for (const z of data.zones) {
+    for (const z of this.data.zones) {
       const inside = inZone(z, p.x, p.z);
       if (inside && !this.lastZones.has(z.id)) { this.lastZones.add(z.id); this.onZoneEnter(z); }
       if (!inside) this.lastZones.delete(z.id);
     }
-    // tutorial inicial
-    if (simMs > 1500) this.tutorial('tut_look');
-    if (dist(p.x, p.z, 0, 36) > 3) this.tutorial('tut_aim');
-    // late spawn
-    if (!this.wf.lateScheduled && (this.wf.defeatedEnemies.includes('r4_a') || STORY(save, 'beacon_repaired'))) {
-      this.wf.lateScheduled = true; this.lateAt = simMs + 6000;
-    }
-    if (this.lateAt != null && simMs >= this.lateAt - 3500 && !this._roared) { this._roared = true; g.audio.play('roar', p.x + 40, p.z + 20); g.dialogue.play('ch01_second_roar'); }
-    if (this.lateAt != null && simMs >= this.lateAt) {
-      const enc = data.encounters.find((e) => e.late), ed = enc.enemies[0];
-      if (!this.wf.defeatedEnemies.includes(ed.id) && !this.wf.lateSpawned) { if (this._spawnLate(enc, ed, false)) this.lateAt = null; }
-      else this.lateAt = null;
-    }
+    this.script.step?.(this, dt, simMs, inp);
     this.interactions(dt, simMs, inp);
     this.objectives();
-    if (this.wf.chapter.ch01.gateOpen && STORY(save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z) && !this.exiting) { this.exiting = true; g.finishChapter(); }
+    if (!this.exiting && this.script.exitWhen?.(this)) { this.exiting = true; this.g.finishChapter(); }
     // animação de pickups
     for (const k of this.pickups) k.mesh.rotation.y += dt * 0.5;
   }
 
   onZoneEnter(z) {
-    const g = this.g, save = g.save, vz = this.wf.zonesVisited;
+    const vz = this.wf.zonesVisited;
     if (!vz.includes(z.id)) vz.push(z.id);
-    switch (z.id) {
-      case 'enter_zone_01': if (!this.wf.firstTracks) { this.wf.firstTracks = true; g.dialogue.play('ch01_first_tracks'); } break;
-      case 'tower_visited': this.tutorial('tut_shoulder'); break;
-      case 'suspicious_west': if (hint(save, 'SEC_01')) { g.hud.toast('Fitas laranja e um símbolo de abrigo apontam para o oeste — área suspeita registrada no mapa.', 'warn'); } break;
-      case 'bridge_cross': if (!this.wf.bridgeWarned && p0(g).z > -3) { this.wf.bridgeWarned = true; g.dialogue.play('ch01_passarela'); } break;
-      case 'bridge_mid': if (!this.wf.bridgeCollapsed) { this.wf.bridgeCollapsed = true; g.scenery.startCollapse(); g.audio.play('creak'); g.camera.shake(1.4); g.hud.toast('As tábuas cedem sob seus pés!', 'warn'); } break;
-      case 'terminal': break;
-      default: break;
-    }
+    this.script.onZoneEnter?.(this, z);
   }
 
   objectives() {
     const save = this.g.save, done = save.completedObjectives;
-    for (const o of data.objectives) {
+    for (const o of this.data.objectives) {
       if (done.includes(o.id)) continue;
       const w = o.doneWhen; let ok = false;
       if (w.zone) ok = this.wf.zonesVisited.includes(w.zone);
       if (w.flag) ok = STORY(save, w.flag);
+      if (w.flags) ok = w.flags.every((f) => STORY(save, f));
       if (ok) { done.push(o.id); this.g.hud.toast(`Objetivo concluído: ${o.text.split('.')[0]}`, 'good'); }
     }
   }
-  currentObjective() { return data.objectives.find((o) => !this.g.save.completedObjectives.includes(o.id)); }
+  currentObjective() { return this.data.objectives.find((o) => !this.g.save.completedObjectives.includes(o.id)); }
   objectiveTarget() {
     const o = this.currentObjective(); if (!o) return null;
-    const pt = { reach_tower: [-13, 18], repair_beacon: [10, 6], find_recon: [-6, -27], open_gate: [4.2, -37.6], exit_sector: [0, -42] }[o.id];
-    return pt ? { x: pt[0], z: pt[1] } : null;
+    if (o.target) return { x: o.target[0], z: o.target[1] };
+    return this.script.objectiveTarget?.(this, o.id) ?? null;
   }
 
   // ---------- interações ----------
@@ -144,13 +113,11 @@ export class ChapterRuntime {
     let best = null;
     const consider = (d, r, rec) => { if (d <= r && (!best || d < best.d)) best = { d, ...rec }; };
     for (const k of this.pickups) consider(dist(p.x, p.z, k.def.pos[0], k.def.pos[1]), 1.9, { type: 'pickup', k, label: `Pegar — ${k.def.label}` });
-    for (const it of data.interactables) {
-      if (it.kind === 'beacon' && STORY(this.g.save, 'beacon_repaired')) continue;
-      if (it.kind === 'recon_radio' && STORY(this.g.save, 'recon_found')) continue;
-      if (it.kind === 'gate_panel' && STORY(this.g.save, 'outpost_access')) continue;
+    for (const it of this.data.interactables) {
+      if (this.script.hideInteractable?.(this, it)) continue;
       consider(dist(p.x, p.z, it.pos[0], it.pos[1]), it.r, { type: it.kind, it, label: it.label });
     }
-    for (const t of data.terminals) consider(dist(p.x, p.z, t.pos[0], t.pos[1]), 2.3, { type: 'terminal', t, label: `Usar ${t.name}` });
+    for (const t of this.data.terminals) consider(dist(p.x, p.z, t.pos[0], t.pos[1]), 2.3, { type: 'terminal', t, label: `Usar ${t.name}` });
     return best;
   }
   interactions(dt, simMs, inp) {
@@ -159,13 +126,13 @@ export class ChapterRuntime {
     const n = this.nearest(p); this.promptTarget = n;
     if (!n) { g.hud.setPrompt(null); this.holdMs = Math.max(0, this.holdMs - dt * 2000); return; }
     if (n.type === 'terminal') this.tutorial('tut_terminal');
-    if (n.type === 'beacon') this.tutorial('tut_interact');
-    if (n.type === 'beacon') {
-      const hold = n.it.holdMs;
+    const hi = this.script.holdInteraction?.(this, n);
+    if (hi) {
+      const hold = hi.holdMs;
       if (inp.interactHeld && !p.using) {
         this.holdMs += dt * 1000;
         if (this.g.lastDamageAt > simMs - 120) this.holdMs = 0;
-        if (this.holdMs >= hold) { this.holdMs = 0; this.repairBeacon(); }
+        if (this.holdMs >= hold) { this.holdMs = 0; hi.onDone(); }
       } else this.holdMs = Math.max(0, this.holdMs - dt * 1500);
       g.hud.setPrompt(`<kbd>${key}</kbd> (segure) ${n.label}`, this.holdMs / hold); return;
     }
@@ -173,18 +140,7 @@ export class ChapterRuntime {
     if (!inp.interactPressed) return;
     if (n.type === 'pickup') this.collect(n.k);
     else if (n.type === 'terminal') g.openTerminal(n.t);
-    else if (n.type === 'recon_radio') { this.flag('recon_found'); g.dialogue.play('ch01_recon_radio'); g.hud.toast('Grupo de reconhecimento localizado.', 'good'); g.audio.play('ui'); }
-    else if (n.type === 'gate_panel') {
-      if (!STORY(g.save, 'beacon_repaired')) { g.hud.toast('Painel sem energia: religue a baliza primeiro.', 'warn'); g.audio.play('deny'); }
-      else if (!STORY(g.save, 'recon_found')) { g.hud.toast('Sem sinal verde do grupo de reconhecimento: ouça o rádio do acampamento antes.', 'warn'); g.audio.play('deny'); }
-      else { this.flag('outpost_access'); this.wf.chapter.ch01.gateOpen = true; g.scenery.setGateOpen(true); g.world.setEnabled('gate_leaf', false); g.audio.play('gate'); g.dialogue.play('ch01_gate_open'); }
-    }
-  }
-  repairBeacon() {
-    const g = this.g, save = g.save;
-    this.flag('beacon_repaired'); g.scenery.setBeaconPowered(true); g.audio.play('beacon');
-    if (!save.documents.includes('DOC_01')) { save.documents.push('DOC_01'); g.hud.toast(`Documento: ${docs.documents.DOC_01.title}`, 'good'); }
-    g.dialogue.play('ch01_beacon_revelation');
+    else this.script.onInteract?.(this, n);
   }
 
   collect(k) {
@@ -211,26 +167,5 @@ export class ChapterRuntime {
     this.wf.pickedUp.push(p.id); this.pickups = this.pickups.filter((x) => x !== k); this.group.remove(k.mesh);
     g.syncRuntimeFromSave(); g.hud.toast(msg, 'good'); g.audio.play('pickup');
   }
-
-  // ---------- spawn justo do segundo R-4 ----------
-  _spawnLate(enc, ed, restore) {
-    const g = this.g, p = g.player, rng = g.rng;
-    const cands = ed.spawnCandidates.map((c) => ({ x: c[0], z: c[1] })).sort(() => rng.next() - 0.5);
-    const yawC = g.camera.yaw, hfov = 2 * Math.atan(Math.tan((g.camera.fov * Math.PI) / 360) * g.camera.aspect);
-    for (const c of cands) {
-      const d = dist(p.x, p.z, c.x, c.z);
-      if (d < 24) continue;
-      const ang = Math.abs(((Math.atan2(-(c.x - g.camera.pos.x), -(c.z - g.camera.pos.z)) - yawC + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-      const visible = ang < hfov / 2 + 0.25;
-      const hidden = !visible || g.world.segmentBlocked(g.camera.pos.x, g.camera.pos.y, g.camera.pos.z, c.x, 1.0, c.z, 'bullet');
-      if ((restore || hidden) && !g.world.blockedAt(c.x, c.z, 0.6)) {
-        const a = g.spawnAgent({ ...ed, pos: [c.x, c.z], patrol: [] }, enc.id);
-        a.noiseTarget = { x: p.x, z: p.z }; a.setState(AI.INVESTIGATE);      // chega pelo som, sem teletransporte
-        this.wf.lateSpawned = true; return true;
-      }
-    }
-    return false;
-  }
 }
-const p0 = (g) => g.player;
-export { data as chapterData, bestiary, secrets };
+export { bestiary, secrets };

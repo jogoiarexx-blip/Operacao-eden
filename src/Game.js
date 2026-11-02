@@ -13,7 +13,9 @@ import * as Screens from './ui/Screens.js';
 import { TerminalUI } from './ui/TerminalUI.js';
 import { drawMap } from './ui/MapView.js';
 import { Dialogue } from './gameplay/Dialogue.js';
-import { ChapterRuntime, chapterData } from './gameplay/ChapterRuntime.js';
+import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
+import { getChapter } from './chapters/index.js';
+const chapterData = getChapter('ch01').data;
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -84,7 +86,7 @@ export class Game {
     this.saveManager = new SaveManager();
     this.records = await new RecordBook(this.saveManager.adapter).load().catch(() => new RecordBook(this.saveManager.adapter));
     this.profile = (await this.saveManager.loadProfile().catch(() => null)) ?? CollectibleManager.newProfile();
-    this.chapter = new ChapterRuntime(this);
+    this.chapter = new ChapterRuntime(this, getChapter('ch01'));
     this.terminalUI = new TerminalUI(this);
     this.ledger = new EconomyLedger(); this.save = null;
     this.diffPreset = { id: 'standard', ...difficulty.get('standard') };
@@ -348,7 +350,7 @@ export class Game {
     const s = this.save; this.combo.settleSector(s.sectorId); this.syncSaveFromRuntime();
     const st = this.stats, wf = s.persistentWorldFlags, z = new Set(wf.zonesVisited);
     st.objectivesDone = s.completedObjectives.length;
-    st.explorationVisited = ['tower_visited', 'beacon_area', 'east_trail', 'west_trail', 'recon_camp'].filter((n) => z.has(n)).concat(z.has('bridge_cross') || z.has('detour_cross') ? ['route_taken'] : []);
+    st.explorationVisited = this.chapter.script.explorationVisited(s);
     st.dossiersFound = s.dossiersInRun.length;
     const score = scoreChapter(st, 'ch01');
     const eligibility = computeEligibility(s, { debug: this.debugUsed });
