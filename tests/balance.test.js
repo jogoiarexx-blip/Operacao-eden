@@ -111,9 +111,15 @@ describe('câmera em espaço apertado', () => {
     for (let i = 0; i < 90; i++) cam.update(1 / 60, { lookX: 0, lookY: 0, aim: false }, { x: 0, y: 0, z: 30 });
     expect(Math.abs(cam.dist - 3.1)).toBeLessThan(0.05);
   });
-  it('parede a <0,6 m do lado do ombro troca de lado temporariamente', () => {
+  it('sem cameraZones (Cap. 01) não há troca automática de ombro', () => {
     const wall = { raycast: (ox, oy, oz, dx) => (dx > 0 ? { t: 0.5 } : null), sweepCamera: () => ({ hit: false, t: 99 }) };
     const cam = new ShoulderCameraController(wall);
+    for (let i = 0; i < 120; i++) cam.update(1 / 60, { lookX: 0, lookY: 0, aim: false }, { x: 0, y: 0, z: 0 });
+    expect(cam.side).toBe('right');
+  });
+  it('parede a <0,6 m do lado do ombro troca de lado temporariamente', () => {
+    const wall = { raycast: (ox, oy, oz, dx) => (dx > 0 ? { t: 0.5 } : null), sweepCamera: () => ({ hit: false, t: 99 }) };
+    const cam = new ShoulderCameraController(wall); cam.setZones([{ rect: [50, 50, 60, 60] }], []);   // capítulo com cameraZones
     for (let i = 0; i < 120; i++) cam.update(1 / 60, { lookX: 0, lookY: 0, aim: false }, { x: 0, y: 0, z: 0 });
     expect(cam.side).toBe('left'); expect(cam.preferredSide).toBe('right');
     const open = { raycast: () => null, sweepCamera: () => ({ hit: false, t: 99 }) };

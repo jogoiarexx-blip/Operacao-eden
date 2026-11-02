@@ -101,8 +101,8 @@ describe('Capítulo 02 — dados', () => {
     const levers = data.interactables.filter((i) => i.kind === 'heavy_lever');
     expect(levers).toHaveLength(2); for (const l of levers) expect(l.holdMs).toBe(2400);
     for (const k of ['crates_shed', 'radio_console', 'pen_lock', 'yard_gate_panel', 'archive_door', 'gate_drop']) expect(data.interactables.map((i) => i.id)).toContain(k);
-    for (const z of ['breach', 'generator_shed', 'radio_room', 'pen_area', 'yard', 'archive', 'service_road', 'truck', 'gate_zone', 'exit_trigger']) expect(data.zones.map((q) => q.id)).toContain(z);
-    expect(data.terminals.find((t) => t.id === 'terminal_b').checkpointId).toBe('terminal_B');
+    for (const z of ['breach', 'generator_shed', 'radio_room', 'pen_area', 'yard', 'archive', 'service_road', 'truck', 'gate_zone', 'north_service_exit']) expect(data.zones.map((q) => q.id)).toContain(z);
+    expect(data.terminals.find((t) => t.id === 'terminal_outpost_b').checkpointId).toBe('terminal_B2');
     expect(data.zones.some((z) => z.narrow)).toBe(true);
   });
 });

@@ -4,7 +4,7 @@ import lines from '../data/dialogues.json';
 import { AI } from '../actors/DinosaurAgent.js';
 import { GateTrap } from '../gameplay/GateTrap.js';
 import { EconomyLedger } from '../gameplay/EconomyLedger.js';
-import { activeInventory } from '../gameplay/Characters.js';
+import { activeInventory, getCharacter } from '../gameplay/Characters.js';
 import { WEAPONS } from '../gameplay/GameState.js';
 import { hint } from '../gameplay/SecretManager.js';
 
@@ -93,6 +93,13 @@ export function markYardCheckpoint(save) {
   return save;
 }
 
+/** Cópia do save para checkpoints automáticos (yard_open, pre_k1): vida do ativo ≥ 50 % do máx. e sem sangramento — o jogador vivo não é tocado. */
+export function retrySnapshot(save) {
+  const s = structuredClone(save), id = s.playerId, max = getCharacter(id).maxHp;
+  s.health[id] = Math.max(s.health[id] ?? 0, Math.ceil(max * 0.5)); s.bleeding[id] = false;
+  return s;
+}
+
 // ---------------------------------------------------------------- spawns fora da visão
 function visibleFromCamera(g, x, z) {
   const yawC = g.camera.yaw, hfov = 2 * Math.atan(Math.tan((g.camera.fov * Math.PI) / 360) * g.camera.aspect);
@@ -144,7 +151,7 @@ function finishDefense(rt) {
   g.props.setLeaf('archive_door_leaf', true); g.world.setEnabled('archive_door_leaf', false); g.props.setTomas({ retreat: false, working: false });
   g.audio.play('gate'); g.hud.toast(`Tomás destravou o arquivo. Sobrevivente protegido (+${RESCUE_CC} CC).`, 'good');
   rt.gate = makeGate();
-  g.checkpointSnap = JSON.stringify(g._snapshotForCheckpoint());           // checkpoint automático pre_k1
+  g.checkpointSnap = JSON.stringify(retrySnapshot(g._snapshotForCheckpoint()));           // checkpoint automático pre_k1
   g.hud.toast('Checkpoint: antes do K-1.', 'good');
   rt.k1At = g.simMs + 3000;
 }
@@ -475,7 +482,7 @@ export default {
         if (!canOpenYard(save)) { deny('Painel recusa: o cercado K-1 ainda se comunica com o pátio. Tranque o cercado (painel a oeste) antes de abrir.'); return true; }
         rt.flag('yard_open'); g.props.setLeaf('yard_gate_leaf', true); g.world.setEnabled('yard_gate_leaf', false); g.audio.play('gate');
         g.syncSaveFromRuntime(); markYardCheckpoint(save); g.syncRuntimeFromSave();
-        g.checkpointSnap = JSON.stringify(g._snapshotForCheckpoint());           // checkpoint automático yard_open (antes da defesa de Tomás)
+        g.checkpointSnap = JSON.stringify(retrySnapshot(g._snapshotForCheckpoint()));           // checkpoint automático yard_open (antes da defesa de Tomás)
         g.hud.toast('Portão do pátio aberto. Checkpoint: pátio.', 'good');
         return true;
       case 'archive_door': startDefense(rt); return true;
@@ -486,7 +493,7 @@ export default {
   },
   exitWhen(rt) {
     const p = rt.g.player;
-    return STORY(rt.g.save, 'k1_defeated') && inZone(zoneOf('exit_trigger'), p.x, p.z);
+    return STORY(rt.g.save, 'k1_defeated') && inZone(zoneOf('north_service_exit'), p.x, p.z);
   },
   explorationVisited(save) {
     const z = new Set(save.persistentWorldFlags.zonesVisited);

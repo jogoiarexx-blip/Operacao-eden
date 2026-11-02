@@ -34,7 +34,7 @@ import { ComboSystem } from './gameplay/ComboSystem.js';
 import { difficulty } from './gameplay/DifficultyManager.js';
 import { purchase } from './gameplay/ShopSystem.js';
 import { SaveManager } from './gameplay/SaveManager.js';
-import { createNewSave, WEAPONS, UTILITY } from './gameplay/GameState.js';
+import { createNewSave, WEAPONS, UTILITY, SCHEMA_VERSION } from './gameplay/GameState.js';
 import { activeInventory, getCharacter } from './gameplay/Characters.js';
 import { RunStats, scoreChapter } from './gameplay/ScoringSystem.js';
 import { RecordBook } from './gameplay/RecordBook.js';
@@ -111,7 +111,7 @@ export class Game {
   loadChapter(id) {
     if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
     this.chapter?.dispose();
-    this.chapterId = id; this.chapterDef = getChapter(id);
+    this.terminal = null; this.chapterId = id; this.chapterDef = getChapter(id);
     const data = this.chapterDef.data, script = this.chapterDef.script;
     this.world = new CollisionWorld(data.bounds);
     this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
@@ -295,7 +295,7 @@ export class Game {
       const r = await this.saveManager.load(n);
       this.save = r.save; this.stats = new RunStats(this.save.stats ?? {}); this._startRun(false);
       this.combo.resetForLoad();
-      this.hud.toast(r.migrated ? `Save migrado (v${r.from} → v4) com backup.` : 'Progresso carregado.', 'good');
+      this.hud.toast(r.migrated ? `Save migrado (v${r.from} → v${SCHEMA_VERSION}) com backup.` : 'Progresso carregado.', 'good');
       this.enterPlaying();
     } catch (e) { this.sm.go(S.MAIN_MENU); this.ui.menu(); this.hud.show(); alert(`Não foi possível carregar: ${e.message}`); this.hud.hide(); }
   }
@@ -494,7 +494,7 @@ export class Game {
         const ag = hit.enemy; this.audio.play('hit', ag.x, ag.z);
         this.fx.burst(hit.point, 0x9a1c1c, 7, 3.4);
         const ctx = { ...this.aiCtx(), sim: this.simMs };
-        const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx);
+        const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx, hit.damageByPart);
         if (!r.dead && shouldInterrupt(w, hit, !!ag.species.boss)) ag.interrupt(ctx);
       }
       return;
@@ -628,6 +628,7 @@ export class Game {
   // ---------------------------------------------------------------- benchmark B01 (isolado da campanha)
   startBenchmark(mode) {
     if (!this.sm.is(S.EXTRAS, S.BENCH_RESULTS)) return;
+    if (this.chapterId !== 'ch01') this.loadChapter('ch01');   // o benchmark B01 pertence ao Cap. 01
     this.sm.go(S.LOADING); this.hud.hide(); this.setScreen(null); this.audio.ensure();
     this.chapter.dispose(); this._clearAgents();
     const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player);

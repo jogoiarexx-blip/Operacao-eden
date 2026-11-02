@@ -22,7 +22,7 @@ export function mainMenu(game, { hasSave }) {
         btn('Opções', () => game.ui.options(() => game.ui.menu())),
         btn('Créditos', () => game.ui.credits()),
       ),
-      h('p.dim.small', { style: { marginTop: '26px' } }, 'R0 + R1 · Capítulo 01 — O Sinal na Mata · jogo original, inspirado apenas em convenções de gênero')));
+      h('p.dim.small', { style: { marginTop: '26px' } }, 'R2 · Capítulos 01–02 — O Sinal na Mata · A Ordem de Retirada · jogo original, inspirado apenas em convenções de gênero')));
 }
 
 /** `opts` (início de capítulo novo): { current, label, onConfirm(id), onBack() } — reaproveita as mesmas cartas. */

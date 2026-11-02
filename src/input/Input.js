@@ -7,6 +7,15 @@ const FRAME_EDGE = ['swap', 'turn180', 'map', 'inventory', 'pause'];
 const PAD = { fire: 7, aim: 6, interact: 0, dodge: 1, reload: 2, turn180: 3, utility: 4, swap: 11, pause: 9, map: 8, run: 10, inventory: 5, weaponNext: 15 };
 const PAD_WEAPON_PREV = 14;                 // direcional esquerdo também alterna a arma
 
+/** Primeiro gamepad conectado com mapeamento 'standard' (dispositivos HID genéricos/não padrão são ignorados). */
+export function selectGamepad(pads) {
+  return [...(pads ?? [])].find((p) => p && p.connected && p.mapping === 'standard') ?? null;
+}
+/** Entrada deliberada: algum botão pressionado ou algum eixo além da zona morta. */
+export function padHasInput(gp, deadzone = 0.15) {
+  return !!gp && (gp.buttons.some((b) => b?.pressed) || gp.axes.some((v) => Math.abs(v) > deadzone));
+}
+
 export class Input {
   constructor(el, settings) {
     this.el = el; this.settings = settings;
@@ -67,9 +76,13 @@ export class Input {
 
   pollGamepad() {
     const pads = navigator.getGamepads?.() ?? [];
-    const gp = [...pads].find((p) => p && p.connected);
-    if (!gp) { this.padState = null; this.padLook.x = this.padLook.y = 0; return; }
-    const dz = this.settings.deadzone, ax = (v) => (Math.abs(v) < dz ? 0 : (Math.sign(v) * (Math.abs(v) - dz)) / (1 - dz));
+    const gp = selectGamepad(pads);
+    if (!gp) { this.padState = null; this.padActive = false; this.padAxes = null; this.padLook.x = this.padLook.y = 0; return; }
+    const dz = this.settings.deadzone;
+    if (this.padIndex !== gp.index) { this.padIndex = gp.index; this.padActive = false; }
+    // um pad recém-conectado/ocioso não sequestra teclado e mouse até produzir uma entrada deliberada
+    if (!this.padActive) { if (padHasInput(gp, Math.max(dz, 0.15))) this.padActive = true; else { this.padState = null; this.padLook.x = this.padLook.y = 0; this.padAxes = null; return; } }
+    const ax = (v) => (Math.abs(v) < dz ? 0 : (Math.sign(v) * (Math.abs(v) - dz)) / (1 - dz));
     this.padState = {}; this.padEdges ||= {};
     for (const [a, b] of Object.entries(PAD)) {
       const pressed = !!gp.buttons[b]?.pressed; this.padState[a] = pressed;

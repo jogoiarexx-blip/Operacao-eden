@@ -87,10 +87,11 @@ export class ChapterRuntime {
   dispose() { this.script.onDispose?.(this); if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
 
   labels() { const b = this.g.settings.bindings; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>`, utility: `<kbd>${keyLabel(b.utility)}</kbd>`, weapon1: `<kbd>${keyLabel(b.weapon1)}</kbd>`, weapon2: `<kbd>${keyLabel(b.weapon2)}</kbd>` }; }
+  /** Dicas com id próprio do capítulo (`<cap>_<id>`, ex.: ch02_tut_dodge) têm precedência sobre o id genérico: o Caio vê as suas. */
   tutorial(id) {
-    if (this.wf.tutorialSeen.includes(id)) return;
-    const t = this.data.tutorials.find((x) => x.id === id); if (!t) return;
-    this.wf.tutorialSeen.push(id);
+    const t = this.data.tutorials.find((x) => x.id === `${this.g.chapterId}_${id}`) ??this.data.tutorials.find((x) => x.id === id); if (!t) return;
+    if (this.wf.tutorialSeen.includes(t.id)) return;
+    this.wf.tutorialSeen.push(t.id);
     const L = this.labels(); const html = t.text.replace(/\{(\w+)\}/g, (_, k) => L[k] ?? k);
     const el = document.createElement('div'); el.className = 'toast'; el.innerHTML = html; this.g.hud.toasts.append(el); setTimeout(() => el.remove(), 5300);
   }

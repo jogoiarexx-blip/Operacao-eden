@@ -199,10 +199,12 @@ export class K1Agent extends DinosaurAgent {
   /** Chefe: ferramentas não atordoam (o portão usa `daze`). */
   stun() { return false; }
 
-  takeDamage(amount, part, ctx) {
+  /** `byPart` (opcional, escopeta): dano por parte do corpo; só a parcela da cabeça recebe o ×3 do atordoamento. */
+  takeDamage(amount, part, ctx, byPart) {
     if (this.dead) return { dead: true };
-    const mult = part === 'head' && this.state === K1.DAZED ? this.cfg.dazedHeadMult : 1;
-    const out = super.takeDamage(Math.round(amount * mult), part, ctx);
+    const hm = this.state === K1.DAZED ? this.cfg.dazedHeadMult : 1;
+    const eff = byPart ? Object.entries(byPart).reduce((s, [p, d]) => s + d * (p === 'head' ? hm : 1), 0) : amount * (part === 'head' ? hm : 1);
+    const out = super.takeDamage(Math.round(eff), part, ctx);
     ctx.bus.emit('bossHp', { id: this.id, encounterId: this.encounterId, hp: Math.max(0, this.hp), maxHp: this.maxHp, frac: this.hpFrac });
     if (!out.dead && !this.roared && this.phase === 3) {
       this.roared = true;

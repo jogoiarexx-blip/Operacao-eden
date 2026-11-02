@@ -45,6 +45,9 @@ describe('escopeta', () => {
     expect(h.damage).toBeLessThanOrEqual(8 * 11 * 1.5);
     expect(h.dist).toBeGreaterThan(3); expect(h.dist).toBeLessThan(6);
     expect(res.tracers).toHaveLength(8);
+    const sum = Object.values(h.damageByPart).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(h.damage);                                 // dano por parte soma o total
+    expect(Object.keys(h.damageByPart).every((p) => ['head', 'torso', 'legs'].includes(p))).toBe(true);
   });
 
   it('recarga por cartucho: 250 ms + 520 ms por cartucho; tiro interrompe', () => {

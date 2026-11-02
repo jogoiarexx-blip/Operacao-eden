@@ -35,6 +35,13 @@ describe('registro de capítulos', () => {
       it('mapTitle definido', () => { expect(typeof data.mapTitle).toBe('string'); });
     });
   }
+  it('ids de zona, interagível, terminal, pickup e tutorial são únicos ENTRE capítulos', () => {
+    for (const k of ['zones', 'interactables', 'terminals', 'pickups', 'tutorials']) {
+      const all = CHAPTER_IDS.flatMap((id) => getChapter(id).data[k].map((x) => x.id));
+      const dup = all.filter((x, i) => all.indexOf(x) !== i);
+      expect(dup, k).toEqual([]);
+    }
+  });
   it('ch01.script.explorationVisited', () => {
     const { script } = getChapter('ch01');
     expect(script.explorationVisited({ persistentWorldFlags: { zonesVisited: ['tower_visited'] } })).toEqual(['tower_visited']);

@@ -134,8 +134,8 @@ function resolveSpread({ world, enemies, camera, muzzle, weapon, spreadDeg, rng,
       const dmg = Math.round(weapon.damage * PART_MULT(weapon, bEnemy.part) * falloffMult(t, weapon.falloff));
       if (dmg <= 0) continue;
       let h = byEnemy.get(bEnemy.enemy);
-      if (!h) { h = { enemy: bEnemy.enemy, damage: 0, pellets: 0, parts: {}, dist: t, point }; byEnemy.set(bEnemy.enemy, h); }
-      h.damage += dmg; h.pellets++; h.parts[bEnemy.part] = (h.parts[bEnemy.part] ?? 0) + 1; h.dist = Math.min(h.dist, t);
+      if (!h) { h = { enemy: bEnemy.enemy, damage: 0, pellets: 0, parts: {}, damageByPart: {}, dist: t, point }; byEnemy.set(bEnemy.enemy, h); }
+      h.damage += dmg; h.damageByPart[bEnemy.part] = (h.damageByPart[bEnemy.part] ?? 0) + dmg; h.pellets++; h.parts[bEnemy.part] = (h.parts[bEnemy.part] ?? 0) + 1; h.dist = Math.min(h.dist, t);
     } else if (bWorld) impacts.push(point);
   }
   return { kind: 'spread', hits: [...byEnemy.values()], tracers, impacts, tracerFrom: from, obstructed: false };

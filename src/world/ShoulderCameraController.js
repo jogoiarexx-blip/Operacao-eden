@@ -87,7 +87,7 @@ export class ShoulderCameraController {
     this.fov = lerp(P0.fov, P1.fov, k) + this.fovOffset;
     // 3) ombro (interpolado)
     const prefSign = this.preferredSide === 'right' ? 1 : -1;
-    this._autoFlip(dt, prefSign);
+    if (this.cameraZones.length) this._autoFlip(dt, prefSign); else this.autoFlip = false;   // troca por parede só em capítulos com cameraZones (Cap. 01 mantém o comportamento original)
     const sideTarget = this.autoFlip ? -prefSign : prefSign;
     this.sideCur += (sideTarget - this.sideCur) * damp(dt, 0.09);
     // 4) pivô suavizado

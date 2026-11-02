@@ -94,7 +94,7 @@ export function buildScenery({ world, data, quality }) {
     // detalhes
     if (s.visual === 'terminal') {
       const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.38), glowCyan); scr.position.set(0, 0.2, s.size ? s.size[2] / 2 + 0.01 : 0.3); mesh.add(scr);
-      scr.rotation.y = 0; mesh.rotation.y = s.id === 'terminal_b' ? 0.5 : -0.4;
+      scr.rotation.y = 0; mesh.rotation.y = s.id === 'terminal_b' || s.id === 'terminal_outpost_b' ? 0.5 : -0.4;
     }
     if (s.visual === 'tent') { const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.2, 4), mat(0x6c7c52)); roof.position.y = s.size[1] / 2 + 0.6; roof.rotation.y = Math.PI / 4; mesh.add(roof); }
     if (s.visual === 'radio') { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 4), metal); ant.position.set(0.3, 1.0, 0); mesh.add(ant); const led = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.02), new THREE.MeshBasicMaterial({ color: 0xffb347 })); led.position.set(-0.2, 0.2, 0.31); mesh.add(led); }

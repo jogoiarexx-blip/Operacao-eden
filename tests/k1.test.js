@@ -94,6 +94,20 @@ describe('Minichefe K-1', () => {
     expect(head.y).toBeLessThan(SP.hit.head.y);
   });
 
+  it('escopeta mista em K-1 atordoado: só a parcela da cabeça é ×3 (1 chumbo de cabeça + 7 de tronco)', () => {
+    const w = new CollisionWorld([-40, -40, 40, 40]); w.addBox('wall', 0, 17, 20, 3, 1);
+    const k = mkK1(); const { ctx, events } = mkCtx(k, { world: w });
+    expect(run(k, ctx, 8000, () => k.state === K1.DAZED)).toBe(true);
+    const hp0 = k.hp, bossEvents = () => events.filter((e) => e.type === 'bossHp').length, n0 = bossEvents();
+    const head = 15, torso = 7 * 10, total = head + torso;
+    const out = k.takeDamage(total, 'head', ctx, { head, torso });
+    expect(out.dead).toBe(false);
+    expect(hp0 - k.hp).toBe(head * 3 + torso);               // não total × 3
+    expect(bossEvents() - n0).toBe(1);                          // um único golpe
+    // sem divisão por partes (pistola): comportamento inalterado
+    const hp1 = k.hp; k.takeDamage(10, 'head', ctx); expect(hp1 - k.hp).toBe(30);
+  });
+
   it('fora de DAZED a cabeça não tem o ×3', () => {
     const k = mkK1(); const { ctx } = mkCtx(k);
     k.takeDamage(10, 'head', ctx);

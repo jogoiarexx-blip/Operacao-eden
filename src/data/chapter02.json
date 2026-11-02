@@ -56,7 +56,7 @@
    {"id": "radio_e_b", "kind": "box", "visual": "concrete", "pos": [-22, 15.4], "size": [0.6, 3.0, 5.8], "fade": true, "flags": ["move", "bullet", "camera"]},
    {"id": "admin_roof", "kind": "box", "visual": "shelter_roof", "pos": [-20, 11], "size": [16.6, 0.3, 14.6], "y": 3.0, "fade": true, "flags": ["camera"]},
    {"id": "radio_console", "kind": "box", "visual": "radio", "pos": [-27.1, 8], "size": [0.9, 1.1, 1.6], "flags": ["move", "bullet"]},
-   {"id": "terminal_b", "kind": "box", "visual": "terminal", "pos": [-27.0, 15], "size": [0.9, 1.3, 0.7], "flags": ["move", "bullet"]},
+   {"id": "terminal_outpost_b", "kind": "box", "visual": "terminal", "pos": [-27.0, 15], "size": [0.9, 1.3, 0.7], "flags": ["move", "bullet"]},
    {"id": "office_desk", "kind": "box", "visual": "wood", "pos": [-15, 6.2], "size": [1.8, 0.8, 0.9], "flags": ["move"]},
    {"id": "pen_fence_w", "kind": "box", "visual": "fence", "pos": [-26.55, -4], "size": [7.15, 2.6, 0.25], "flags": ["move"]},
    {"id": "pen_fence_e", "kind": "box", "visual": "fence", "pos": [-16.45, -4], "size": [7.15, 2.6, 0.25], "flags": ["move"]},
@@ -104,7 +104,7 @@
  "clawMarks": [[-17.5, 36.2], [-15.5, 37.0], [-13.5, 37.6]],
  "clearings": [],
  "terminals": [
-   {"id": "terminal_b", "name": "Terminal Éden B", "pos": [-26.6, 15], "safe": [-25, 14], "checkpointId": "terminal_B"}
+   {"id": "terminal_outpost_b", "name": "Terminal Éden B", "pos": [-26.6, 15], "safe": [-25, 14], "checkpointId": "terminal_B2"}
   ],
  "pickups": [
    {"id": "ammo_breach", "pos": [8.6, 25.2], "kind": "supplies", "ammo": {"shotgun": 6}, "label": "Cartuchos de escopeta"},
@@ -141,7 +141,7 @@
    {"id": "service_road", "pos": [-6, 34], "r": 6},
    {"id": "truck", "pos": [-23, 34.4], "r": 4.5},
    {"id": "gate_zone", "pos": [0, -27.8], "r": 3.0},
-   {"id": "exit_trigger", "pos": [26, -39.2], "r": 2.0}
+   {"id": "north_service_exit", "pos": [26, -39.2], "r": 2.0}
   ],
  "tomas": {"pos": [11, -28.7], "retreat": [11, -29.5], "yaw": 0},
  "preK1": {"pos": [11, -27.2], "yaw": 3.14},
@@ -174,14 +174,14 @@
    {"id": "open_yard", "text": "Abra o portão do pátio central.", "doneWhen": {"flag": "yard_open"}, "target": [4.4, -2.0]},
    {"id": "find_tomas", "text": "Localize o sobrevivente no arquivo, do outro lado do pátio.", "doneWhen": {"flag": "tomas_found"}, "target": [11, -28]},
    {"id": "defeat_k1", "text": "Detenha o K-1. O portão de carga do pátio pode feri-lo.", "doneWhen": {"flag": "k1_defeated"}, "target": [6.2, -24]},
-   {"id": "exit", "text": "Saia com Tomás pelo portão de serviço norte.", "doneWhen": {"zone": "exit_trigger"}, "target": [26, -37]}
+   {"id": "exit", "text": "Saia com Tomás pelo portão de serviço norte.", "doneWhen": {"zone": "north_service_exit"}, "target": [26, -37]}
   ],
  "tutorials": [
    {"id": "tut_shotgun", "when": "start", "text": "{fire} dispara a escopeta · {reload} põe um cartucho por vez (atirar interrompe) · {weapon1}/{weapon2} trocam de arma"},
    {"id": "tut_impact", "when": "zone:generator_shed", "text": "{utility} golpe de impacto — rompe barreiras de caixas"},
    {"id": "tut_lever", "when": "nearLever", "text": "{interact} segure para puxar a alavanca — sofrer dano interrompe"},
-   {"id": "tut_dodge", "when": "firstWindup", "text": "O animal agachou: {dodge} esquiva para o lado antes do salto"},
-   {"id": "tut_terminal", "when": "zone:terminal", "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura"},
+   {"id": "ch02_tut_dodge", "when": "firstWindup", "text": "O animal agachou: {dodge} esquiva para o lado antes do salto"},
+   {"id": "ch02_tut_terminal", "when": "zone:terminal", "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura"},
    {"id": "tut_gate", "when": "k1", "text": "Atraia a investida do K-1 para a baia do portão de carga e acione o painel ({interact}). Recarrega em 20 s."}
   ]
 }
