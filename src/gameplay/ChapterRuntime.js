@@ -49,7 +49,7 @@ export class ChapterRuntime {
     for (const enc of data.encounters) {
       const alive = enc.enemies.filter((e) => !this.wf.defeatedEnemies.includes(e.id));
       g.combo.registerEncounter(enc.id, alive.length, true);
-      if (enc.late) continue;      // encontro tardio: o script decide quando/como surge
+      if (this.script.onEncounter?.(this, enc, alive)) continue;      // script trata encontros especiais (ex.: tardio) no ponto original do laço
       for (const e of alive) g.spawnAgent(e, enc.id);
     }
     this.script.onLoad?.(this);

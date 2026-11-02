@@ -348,7 +348,7 @@ export class Game {
   }
   async completeChapter() {
     const s = this.save; this.combo.settleSector(s.sectorId); this.syncSaveFromRuntime();
-    const st = this.stats, wf = s.persistentWorldFlags, z = new Set(wf.zonesVisited);
+    const st = this.stats;
     st.objectivesDone = s.completedObjectives.length;
     st.explorationVisited = this.chapter.script.explorationVisited(s);
     st.dossiersFound = s.dossiersInRun.length;

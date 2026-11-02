@@ -37,17 +37,17 @@ function repairBeacon(rt) {
 }
 
 export default {
+  // encontro tardio (2º R-4): restaura se já surgiu, ou reagenda — no ponto original do laço de encontros
+  onEncounter(rt, enc, alive) {
+    if (!enc.late) return false;
+    if (alive.length && rt.wf.lateSpawned) spawnLate(rt, enc, alive[0], true);
+    else if (alive.length && rt.wf.lateScheduled) rt.lateAt = rt.g.simMs + 2500;
+    return true;
+  },
   onLoad(rt) {
     const g = rt.g, save = g.save, wf = rt.wf;
     // centro exibido da área suspeita = verdadeiro + deslocamento fixo (nunca o ponto exato do segredo)
     const sz = data.zones.find((q) => q.id === 'suspicious_west'); rt.suspiciousCenter = { x: sz.pos[0] + 3.5, z: sz.pos[1] - 2.5, r: sz.r };
-    // segundo R-4: restaura se já surgiu, ou reagenda
-    const enc = data.encounters.find((e) => e.late);
-    if (enc) {
-      const alive = enc.enemies.filter((e) => !wf.defeatedEnemies.includes(e.id));
-      if (alive.length && wf.lateSpawned) spawnLate(rt, enc, alive[0], true);
-      else if (alive.length && wf.lateScheduled) rt.lateAt = g.simMs + 2500;
-    }
     g.scenery.setBeaconPowered(STORY(save, 'beacon_repaired'));
     g.scenery.setGateOpen(wf.chapter.ch01.gateOpen, true); g.world.setEnabled('gate_leaf', !wf.chapter.ch01.gateOpen);
     if (wf.bridgeCollapsed) g.scenery.startCollapse();
