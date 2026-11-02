@@ -17,10 +17,10 @@
       "explorationNodes": ["generator_shed", "radio_room", "pen_area", "yard", "archive", "service_road", "truck"],
       "creditsTarget": 2900,
       "ammoBudget": {
-        "note": "razao = dano de municao esperado / HP inimigo (src/gameplay/AmmoBudget.js). Caio: escopeta 6 de 8 chumbos x 11, pistola 28 x 80% de acerto, danos escalados por playerDamageMult; pickups por ammoMult. Inventario inicial fixo. Reabastecimento da arena compartilhado: +6 por 40 s; assume 2 usos (12 cartuchos) numa luta K-1 no tempo de referencia. Portao: 2 quedas = 60% do HP do K-1. creditsTarget inclui +300 CC do resgate de Tomas.",
-        "resupplyShells": 12, "gateDrops": 2,
+        "note": "razao = dano de municao esperado / HP inimigo (src/gameplay/AmmoBudget.js). Dano bruto da arma (playerDamageMult e dano recebido, nao entra). Caio: escopeta 6 de 8 chumbos x 11 x 0,75 de acerto, pistola 28 x 0,7; pickups por ammoMult; HP por enemyHpMult; inventario inicial fixo. Reabastecimento da arena compartilhado (+6 por 40 s) contado 1 vez (6 cartuchos). Portao NAO conta (K-1 morre so com municao). Limite superior ch02 padrao: 2,5 (escassez). creditsTarget inclui +300 CC do resgate de Tomas.",
+        "resupplyShells": 6, "gateDrops": 0, "maxStandard": 2.5,
         "min": { "explorer": 1.6, "standard": 1.3, "veteran": 1.1, "extinction": 1.0 },
-        "ratios": { "explorer": 4.142, "standard": 5.109, "veteran": 6.169, "extinction": 6.671 }
+        "ratios": { "explorer": 2.762, "standard": 2.148, "veteran": 1.892, "extinction": 1.693 }
       }
     }
   }

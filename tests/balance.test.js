@@ -31,6 +31,22 @@ describe('orçamento de munição', () => {
       expect(r.ratio).toBeGreaterThanOrEqual(MIN[id]);
     });
   }
+  it('ch02 padrão dentro de [piso, 2,5] (escassez)', () => {
+    const r = ammoBudget(ch02, bestiary, weapons, 'standard', opts.ch02()).ratio;
+    expect(r).toBeGreaterThanOrEqual(MIN.standard); expect(r).toBeLessThanOrEqual(B.maxStandard);
+  });
+  it('razão não aumenta de Explorador a Extinção (ambos os capítulos)', () => {
+    for (const k of ['ch01', 'ch02']) {
+      const d = k === 'ch01' ? ch01 : ch02;
+      const rs = ORDER.map((id) => ammoBudget(d, bestiary, weapons, id, opts[k]()).ratio);
+      for (let i = 1; i < rs.length; i++) expect(rs[i]).toBeLessThanOrEqual(rs[i - 1]);
+    }
+  });
+  it('portão não conta e K-1 é abatível só com munição', () => {
+    expect(B.gateDrops).toBe(0);
+    const a = ammoBudget(ch02, bestiary, weapons, 'standard', opts.ch02());
+    expect(a.enemyHp).toBeGreaterThan(900);
+  });
   it('rankTargets.ch02.ammoBudget registra as razões finais coerentes', () => {
     for (const id of ORDER) {
       const r = ammoBudget(ch02, bestiary, weapons, id, opts.ch02());
