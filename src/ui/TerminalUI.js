@@ -50,7 +50,7 @@ export class TerminalUI {
     const tabs = h('div.tabs', ...SHOP_TABS.map((t) => h(`button${this.buyTab === t ? '.on' : ''}`, { onclick: () => { this.buyTab = t; this.sel = null; this.confirming = null; this.render(); } }, t)));
     const list = h('div');
     for (const it of SHOP_ITEMS.filter((i) => i.tab === this.buyTab)) {
-      const st = itemState(it, s, 1);
+      const st = itemState(it, s, g.chapterNumber);
       list.append(h(`button.item${this.sel === it.id ? '.card.sel' : ''}`, { onclick: () => { this.sel = it.id; this.confirming = null; this.msg = null; this.render(); } },
         h('span', h('b', it.name), h('div.dim.small', st.reason || it.desc)), h('span', it.price ? `${fmtNum(it.price)} CC` : '—'), h(`span.badge.${st.state}`, { owned: 'possui', available: 'disponível', locked: 'bloqueado', out_of_stock: 'sem estoque', incompatible: 'incompatível' }[st.state])));
     }
@@ -58,7 +58,7 @@ export class TerminalUI {
     const it = SHOP_ITEMS.find((i) => i.id === this.sel);
     if (!it) detail.append(h('p.dim', 'Selecione um item para ver detalhes. Nada é comprado ao navegar.'));
     else {
-      const st = itemState(it, s, 1), afford = s.economyLedger.credits >= it.price;
+      const st = itemState(it, s, g.chapterNumber), afford = s.economyLedger.credits >= it.price;
       detail.append(h('h3', { style: { marginTop: 0 } }, it.name), h('p.small', it.desc), it.tab === 'MELHORIAS' ? h('p.small.amber', `Aplicada a ${getCharacter(s.playerId).name}`) : null, this._compare(it),
         h('p', `Preço: ${fmtNum(it.price)} CC · Saldo: ${fmtNum(s.economyLedger.credits)} CC`));
       if (this.confirming === it.id) {

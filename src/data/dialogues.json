@@ -99,5 +99,199 @@
       "text": "Você também ouviu. Isso não é pane, Lia.",
       "ms": 3400
     }
+  ],
+  "ch02_intro_radio": [
+    {
+      "who": "Caio",
+      "text": "Reis, cheguei ao Posto Norte. O portão principal está trancado por dentro.",
+      "ms": 4008
+    },
+    {
+      "who": "Caio",
+      "text": "Sinalizadores vermelhos no chão. Alguém marcou o caminho e não voltou para apagar.",
+      "ms": 4200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Seu sinal está fraco, Caio. Sem energia no posto, o rádio de lá também está morto. Religue o gerador e eu tento fechar o canal.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Tem uma brecha no muro lateral. Vou entrar por ela.",
+      "ms": 3042
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "A equipe de manutenção daqui não responde há três dias. Não conte com ninguém de pé.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Eu conto com quem estiver. Foi para isso que eu vim.",
+      "ms": 3084
+    }
+  ],
+  "ch02_generator": [
+    {
+      "who": "Caio",
+      "text": "Gerador religado. As luzes do posto estão voltando.",
+      "ms": 3042
+    },
+    {
+      "who": "Caio",
+      "text": "E o barulho também. Isso vai chamar visita.",
+      "ms": 2706
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "…Caio… recebo portadora… fraca… estabilize a antena na sala de rádio, prédio oeste…",
+      "ms": 4200
+    }
+  ],
+  "ch02_withdrawal_order": [
+    {
+      "who": "Canal de segurança (gravação)",
+      "text": "A todas as equipes no setor norte: retirada imediata. Não entrar no Laboratório Central. Repito: não entrar no laboratório.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Reis, você ouviu isso? Isso saiu de você?",
+      "ms": 2622
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Chegou para mim junto com você. Prioridade máxima, formato de despacho oficial.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "O terminal mostra a origem: SEG-CORP. Canal de segurança corporativa. Não é o resgate — é a Diretoria de Segurança.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "É a sala do Serpa mandando a gente embora antes de ver alguma coisa.",
+      "ms": 3756
+    }
+  ],
+  "ch02_reis_argument": [
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Caio, uma ordem com essa prioridade eu sou obrigada a registrar e repassar. É o protocolo.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Registre. Eu já cumpri uma ordem dessas. Deixamos um setor inteiro para trás e ninguém nunca explicou por quê.",
+      "ms": 4200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Não é justo jogar isso em cima de mim.",
+      "ms": 2600
+    },
+    {
+      "who": "Caio",
+      "text": "Não é. Mas tem gente viva neste posto, Reis. Até alguém me provar o contrário, eu fico.",
+      "ms": 4200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Então me traga algo que eu possa pôr na mesa da minha cadeia de comando. Evidência, não raiva.",
+      "ms": 4200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "E tranque o cercado K-1 antes de abrir aquele pátio. Não quero você soltando o que ainda está preso.",
+      "ms": 4200
+    }
+  ],
+  "ch02_tomas_meet": [
+    {
+      "who": "Tomás",
+      "text": "Não atira! Eu sou da manutenção — Tomás Amaral, infraestrutura!",
+      "ms": 3546
+    },
+    {
+      "who": "Caio",
+      "text": "Manutenção. A equipe que sumiu há três dias. Cadê os outros?",
+      "ms": 3420
+    },
+    {
+      "who": "Tomás",
+      "text": "Eu não sei. Me tranquei aqui quando os bichos começaram a rondar o pátio.",
+      "ms": 3966
+    },
+    {
+      "who": "Caio",
+      "text": "Ou se escondeu do que fez. Quem mexeu nesse posto antes de tudo cair, Tomás?",
+      "ms": 4092
+    },
+    {
+      "who": "Tomás",
+      "text": "Eu só sigo escala! Me dá vinte e cinco segundos nessa fechadura e a porta abre. Os registros estão lá dentro.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Vinte e cinco segundos. Eu cubro. Depois você me conta tudo.",
+      "ms": 3420
+    }
+  ],
+  "ch02_k1_arrives": [
+    {
+      "who": "Tomás",
+      "text": "Ouviu isso? Não é juvenil. É o grande. O K-1.",
+      "ms": 2790
+    },
+    {
+      "who": "Caio",
+      "text": "Ele pulou para dentro do pátio. Fique atrás da porta e não saia por nada.",
+      "ms": 3966
+    },
+    {
+      "who": "Tomás",
+      "text": "O portão de carga! Ele corre em linha reta — se bater dentro da baia, solta o portão em cima dele!",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Entendido. Atrair, desviar, soltar.",
+      "ms": 2600
+    }
+  ],
+  "ch02_noite_branca": [
+    {
+      "who": "Caio",
+      "text": "Acabou. Ele não levanta mais.",
+      "ms": 2600
+    },
+    {
+      "who": "Tomás",
+      "text": "Na escala daquela semana tinha um serviço na torre sete. O pessoal chamava de Noite Branca.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Que serviço?",
+      "ms": 2600
+    },
+    {
+      "who": "Tomás",
+      "text": "Mandaram a equipe subir e não perguntar. Quando fui lançar no sistema de relatórios, ele dizia que não houve manutenção nenhuma.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio",
+      "text": "Uma manutenção que nunca aconteceu e uma ordem de retirada que não veio do resgate.",
+      "ms": 4200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "…Eu ouvi, Caio. Vou registrar tudo. Traga o técnico pelo portão de serviço norte.",
+      "ms": 4200
+    }
   ]
 }

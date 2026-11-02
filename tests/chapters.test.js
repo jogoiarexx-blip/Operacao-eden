@@ -4,8 +4,8 @@ import { getChapter, CHAPTER_IDS } from '../src/chapters/index.js';
 
 const uniq = (a) => new Set(a).size === a.length;
 describe('registro de capítulos', () => {
-  it('CHAPTER_IDS inclui ch01', () => { expect(CHAPTER_IDS).toContain('ch01'); });
-  for (const id of ['ch01']) {
+  it('CHAPTER_IDS inclui ch01 e ch02', () => { expect(CHAPTER_IDS).toEqual(['ch01', 'ch02']); });
+  for (const id of ['ch01', 'ch02']) {
     describe(id, () => {
       const { data, script } = getChapter(id);
       it('ids únicos', () => {
@@ -19,6 +19,20 @@ describe('registro de capítulos', () => {
       it('tipos de inimigo existem no bestiário', () => {
         for (const e of data.encounters) for (const en of e.enemies) expect(bestiary.species[en.type], en.id).toBeTruthy();
       });
+      it('objetivos: ids únicos; doneWhen.flag/flags são strings', () => {
+        expect(uniq(data.objectives.map((o) => o.id))).toBe(true);
+        for (const o of data.objectives) { const w = o.doneWhen; expect(!!(w.zone || w.flag || w.flags), o.id).toBe(true); }
+      });
+      it('terminais com checkpointId e ponto seguro; spawn dentro dos limites', () => {
+        for (const t of data.terminals) { expect(t.checkpointId, t.id).toBeTruthy(); expect(t.safe).toHaveLength(2); }
+        const [x0, z0, x1, z1] = data.bounds, [sx, sz] = data.spawn.pos;
+        expect(sx > x0 && sx < x1 && sz > z0 && sz < z1).toBe(true);
+      });
+      it('breakable aponta para estrutura existente', () => {
+        const ids = data.structures.map((s) => s.id);
+        for (const it of data.interactables.filter((i) => i.kind === 'breakable')) expect(ids, it.id).toContain(it.colliderId ?? it.id);
+      });
+      it('mapTitle definido', () => { expect(typeof data.mapTitle).toBe('string'); });
     });
   }
   it('ch01.script.explorationVisited', () => {

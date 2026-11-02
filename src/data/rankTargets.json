@@ -9,6 +9,13 @@
       "optionalObjectives": 0,
       "explorationNodes": ["tower_visited", "beacon_area", "route_taken", "east_trail", "west_trail", "recon_camp"],
       "creditsTarget": 1800
+    },
+    "ch02": {
+      "parTimeSec": 900, "maxDamage": 150, "deathPenalty": 8, "healPenalty": 1.5, "maxHeals": 6,
+      "chainTarget": 4, "styleTarget": 700, "styleCapPerEncounter": 450, "diversityTypes": 3,
+      "optionalObjectives": 0,
+      "explorationNodes": ["generator_shed", "radio_room", "pen_area", "yard", "archive", "service_road", "truck"],
+      "creditsTarget": 2600
     }
   }
 }

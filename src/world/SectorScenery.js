@@ -9,6 +9,8 @@ const COLORS = {
   fog: 0x0a1719, sky: 0x0d1d20,
   wood: 0x5a4430, woodDark: 0x3b2c20, metal: 0x58666c, rock: 0x4b4f4a, concrete: 0x7b8279, shelter: 0x4a4636,
   tent: 0x5a6a46, crate: 0x6b5a3a, terminal: 0x2a3438, ravine: 0x050809, gate: 0x6a7176, dirt: 0x5b4a33,
+  // Cap. 02 (posto avançado)
+  slab: 0x3d4440, shed: 0x5d5a4c, container: 0x7a4a2e, truck: 0x4d5a3e, fence: 0x8a9196,
 };
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
@@ -63,6 +65,7 @@ export function buildScenery({ world, data, quality }) {
       const matFor = (v) => ({
     wood, metal, rock: rockMat, concrete: mat(COLORS.concrete), shelter: mat(COLORS.shelter), shelter_roof: mat(0x3a3f35),
     tent: mat(COLORS.tent), crate: mat(COLORS.crate), terminal: mat(COLORS.terminal), ravine: mat(COLORS.ravine), gate: mat(COLORS.gate), radio: mat(0x3d4440), coro: mat(0x5c666b),
+    slab: mat(COLORS.slab), shed: mat(COLORS.shed), container: mat(COLORS.container), truck: mat(COLORS.truck), fence: mat(COLORS.fence, { transparent: true, opacity: 0.55 }),
   }[v] || wood);
 
   for (const s of data.structures) {

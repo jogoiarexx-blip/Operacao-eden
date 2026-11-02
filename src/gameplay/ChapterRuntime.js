@@ -84,9 +84,9 @@ export class ChapterRuntime {
     if (it.kind === 'heavy_lever' && it.flag) return !!this.g.save.storyFlags[it.flag];
     return false;
   }
-  dispose() { if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
+  dispose() { this.script.onDispose?.(this); if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
 
-  labels() { const b = this.g.settings.bindings; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>` }; }
+  labels() { const b = this.g.settings.bindings; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>`, utility: `<kbd>${keyLabel(b.utility)}</kbd>`, weapon1: `<kbd>${keyLabel(b.weapon1)}</kbd>`, weapon2: `<kbd>${keyLabel(b.weapon2)}</kbd>` }; }
   tutorial(id) {
     if (this.wf.tutorialSeen.includes(id)) return;
     const t = this.data.tutorials.find((x) => x.id === id); if (!t) return;
@@ -145,7 +145,7 @@ export class ChapterRuntime {
     for (const k of this.pickups) consider(dist(p.x, p.z, k.def.pos[0], k.def.pos[1]), 1.9, { type: 'pickup', k, label: `Pegar — ${k.def.label}` });
     for (const it of this.data.interactables) {
       if (this.hiddenInteractable(it) || this.script.hideInteractable?.(this, it)) continue;
-      consider(dist(p.x, p.z, it.pos[0], it.pos[1]), it.r, { type: it.kind, it, label: it.label });
+      consider(dist(p.x, p.z, it.pos[0], it.pos[1]), it.r, { type: it.kind, it, label: this.script.interactLabel?.(this, it) ?? it.label });
     }
     for (const t of this.data.terminals) consider(dist(p.x, p.z, t.pos[0], t.pos[1]), 2.3, { type: 'terminal', t, label: `Usar ${t.name}` });
     return best;
@@ -202,7 +202,7 @@ export class ChapterRuntime {
       msg = `Dossiê de campo ${p.dossier} — ${getDossier(p.dossier).title}`; g.stats.dossiersFound = save.dossiersInRun.length; void r;
     } else if (p.kind === 'secret' || p.kind === 'cache') {
       const r = claimSecret(save, p.secret ?? p.cache, { ammoScale });
-      if (!r) taken = false; else { msg = (p.kind === 'secret' ? 'Segredo encontrado: Abrigo do topógrafo. ' : 'Cache encontrado. ') + r.summary.join(' · '); g.stats.secretsFound++; if (p.kind === 'secret') discover(save, 'SEC_01'); capAmmo('pistol'); capCons('medkit'); capCons('hemostatic'); }
+      if (!r) taken = false; else { msg = (p.kind === 'secret' ? 'Segredo encontrado: Abrigo do topógrafo. ' : 'Cache encontrado. ') + r.summary.join(' · '); g.stats.secretsFound++; if (p.kind === 'secret') discover(save, 'SEC_01'); for (const w of Object.keys(inv.ammoReserve)) capAmmo(w); capCons('medkit'); capCons('hemostatic'); }
     }
     if (!taken) return;
     this.wf.pickedUp.push(p.id); this.pickups = this.pickups.filter((x) => x !== k); this.group.remove(k.mesh);

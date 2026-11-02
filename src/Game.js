@@ -102,6 +102,9 @@ export class Game {
     return this;
   }
 
+  /** Número do capítulo carregado (loja: itens liberados por capítulo). */
+  get chapterNumber() { return this.chapterDef?.data.chapter ?? 1; }
+
   /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
   loadChapter(id) {
     if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
@@ -302,11 +305,11 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', 'Mapa — Selva Norte'), cv, h('p.dim.small', 'Losango = objetivo · “?” = área suspeita (aproximada) · clique ou M para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · “?” = área suspeita (aproximada) · clique ou M para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {
-    const susp = this.save.secretFlags.SEC_01 ? [this.chapter.suspiciousCenter] : [];
+    const susp = this.save.secretFlags.SEC_01 && this.chapter.suspiciousCenter ? [this.chapter.suspiciousCenter] : [];
     drawMap(cv, { data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
@@ -327,7 +330,7 @@ export class Game {
   async buy(itemId) {
     this.syncSaveFromRuntime();
     const tx = `tx_${this.save.runId}_${++this.txCounter}_${Date.now().toString(36)}`;
-    const r = await purchase(this.save, itemId, tx, async (next) => { next.checkpointId = this.save.checkpointId; await this.saveManager.save(0, next); }, 1);
+    const r = await purchase(this.save, itemId, tx, async (next) => { next.checkpointId = this.save.checkpointId; await this.saveManager.save(0, next); }, this.chapterNumber);
     if (r.ok && !r.duplicate) { this.save = r.save; this.syncRuntimeFromSave(); this.checkpointSnap = JSON.stringify(structuredClone(this.save)); await this.refreshHasSave(); }
     return r;
   }
@@ -570,7 +573,7 @@ export class Game {
     hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), pellets: w.pellets ?? 1, weaponName: w.name, fov: cam.fov, reticle: retic, consumables: activeInventory(this.save).consumables, infinite: p.infiniteAmmo }, frameDt);
     const ch = this.combo.chain;
     hud.setChain(ch.count, ch.remainingMs(this.simMs), ch.windowMs, ch.count >= 10 ? 'EXTINÇÃO' : ch.count >= 6 ? 'IMPLACÁVEL' : ch.count >= 4 ? 'PREDADOR' : 'CADEIA', this.settings.hideComboHud);
-    const obj = this.chapter.currentObjective(); hud.setObjective(obj ? obj.text : 'Capítulo concluído.');
+    const obj = this.chapter.currentObjective(), extra = this.chapter.script.objectiveStatus?.(this.chapter); hud.setObjective((obj ? obj.text : 'Capítulo concluído.') + (extra ? ` — ${extra}` : ''));
     // ameaças reais fora da tela
     const fwd = { x: -Math.sin(cam.yaw), z: -Math.cos(cam.yaw) }, rgt = { x: Math.cos(cam.yaw), z: -Math.sin(cam.yaw) }, hf = 2 * Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect);
     const th = [];
@@ -680,6 +683,16 @@ export class Game {
       press: (code) => { this.input._press(code); }, release: (code) => { this.input._release(code); },
       hold: (code, ms) => { this.input._press(code); setTimeout(() => this.input._release(code), ms); },
       skip: () => this.skipCutscene(),
+      /** Começa um capítulo direto (ex.: `startChapter('ch02')` → Caio no Posto Norte). Provisório até a transição da Task 8. */
+      startChapter: async (id = 'ch02', difficultyId = 'standard') => {
+        this.audio.ensure(); await this._loading();
+        const d = getChapter(id).data, s = createNewSave({ slot: 1, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });
+        Object.assign(s, { chapterId: id, sectorId: d.id, playerId: d.protagonist, checkpointId: 'start', checkpoint: { pos: [...d.spawn.pos], yaw: d.spawn.yaw } });
+        s.cameraSettings.preferredShoulder = this.settings.shoulder; s.health[s.playerId] = getCharacter(s.playerId).maxHp;
+        this.save = s; mark();
+        this.stats = new RunStats({ objectivesTotal: d.objectives.length });
+        this._startRun(true); this.startCutscene('intro');
+      },
     };
   }
 }
