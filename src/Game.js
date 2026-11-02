@@ -14,8 +14,7 @@ import { TerminalUI } from './ui/TerminalUI.js';
 import { drawMap } from './ui/MapView.js';
 import { Dialogue } from './gameplay/Dialogue.js';
 import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
-import { getChapter } from './chapters/index.js';
-const chapterData = getChapter('ch01').data;
+import { getChapter, CHAPTER_IDS } from './chapters/index.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -33,7 +32,7 @@ import { difficulty } from './gameplay/DifficultyManager.js';
 import { purchase } from './gameplay/ShopSystem.js';
 import { SaveManager } from './gameplay/SaveManager.js';
 import { createNewSave, WEAPONS, UTILITY } from './gameplay/GameState.js';
-import { activeInventory } from './gameplay/Characters.js';
+import { activeInventory, getCharacter } from './gameplay/Characters.js';
 import { RunStats, scoreChapter } from './gameplay/ScoringSystem.js';
 import { RecordBook } from './gameplay/RecordBook.js';
 import { CollectibleManager } from './gameplay/SecretManager.js';
@@ -71,10 +70,7 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.Fog(0x0a1719, 8, 80);
     this.threeCam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 150);
-    this.world = new CollisionWorld(chapterData.bounds);
-    this.scenery = buildScenery({ world: this.world, data: chapterData, quality: this.settings.quality });
-    this.scene.add(this.scenery.group);
-    this.scenery.onLightning = () => this.audio.play('thunder');
+    this.loadChapter(CHAPTER_IDS[0]);
     this.camera = new ShoulderCameraController(this.world);
     this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
     this.fx = new FX(this.scene);
@@ -86,7 +82,6 @@ export class Game {
     this.saveManager = new SaveManager();
     this.records = await new RecordBook(this.saveManager.adapter).load().catch(() => new RecordBook(this.saveManager.adapter));
     this.profile = (await this.saveManager.loadProfile().catch(() => null)) ?? CollectibleManager.newProfile();
-    this.chapter = new ChapterRuntime(this, getChapter('ch01'));
     this.terminalUI = new TerminalUI(this);
     this.ledger = new EconomyLedger(); this.save = null;
     this.diffPreset = { id: 'standard', ...difficulty.get('standard') };
@@ -104,6 +99,24 @@ export class Game {
     this.loop.start();
     if (new URLSearchParams(location.search).has('debug')) this._installDebug();
     return this;
+  }
+
+  /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
+  loadChapter(id) {
+    if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
+    this.chapter?.dispose();
+    this.chapterId = id; this.chapterDef = getChapter(id);
+    const data = this.chapterDef.data, script = this.chapterDef.script;
+    this.world = new CollisionWorld(data.bounds);
+    this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
+    this.scene.add(this.scenery.group);
+    this.scenery.onLightning = () => this.audio?.play('thunder');
+    this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
+    this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
+    if (this.camera) this.camera.world = this.world;
+    if (this.player) this.player.world = this.world;
+    this.chapter = new ChapterRuntime(this, this.chapterDef);
+    if (this.settings && this.audio) this.applySettings();
   }
 
   _wireBus() {
@@ -186,21 +199,23 @@ export class Game {
     const slotId = 1;
     this.save = createNewSave({ slot: slotId, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });
     this.save.cameraSettings.preferredShoulder = this.settings.shoulder;
+    if (this.save.chapterId !== this.chapterId) this.loadChapter(this.save.chapterId);
     this.camera.preferredSide = this.settings.shoulder; this.camera.sideCur = this.settings.shoulder === 'right' ? 1 : -1;
-    this.stats = new RunStats({ objectivesTotal: chapterData.objectives.length });
+    this.stats = new RunStats({ objectivesTotal: this.chapterDef.data.objectives.length });
     this._startRun(true);
     this.startCutscene('intro');
   }
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
   _startRun(fresh) {
     const s = this.save;
+    if (s.chapterId !== this.chapterId) this.loadChapter(s.chapterId);
     this.diffPreset = { id: s.difficulty.current, ...difficulty.get(s.difficulty.current) };
     this.coordinator.setMax(this.diffPreset.maxContactAttackers); this.coordinator.clear();
     this.ledger = new EconomyLedger(s.economyLedger);
     this.combo?.dispose();
     this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => activeInventory(this.save).upgrades.includes('chain_module') });
     if (s.stats) { this.stats = new RunStats(s.stats); this.combo.style.restore(this.stats.style); this.combo.chain.maxCount = this.stats.maxChain; }
-    this.stats.objectivesTotal = chapterData.objectives.length;
+    this.stats.objectivesTotal = this.chapterDef.data.objectives.length;
     this.simMs = 0; this.deathAt = null; this.mapOpen = false; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
     this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
     const r = this.world.resolveCircle(this.player.x, this.player.z, 0.4); this.player.teleport(r.x, r.z, s.checkpoint.yaw ?? 0);
@@ -290,7 +305,7 @@ export class Game {
   }
   drawMapInto(cv) {
     const susp = this.save.secretFlags.SEC_01 ? [this.chapter.suspiciousCenter] : [];
-    drawMap(cv, { data: chapterData, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: chapterData.terminals, gateOpen: this.save.persistentWorldFlags.chapter.ch01.gateOpen });
+    drawMap(cv, { data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
@@ -325,7 +340,7 @@ export class Game {
     this.sm.go(S.GAME_OVER); this.input.setEnabled(false); this.input.unlock(); this.appEl.classList.remove('playing'); this.hud.setPrompt(null);
     this.stats.deaths++; this.save.attempts++;
     const canLower = difficulty.rank(this.save.difficulty.current) > 0;
-    this.setScreen(Screens.gameOverScreen(this, { attempts: this.stats.deaths + 1, canLower, hint: this.stats.deaths >= 2 ? 'Dica: o salto do R-4 tem direção travada depois do agachar — esquive de lado no último instante. Tiros durante o agachar o interrompem.' : null }));
+    this.setScreen(Screens.gameOverScreen(this, { attempts: this.stats.deaths + 1, canLower, hint: this.stats.deaths >= 2 ? (this.chapter.script.deathHint ?? null) : null }));
   }
   async retry(lower = false) {
     await this._loading();
@@ -352,58 +367,43 @@ export class Game {
     st.objectivesDone = s.completedObjectives.length;
     st.explorationVisited = this.chapter.script.explorationVisited(s);
     st.dossiersFound = s.dossiersInRun.length;
-    const score = scoreChapter(st, 'ch01');
+    const cid = s.chapterId, score = scoreChapter(st, cid);
     const eligibility = computeEligibility(s, { debug: this.debugUsed });
-    s.chapterStats.ch01 = { maxChain: st.maxChain, activeSeconds: Math.round(st.activeSeconds), deaths: st.deaths, score: score.total, grade: score.grade };
-    const rec = await this.records.submit({ runId: s.runId, attempt: 0, chapterId: 'ch01', difficulty: s.difficulty.current, protagonist: 'lia', mode: s.runRules.mode, assists: this.settings.assist, score: score.total, grade: score.grade, time: st.activeSeconds, eligibility, eventsDigest: { k: st.kills, cc: st.ccEarned, ch: st.maxChain, d: Math.round(st.damageTaken) } });
+    s.chapterStats[cid] = { maxChain: st.maxChain, activeSeconds: Math.round(st.activeSeconds), deaths: st.deaths, score: score.total, grade: score.grade };
+    const rec = await this.records.submit({ runId: s.runId, attempt: 0, chapterId: cid, difficulty: s.difficulty.current, protagonist: s.playerId, mode: s.runRules.mode, assists: this.settings.assist, score: score.total, grade: score.grade, time: st.activeSeconds, eligibility, eventsDigest: { k: st.kills, cc: st.ccEarned, ch: st.maxChain, d: Math.round(st.damageTaken) } });
     s.checkpointId = 'chapter_complete'; s.checkpoint = { pos: [0, -38], yaw: 0 };
     try { await this.saveManager.save(0, s); await this.saveManager.saveProfile(this.profile); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.sm.go(S.CHAPTER_COMPLETE); this.hud.hide(); this.appEl.classList.remove('playing'); this.input.setEnabled(false); this.input.unlock();
-    this.setScreen(Screens.resultsScreen(this, { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters.ch01.explorationNodes.length }));
+    this.setScreen(Screens.resultsScreen(this, { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length }));
   }
 
   // ---------------------------------------------------------------- cutscenes
   startCutscene(kind) {
     this.sm.go(S.CUTSCENE); this.input.setEnabled(false); this.input.unlock(); this.appEl.classList.remove('playing'); this.hud.hide(); this.audio.ensure();
     this.setScreen(h('div', h('div.letterbox.top'), h('div.letterbox.bot'), h('button#skip', { onclick: () => this.skipCutscene() }, 'Pular (Enter)')));
-    const c = this.cine = { kind, t: 0, heli: null };
+    const def = this.chapter.script.cutscenes[kind];
+    const c = this.cine = { kind, t: 0, dur: def.dur, def };
     this.dialogue.clear();
-    if (kind === 'intro') {
-      const heli = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 4.2), new THREE.MeshLambertMaterial({ color: 0x22292b })); heli.add(body);
-      const rotor = new THREE.Mesh(new THREE.BoxGeometry(7, 0.04, 0.2), new THREE.MeshLambertMaterial({ color: 0x111111 })); rotor.position.y = 0.7; heli.add(rotor);
-      const lamp = new THREE.PointLight(0xfff2cc, 40, 30); lamp.position.set(0, -0.6, -2); heli.add(lamp);
-      heli.position.set(-8, 14, 32); this.scene.add(heli); c.heli = heli; c.rotor = rotor;
-      this.dialogue.play('ch01_intro_radio'); this.player.teleport(0, 36, 0); this.playerView.root.visible = true; c.dur = 15.8;
-    } else {
-      this.scenery.coroPattern.active = true; this.scenery.coroPattern.t = 0; this.audio.play('coro', 14, -34);
-      this.dialogue.play('ch01_coro_tower'); c.dur = 9.2;
-    }
+    def.start(this, c);
   }
   skipCutscene() { if (this.cine) { this.cine.t = this.cine.dur + 1; this.dialogue.clear(); } }
   _updateCutscene(dt) {
     const c = this.cine; if (!c) return; c.t += dt; this.dialogue.update(dt);
-    const cam = this.threeCam;
-    if (c.kind === 'intro') {
-      const t = c.t; c.heli.position.set(-8 + t * 3.2, 14 + t * 1.2, 32 - t * 3.4); c.heli.rotation.y = 0.6 + t * 0.03; c.rotor.rotation.y += dt * 40;
-      cam.position.set(5.5 - t * 0.04, 2.0 + Math.sin(t * 0.4) * 0.05, 41.5); cam.lookAt(c.heli.position.x * 0.3, 8 + t * 0.2, 30); cam.fov = 64; cam.updateProjectionMatrix();
-      this.playerView.sync(1, dt, 1);
-    } else {
-      const a = c.t * 0.18; cam.position.set(14 + Math.cos(a + 0.6) * 15, 3.2 + c.t * 0.1, -34 + Math.sin(a + 0.6) * 15); cam.lookAt(14, 5.5 + c.t * 0.12, -34); cam.fov = 60; cam.updateProjectionMatrix();
-    }
+    c.def.update(this, c, dt);
     if (c.t >= c.dur) this._endCutscene();
   }
   _endCutscene() {
     const c = this.cine; this.cine = null; this.dialogue.clear();
-    if (c.heli) { this.scene.remove(c.heli); }
+    c.def.end?.(this, c);
     if (c.kind === 'intro') { this.camera.snapBehind(this.player.yaw); this.enterPlayingFromCutscene(); }
-    else { this.scenery.coroPattern.active = false; this.completeChapter(); }
+    else this.completeChapter();
   }
   enterPlayingFromCutscene() {
     const f = $('#fade'); void f;
     this.threeCam.fov = 68; this.threeCam.updateProjectionMatrix();
     this.sm.go(S.PLAYING); this.setScreen(null); this.hud.show(); this.appEl.classList.add('playing'); this.input.setEnabled(true); this.input.clearEdges(); this.input.lock(); this.loop.acc = 0;
     this.camera.snapBehind(this.player.yaw); this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
-    this.hud.toast('Capítulo 01 — O Sinal na Mata', 'good');
+    if (this.chapter.script.introToast) this.hud.toast(this.chapter.script.introToast, 'good');
   }
 
   // ---------------------------------------------------------------- simulação (passo fixo)
@@ -428,7 +428,7 @@ export class Game {
     // áudio de tensão: ameaça real (CHASE/WINDUP) aumenta camada; calmaria recua
     let threat = 0; for (const a of this.agents) { const s = a.agent.state; if (a.agent.dead) continue; const d = Math.hypot(a.agent.x - p.x, a.agent.z - p.z); if (d < 30) threat = Math.max(threat, s === AI.CHASE || s === AI.ATTACK_WINDUP || s === AI.ATTACK ? 1 : s === AI.STALK ? 0.6 : s === AI.INVESTIGATE ? 0.3 : 0); }
     this._threat = lerp(this._threat ?? 0, threat, 0.04); this.audio.setThreat(this._threat);
-    if (p.dead && this.deathAt == null) { this.deathAt = this.simMs; this.combo.endChain('death'); this.audio.play('hurt'); this.hud.toast('Lia caiu…', 'warn'); }
+    if (p.dead && this.deathAt == null) { this.deathAt = this.simMs; this.combo.endChain('death'); this.audio.play('hurt'); this.hud.toast(`${getCharacter(this.save.playerId).name} caiu…`, 'warn'); }
     if (this.deathAt != null && this.simMs - this.deathAt > 1800) this.gameOver();
   }
   onPlayerEvent(e) {
@@ -521,8 +521,8 @@ export class Game {
     this.audio.setListener(cam.pos.x, cam.pos.z, cam.yaw);
     // oclusão localizada: só os objetos que bloqueiam a vista
     const occ = new Set(this.world.occluders(cam.pos.x, cam.pos.y, cam.pos.z, cam.pivot.x, cam.pivot.y, cam.pivot.z).map((c) => c.id));
-    const inShelter = p.x > -30 && p.x < -24 && p.z > 1 && p.z < 7;
-    for (const id of this.scenery.fadeMats.keys()) this.scenery.setFade(id, (occ.has(id) && cam.dist > 0.3) || (inShelter && id === 'shelter_roof') ? 0.16 : 1);
+    const forceFade = this.chapter.script.forceFade;
+    for (const id of this.scenery.fadeMats.keys()) this.scenery.setFade(id, (occ.has(id) && cam.dist > 0.3) || forceFade?.(this, id) ? 0.16 : 1);
     this.playerView.sync(alpha, frameDt, cam.playerOpacity);
     for (const a of this.agents) a.view.sync(alpha, frameDt);
     this.updateHud(frameDt);
