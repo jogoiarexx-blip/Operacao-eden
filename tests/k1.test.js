@@ -11,6 +11,7 @@ import bestiary from '../src/data/bestiary.json';
 
 const SP = bestiary.species.containment_alpha;
 const STEP = 1000 / 60;
+const gate0 = () => new GateTrap({ zone: { x: 0, z: 0, r: 3 }, rechargeMs: 20000, damageFrac: 0.3, stunMs: 3500 });
 
 const mkK1 = (diffId = 'standard', pos = [0, 0], yaw = Math.PI) =>
   new K1Agent({ id: 'K-1', encounterId: 'ch02_k1', species: SP, pos, patrol: [], hpMult: difficulty.get(diffId).enemyHpMult, yaw });
@@ -140,18 +141,48 @@ describe('Minichefe K-1', () => {
   it('GateTrap serializa e restaura (retry do checkpoint volta a "pronto")', () => {
     const k = mkK1(); const { ctx } = mkCtx(k);
     const gate = new GateTrap({ zone: { x: 0, z: 0, r: 3 } });
-    const snap = JSON.parse(JSON.stringify(gate.serialize()));
+    const snap = JSON.parse(JSON.stringify(gate.serialize(4000)));
     gate.trigger(5000, k, ctx);
     expect(gate.ready(6000)).toBe(false);
-    gate.restore(snap);
+    gate.restore(snap, 6000);
     expect(gate.ready(6000)).toBe(true);
-    const g2 = new GateTrap({ zone: { x: 0, z: 0, r: 3 } });
-    g2.restore(JSON.parse(JSON.stringify(gate.serialize())));
-    expect(g2.ready(6000)).toBe(true);
-    gate.trigger(6000, k, { ...ctx, sim: 6000 });
-    const g3 = new GateTrap({ zone: { x: 0, z: 0, r: 3 } }); g3.restore(JSON.parse(JSON.stringify(gate.serialize())));
-    expect(g3.ready(16000)).toBe(false);
-    expect(g3.ready(26000)).toBe(true);
+    expect(gate.state(6000)).toEqual({ ready: true, frac: 1 });
+  });
+
+  it('GateTrap grava a recarga restante: simMs zerado no retry não distorce a recarga', () => {
+    const k = mkK1(); const { ctx } = mkCtx(k);
+    const gate = new GateTrap({ zone: { x: 0, z: 0, r: 3 }, rechargeMs: 20000 });
+    gate.trigger(15000, k, ctx);
+    const snap = JSON.parse(JSON.stringify(gate.serialize(30000)));          // 15 s de recarga já passados → faltam 5 s
+    expect(snap.remainingMs).toBe(5000);
+    const g2 = new GateTrap({ zone: { x: 0, z: 0, r: 3 }, rechargeMs: 20000 });
+    g2.restore(snap, 0);                                                       // retry: simMs volta a 0
+    expect(g2.ready(0)).toBe(false);
+    expect(g2.state(0)).toEqual({ ready: false, frac: 0.75 });
+    expect(g2.ready(4999)).toBe(false);
+    expect(g2.state(2500).frac).toBeCloseTo(0.875, 5);
+    expect(g2.ready(5000)).toBe(true);
+    expect(g2.state(5000)).toEqual({ ready: true, frac: 1 });
+    // pronto ao gravar → pronto ao restaurar
+    const g3 = new GateTrap({ zone: { x: 0, z: 0, r: 3 } });
+    g3.restore(JSON.parse(JSON.stringify(g2.serialize(6000))), 0);
+    expect(g3.ready(0)).toBe(true);
+  });
+
+  it('GateTrap.trigger exige ctx (eventos do bus não podem se perder)', () => {
+    const k = mkK1();
+    const gate = new GateTrap({ zone: { x: 0, z: 0, r: 3 } });
+    expect(() => gate.trigger(0, k)).toThrow(/ctx/);
+    expect(k.hp).toBe(900);
+    expect(gate.ready(0)).toBe(true);
+  });
+
+  it('queda do portão como golpe final emite enemyNeutralized', () => {
+    const k = mkK1(); const { ctx, events } = mkCtx(k);
+    k.hp = 200;
+    expect(gate0().trigger(0, k, ctx)).toEqual({ hit: true });
+    expect(k.dead).toBe(true);
+    expect(events.some((e) => e.type === 'enemyNeutralized' && e.p.enemyId === 'K-1')).toBe(true);
   });
 
   it('abaixo de 25 % emite k1Roar uma única vez, mesmo com vários danos; bossHp a cada dano', () => {
