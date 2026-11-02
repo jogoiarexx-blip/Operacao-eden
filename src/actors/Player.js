@@ -20,7 +20,7 @@ export class Player {
     this.hp = 100; this.maxHp = 100; this.dmgMult = 1; this.dodgeCdS = DODGE_CD; this.bleeding = false; this._bleedT = 0; this.dead = false;
     this.aiming = false; this.sprinting = false; this.moving = false; this.speed = 0;
     this.dodgeT = -1; this.dodgeCd = 0; this.dodgeDir = { x: 0, z: -1 }; this.dodgeBuf = 0; this.dodgeId = 0;
-    this.fireBuf = 0; this.fireCd = 0; this.reloadT = -1; this.lastFireT = -99; this.utilityCd = 0;
+    this.fireBuf = 0; this.fireCd = 0; this.reloadT = -1; this.lastFireT = -99; this.utilityCd = 0; this.utilityId = 'electric_tool';
     this.using = null;                      // {kind, t, dur}
     this.weaponId = 'pistol'; this.mag = 12; this.reserve = 24; this.magBonus = 0;
     this.upgrades = []; this.hurtT = 0; this.infiniteAmmo = false;
@@ -38,7 +38,7 @@ export class Player {
 
   loadFromSave(save) {
     const inv = activeInventory(save), ch = getCharacter(save.playerId);
-    this.maxHp = ch.maxHp; this.dmgMult = ch.damageTakenMult; this.dodgeCdS = ch.dodgeCdS;
+    this.maxHp = ch.maxHp; this.dmgMult = ch.damageTakenMult; this.dodgeCdS = ch.dodgeCdS; this.utilityId = ch.utility;
     this.weaponId = inv.equipped; this.upgrades = [...inv.upgrades];
     this.stash = {};
     for (const id of Object.keys(inv.weapons)) if (id !== this.weaponId && WEAPONS[id]) this.stash[id] = { mag: inv.weapons[id]?.mag ?? 0, reserve: inv.ammoReserve[id] ?? 0 };
@@ -206,7 +206,7 @@ export class Player {
 
     // ferramenta elétrica (Q)
     if (input.utilityPressed && this.utilityCd <= 0 && !this.using && !this.reloading) {
-      this.utilityCd = UTILITY.electric_tool.cooldownMs / 1000; ev.push({ type: 'utility' });
+      this.utilityCd = UTILITY[this.utilityId].cooldownMs / 1000; ev.push({ type: 'utility' });
     }
 
     // disparo (semiautomática, com buffer de 100 ms)

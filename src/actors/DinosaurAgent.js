@@ -293,6 +293,18 @@ export class DinosaurAgent {
     }
     return true;
   }
+  /** Empurra `dist` m na direção (dx,dz) (normalizada aqui), resolvido contra colisores em passos curtos. */
+  knockback(dx, dz, dist, world) {
+    if (this.dead) return;
+    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const steps = Math.max(1, Math.ceil(dist / 0.25)), st = dist / steps;
+    for (let i = 0; i < steps; i++) {
+      const r = world.resolveCircle(this.x + dx * st, this.z + dz * st, this.radius);
+      if (Math.hypot(r.x - this.x, r.z - this.z) < st * 0.25) break;
+      this.x = r.x; this.z = r.z;
+    }
+    this.px = this.x; this.pz = this.z;
+  }
   stun(ms, ctx) {
     if (this.dead) return false;
     ctx.coordinator.release(this); this.setState(AI.STAGGER, ms); this.vulnerable = true;

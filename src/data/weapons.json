@@ -19,6 +19,7 @@
     }
   },
   "utility": {
-    "electric_tool": { "id": "electric_tool", "name": "Ferramenta elétrica (Lia)", "range": 3.2, "stunMs": 2200, "cooldownMs": 6000, "noiseRadius": 6 }
+    "electric_tool": { "id": "electric_tool", "name": "Ferramenta elétrica (Lia)", "range": 3.2, "stunMs": 2200, "cooldownMs": 6000, "noiseRadius": 6 },
+    "impact_tool": { "id": "impact_tool", "name": "Ferramenta de impacto (Caio)", "range": 2.6, "knockback": 2.5, "stunMs": 1200, "cooldownMs": 7000, "noiseRadius": 10 }
   }
 }

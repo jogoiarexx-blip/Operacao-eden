@@ -10,3 +10,6 @@ export function newInventory(charId) {
 }
 /** Inventário do personagem ativo (save v5). */
 export const activeInventory = (save) => save.inventories[save.playerId];
+/** Interações restritas a personagens específicos (heavy_lever/breakable → Caio). Demais tipos: livres. */
+const RESTRICTED = new Set(['heavy_lever', 'breakable']);
+export const canUseInteraction = (charId, kind) => !RESTRICTED.has(kind) || getCharacter(charId).interactions.includes(kind);

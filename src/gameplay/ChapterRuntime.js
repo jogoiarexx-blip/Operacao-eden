@@ -5,7 +5,7 @@ import secrets from '../data/secrets.json';
 import { claimSecret, discover, CollectibleManager, getDossier } from './SecretManager.js';
 import { difficulty } from './DifficultyManager.js';
 import { WEAPONS } from './GameState.js';
-import { activeInventory } from './Characters.js';
+import { activeInventory, getCharacter, canUseInteraction } from './Characters.js';
 import { keyLabel } from '../core/Settings.js';
 
 /** Runtime genérico de capítulo: encontros, pickups, interações, zonas, objetivos, tutoriais, flags. Lógica específica vive no script do capítulo (hooks). */
@@ -52,7 +52,37 @@ export class ChapterRuntime {
       if (this.script.onEncounter?.(this, enc, alive)) continue;      // script trata encontros especiais (ex.: tardio) no ponto original do laço
       for (const e of alive) g.spawnAgent(e, enc.id);
     }
+    this.restoreBreakables();
     this.script.onLoad?.(this);
+  }
+  /** Barreiras: as já quebradas somem (colisor + mesh); as demais voltam (carregar save anterior no mesmo capítulo). */
+  restoreBreakables() {
+    const g = this.g, broken = this.wf.broken ??= [];
+    for (const it of this.data.interactables) {
+      if (it.kind !== 'breakable') continue;
+      const gone = broken.includes(it.id), cid = it.colliderId ?? it.id, mesh = g.scenery?.meshes?.get(cid);
+      if (gone) g.world.removeById(cid); else g.world.restoreById?.(cid);
+      if (mesh) mesh.visible = !gone;
+    }
+  }
+  /** Golpe de impacto em (x,z): quebra barreiras ao alcance. Retorna quantas quebrou. */
+  breakAt(x, z, range) {
+    const g = this.g, broken = this.wf.broken ??= []; let n = 0;
+    for (const it of this.data.interactables) {
+      if (it.kind !== 'breakable' || broken.includes(it.id)) continue;
+      if (dist(x, z, it.pos[0], it.pos[1]) > range) continue;
+      const cid = it.colliderId ?? it.id, mesh = g.scenery?.meshes?.get(cid);
+      g.world.removeById(cid); if (mesh) mesh.visible = false;
+      broken.push(it.id); n++;
+      g.fx?.burst({ x: it.pos[0], y: 1, z: it.pos[1] }, 0xb89a6a, 14, 4);
+      this.script.onBreak?.(this, it);
+    }
+    return n;
+  }
+  hiddenInteractable(it) {
+    if (it.kind === 'breakable') return (this.wf.broken ?? []).includes(it.id);
+    if (it.kind === 'heavy_lever' && it.flag) return !!this.g.save.storyFlags[it.flag];
+    return false;
   }
   dispose() { if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
 
@@ -114,7 +144,7 @@ export class ChapterRuntime {
     const consider = (d, r, rec) => { if (d <= r && (!best || d < best.d)) best = { d, ...rec }; };
     for (const k of this.pickups) consider(dist(p.x, p.z, k.def.pos[0], k.def.pos[1]), 1.9, { type: 'pickup', k, label: `Pegar — ${k.def.label}` });
     for (const it of this.data.interactables) {
-      if (this.script.hideInteractable?.(this, it)) continue;
+      if (this.hiddenInteractable(it) || this.script.hideInteractable?.(this, it)) continue;
       consider(dist(p.x, p.z, it.pos[0], it.pos[1]), it.r, { type: it.kind, it, label: it.label });
     }
     for (const t of this.data.terminals) consider(dist(p.x, p.z, t.pos[0], t.pos[1]), 2.3, { type: 'terminal', t, label: `Usar ${t.name}` });
@@ -126,7 +156,12 @@ export class ChapterRuntime {
     const n = this.nearest(p); this.promptTarget = n;
     if (!n) { g.hud.setPrompt(null); this.holdMs = Math.max(0, this.holdMs - dt * 2000); return; }
     if (n.type === 'terminal') this.tutorial('tut_terminal');
-    const hi = this.script.holdInteraction?.(this, n);
+    if (n.type === 'heavy_lever' || n.type === 'breakable') {
+      const id = this.g.save.playerId;
+      if (!canUseInteraction(id, n.type)) { this.holdMs = 0; g.hud.setPrompt('Precisa da força de Caio'); return; }
+      if (n.type === 'breakable') { g.hud.setPrompt(`${n.label} — golpe de impacto`); return; }
+    }
+    const hi = n.type === 'heavy_lever' ? { holdMs: n.it.holdMs ?? 1500, onDone: () => this.completeLever(n) } : this.script.holdInteraction?.(this, n);
     if (hi) {
       const hold = hi.holdMs;
       if (inp.interactHeld && !p.using) {
@@ -141,6 +176,12 @@ export class ChapterRuntime {
     if (n.type === 'pickup') this.collect(n.k);
     else if (n.type === 'terminal') g.openTerminal(n.t);
     else this.script.onInteract?.(this, n);
+  }
+
+  completeLever(n) {
+    const g = this.g; if (n.it.flag) this.flag(n.it.flag);
+    g.audio.play('gate'); g.hud.toast(n.it.doneText ?? 'Alavanca acionada.', 'good');
+    this.script.onInteract?.(this, n);
   }
 
   collect(k) {

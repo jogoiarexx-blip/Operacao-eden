@@ -25,7 +25,7 @@ import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
 import { DinosaurAgent, AttackCoordinator, AI } from './actors/DinosaurAgent.js';
 import { CreatureView } from './actors/CreatureView.js';
-import { resolveShot, reticleState, shouldInterrupt } from './actors/Combat.js';
+import { resolveShot, reticleState, shouldInterrupt, applyImpact } from './actors/Combat.js';
 import { EconomyLedger } from './gameplay/EconomyLedger.js';
 import { ComboSystem } from './gameplay/ComboSystem.js';
 import { difficulty } from './gameplay/DifficultyManager.js';
@@ -217,7 +217,7 @@ export class Game {
     if (s.stats) { this.stats = new RunStats(s.stats); this.combo.style.restore(this.stats.style); this.combo.chain.maxCount = this.stats.maxChain; }
     this.stats.objectivesTotal = this.chapterDef.data.objectives.length;
     this.simMs = 0; this.deathAt = null; this.mapOpen = false; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
-    this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
+    this.playerView.setCharacter(s.playerId); this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
     const r = this.world.resolveCircle(this.player.x, this.player.z, 0.4); this.player.teleport(r.x, r.z, s.checkpoint.yaw ?? 0);
     this._clearAgents(); this.chapter.exiting = false; this.chapter._roared = false; this.chapter.load();
     this.dialogue.clear(); this.hud.toasts.replaceChildren(); this.hud.feedEl.replaceChildren();
@@ -479,6 +479,7 @@ export class Game {
     } else if (res.kind === 'world') this.fx.burst(res.point, 0xffd98a, 4, 2.4, 0.2);
   }
   useUtility() {
+    if (getCharacter(this.save.playerId).utility === 'impact_tool') return this.useImpact();
     const p = this.player, ut = UTILITY.electric_tool, ctx = this.aiCtx();
     let best = null;
     for (const a of this.liveAgents()) {
@@ -493,6 +494,24 @@ export class Game {
     best.a.stun(ut.stunMs, ctx);
     const others = this.liveAgents().filter((o) => o !== best.a && Math.hypot(o.x - p.x, o.z - p.z) < 14).length;
     this.bus.emit('groupControl', { eventId: `gc:${best.a.id}:${Math.round(this.simMs)}`, enemyId: best.a.id, encounterId: best.a.encounterId, othersAlive: others > 0, tick: this.loop.tick });
+  }
+
+  useImpact() {
+    const p = this.player, ut = UTILITY.impact_tool, ctx = this.aiCtx(), fx = -Math.sin(this.camera.yaw), fz = -Math.cos(this.camera.yaw);
+    this.noises.push({ x: p.x, z: p.z, r: ut.noiseRadius });
+    const targets = this.liveAgents().filter((a) => { const dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz); return d <= ut.range + a.radius && (dx * fx + dz * fz) / (d || 1) >= 0.35; });
+    const broke = this.chapter.breakAt(p.x + fx * 1.2, p.z + fz * 1.2, ut.range);
+    if (!targets.length && !broke) { p.utilityCd = 0.6; this.hud.toast('Nada ao alcance do golpe.', 'warn'); this.audio.play('deny'); return; }
+    this.camera.shake(0.6); this.audio.play('hit', p.x, p.z);
+    for (const a of targets) {
+      this.fx.burst({ x: a.x, y: 1, z: a.z }, 0xe8d8a8, 10, 4);
+      applyImpact(a, p, ut, this.world, { ...ctx, sim: this.simMs });
+    }
+    const first = targets.find((a) => !a.species.boss);
+    if (first) {
+      const others = this.liveAgents().filter((o) => o !== first && Math.hypot(o.x - p.x, o.z - p.z) < 14).length;
+      this.bus.emit('groupControl', { eventId: `gc:${first.id}:${Math.round(this.simMs)}`, enemyId: first.id, encounterId: first.encounterId, othersAlive: others > 0, tick: this.loop.tick });
+    }
   }
 
   // ---------------------------------------------------------------- render

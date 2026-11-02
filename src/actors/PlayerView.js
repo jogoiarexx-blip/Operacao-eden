@@ -11,13 +11,13 @@ export class PlayerView {
     const pants = new THREE.MeshLambertMaterial({ color: 0x2b2f3a, flatShading: true });
     const hair = new THREE.MeshLambertMaterial({ color: 0x1d1512, flatShading: true });
     const gear = new THREE.MeshLambertMaterial({ color: 0x3a3d3a, flatShading: true });
-    this.mats = [skin, jacket, pants, hair, gear]; this.baseColors = this.mats.map((m) => m.color.getHex());
+    this.mats = [skin, jacket, pants, hair, gear]; this.liaColors = this.mats.map((m) => m.color.getHex()); this.baseColors = this.mats.map((m) => m.color.getHex());
     const body = this.body = new THREE.Group(); g.add(body);
     this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.56, 0.26), jacket); this.torso.position.set(0, 1.2, 0); body.add(this.torso);
     const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.16), gear); pack.position.set(0, 1.22, 0.2); body.add(pack);
     this.head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), skin); this.head.position.set(0, 1.62, 0); body.add(this.head);
     const hairM = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.62), hair); hairM.position.set(0, 1.64, 0.01); body.add(hairM);
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.07), hair); tail.position.set(0, 1.5, 0.17); tail.rotation.x = 0.4; body.add(tail);
+    const tail = this.tail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.07), hair); tail.position.set(0, 1.5, 0.17); tail.rotation.x = 0.4; body.add(tail);
     this.legs = [];
     for (const sx of [-1, 1]) {
       const hip = new THREE.Group(); hip.position.set(sx * 0.12, 0.92, 0); g.add(hip);
@@ -35,7 +35,16 @@ export class PlayerView {
     this.gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.11, 0.3), gear); this.gun.position.set(0, -0.5, -0.14); this.arms[1].add(this.gun);
     this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); this.flash.position.set(0, -0.5, -0.34); this.flash.visible = false; this.arms[1].add(this.flash);
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    this.t = 0; this.flashT = 0; this.deadT = 0;
+    this.t = 0; this.flashT = 0; this.deadT = 0; this.charId = 'lia';
+  }
+  /** Lia (padrão) ou Caio: mais largo, jaqueta ocre, cabelo curto, esquiva em rolamento pesado. */
+  setCharacter(id) {
+    const caio = id === 'caio'; this.charId = caio ? 'caio' : 'lia';
+    const cols = caio ? [0x8a5a3c, 0x9a5a22, 0x30343a, 0x120e0c, 0x3a3d3a] : this.liaColors;
+    this.mats.forEach((m, i) => m.color.setHex(cols[i])); this.baseColors = cols.slice();
+    this.body.scale.set(caio ? 1.25 : 1, caio ? 1.05 : 1, caio ? 1.2 : 1);
+    this.legs.forEach((l) => l.scale.set(caio ? 1.2 : 1, 1, caio ? 1.15 : 1));
+    this.tail.visible = !caio;
   }
   muzzleFlash() { this.flashT = 0.05; }
   sync(alpha, dt, opacity = 1) {
@@ -60,7 +69,7 @@ export class PlayerView {
     this.head.position.y = 1.62; this.body.rotation.z = 0;
     // esquiva: rolamento
     g.position.y = 0;
-    if (p.dodging) { const k = clamp(p.dodgeT / 0.34, 0, 1); this.body.rotation.x = -k * Math.PI * 2; this.body.position.y = 0.3 * Math.sin(k * Math.PI) - 0.25 + 0.4; this.legs.forEach((l) => { l.rotation.x = -1.2; }); }
+    if (p.dodging) { const k = clamp(p.dodgeT / 0.34, 0, 1), heavy = this.charId === 'caio'; this.body.rotation.x = -k * Math.PI * 2; this.body.position.y = (heavy ? 0.12 : 0.3) * Math.sin(k * Math.PI) - 0.25 + (heavy ? 0.3 : 0.4); if (heavy) this.body.rotation.z = Math.sin(k * Math.PI) * 0.25; this.legs.forEach((l) => { l.rotation.x = -1.2; }); }
     // dano
     const hurt = p.hurtT > 0;
     this.mats.forEach((m, i) => m.color.setHex(hurt && i !== 0 ? 0xcc6666 : this.baseColors[i]));

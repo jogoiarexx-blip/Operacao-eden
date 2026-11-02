@@ -154,4 +154,10 @@ export function reticleState({ world, enemies, camera, muzzle, weapon }) {
   const blocked = !!h && h.t < l - 0.15;
   return blocked ? 'blocked' : eHit ? 'enemy' : 'clear';
 }
+/** Golpe da ferramenta de impacto (Caio): empurra e, exceto bosses, atordoa. `from` = {x,z} do jogador. */
+export function applyImpact(agent, from, ut, world, ctx) {
+  const dx = agent.x - from.x, dz = agent.z - from.z, d = Math.hypot(dx, dz) || 1;
+  agent.knockback(dx / d, dz / d, ut.knockback, world);
+  if (!agent.species.boss) agent.stun(ut.stunMs, ctx);
+}
 export { forwardVec };
