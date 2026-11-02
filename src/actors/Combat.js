@@ -16,7 +16,7 @@ function raySphere(ox, oy, oz, dx, dy, dz, cx, cy, cz, r, maxT) {
 /** Centros das caixas de acerto de um animal em coordenadas de mundo. */
 export function hitSpheres(enemy) {
   const f = { x: -Math.sin(enemy.yaw), z: -Math.cos(enemy.yaw) };
-  const h = enemy.species.hit, out = [];
+  const h = enemy.hitBoxes ?? enemy.species.hit, out = [];      // hitBoxes: caixas dinâmicas (ex.: cabeça baixa do K-1 atordoado)
   for (const [part, p] of Object.entries(h)) out.push({ part, x: enemy.x + f.x * p.fwd, y: p.y, z: enemy.z + f.z * p.fwd, r: p.r });
   return out;
 }

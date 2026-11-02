@@ -211,7 +211,10 @@ export class DinosaurAgent {
       }
       default: break;
     }
-    // separação entre animais (evita sobreposição)
+    this._separate(allies, world);
+  }
+  /** Separação entre animais (evita sobreposição). */
+  _separate(allies, world) {
     for (const o of allies) {
       if (o === this || o.dead) continue;
       const dx = this.x - o.x, dz = this.z - o.z, d = Math.hypot(dx, dz), min = this.radius + o.radius + 0.1;
@@ -267,13 +270,14 @@ export class DinosaurAgent {
       bus.emit('counterHit', { attackId: this.attackId, enemyId: this.id, encounterId: this.encounterId });
     }
     if (this.hp <= 0) {
-      const wasVulnerable = this.state === AI.STAGGER;
+      const wasVulnerable = this.state === AI.STAGGER || this.vulnerable;
       this.dead = true; this.deadAt = sim; this.setState(AI.DEAD); coordinator.release(this);
       out.dead = true;
       bus.emit('enemyNeutralized', { eventId: `kill:${this.id}`, runId: ctx.runId, encounterId: this.encounterId, enemyId: this.id, tick, creditedTo: 'player', baseCC: this.ccBase, vulnerable: wasVulnerable });
       return out;
     }
-    if (this.state === AI.ATTACK_WINDUP && this.windupProgress < 0.7 && !this.interruptDone.has(this.attackId) && sim >= this.staggerImmuneUntil) {
+    // chefes: qualquer dano não interrompe; só o impacto pesado (`interrupt`, escopeta com bossMinPellets)
+    if (this.state === AI.ATTACK_WINDUP && !this.species.boss && this.windupProgress < 0.7 && !this.interruptDone.has(this.attackId) && sim >= this.staggerImmuneUntil) {
       this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
       coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true; out.interrupted = true;
       bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });

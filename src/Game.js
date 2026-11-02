@@ -25,6 +25,7 @@ import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
 import { DinosaurAgent, AttackCoordinator, AI } from './actors/DinosaurAgent.js';
 import { CreatureView } from './actors/CreatureView.js';
+import { K1Agent, K1 } from './actors/K1Agent.js';
 import { resolveShot, reticleState, shouldInterrupt, applyImpact } from './actors/Combat.js';
 import { EconomyLedger } from './gameplay/EconomyLedger.js';
 import { ComboSystem } from './gameplay/ComboSystem.js';
@@ -231,7 +232,8 @@ export class Game {
   _clearAgents() { for (const a of this.agents) { this.scene.remove(a.view.mesh); a.view.dispose(); } this.agents = []; }
   spawnAgent(def, encounterId) {
     const species = bestiary.species[def.type];
-    const agent = new DinosaurAgent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
+    const Agent = species.boss ? K1Agent : DinosaurAgent;
+    const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
     const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
@@ -426,7 +428,7 @@ export class Game {
     this.fx.update(dt);
     this.stats.activeSeconds += dt; this.save.playtimeSeconds += dt;
     // áudio de tensão: ameaça real (CHASE/WINDUP) aumenta camada; calmaria recua
-    let threat = 0; for (const a of this.agents) { const s = a.agent.state; if (a.agent.dead) continue; const d = Math.hypot(a.agent.x - p.x, a.agent.z - p.z); if (d < 30) threat = Math.max(threat, s === AI.CHASE || s === AI.ATTACK_WINDUP || s === AI.ATTACK ? 1 : s === AI.STALK ? 0.6 : s === AI.INVESTIGATE ? 0.3 : 0); }
+    let threat = 0; for (const a of this.agents) { const s = a.agent.state; if (a.agent.dead) continue; const d = Math.hypot(a.agent.x - p.x, a.agent.z - p.z); if (d < 30) threat = Math.max(threat, s === AI.CHASE || s === AI.ATTACK_WINDUP || s === AI.ATTACK || s === K1.CHARGE_WINDUP || s === K1.CHARGE || s === K1.TAIL_WINDUP ? 1 : s === AI.STALK ? 0.6 : s === AI.INVESTIGATE ? 0.3 : 0); }
     this._threat = lerp(this._threat ?? 0, threat, 0.04); this.audio.setThreat(this._threat);
     if (p.dead && this.deathAt == null) { this.deathAt = this.simMs; this.combo.endChain('death'); this.audio.play('hurt'); this.hud.toast(`${getCharacter(this.save.playerId).name} caiu…`, 'warn'); }
     if (this.deathAt != null && this.simMs - this.deathAt > 1800) this.gameOver();
@@ -573,12 +575,15 @@ export class Game {
     const fwd = { x: -Math.sin(cam.yaw), z: -Math.cos(cam.yaw) }, rgt = { x: Math.cos(cam.yaw), z: -Math.sin(cam.yaw) }, hf = 2 * Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect);
     const th = [];
     for (const a of live) {
-      if (![AI.CHASE, AI.ATTACK_WINDUP, AI.ATTACK, AI.STALK].includes(a.state)) continue;
+      if (![AI.CHASE, AI.ATTACK_WINDUP, AI.ATTACK, AI.STALK, K1.CHARGE_WINDUP, K1.CHARGE, K1.TAIL_WINDUP].includes(a.state)) continue;
       const dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz); if (d > 16) continue;
       const ang = Math.atan2(dx * rgt.x + dz * rgt.z, dx * fwd.x + dz * fwd.z);
       if (Math.abs(ang) > hf / 2 * 0.92) th.push(ang);
     }
     hud.setThreats(th.slice(0, 4));
+    // barra do chefe: enquanto houver um chefe vivo (ex.: K-1 do encontro ch02_k1)
+    const boss = live.find((a) => a.species.boss);
+    hud.setBossBar(boss ? `${boss.species.code} — ${boss.species.name}` : null, boss ? Math.max(0, boss.hp) / boss.maxHp : null);
   }
 
   // ---------------------------------------------------------------- menus por gamepad

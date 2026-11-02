@@ -18,6 +18,23 @@
       "attack": { "windupMs": 560, "lungeMs": 300, "lungeDist": 3.0, "reach": 1.2, "damage": 8, "recoverMs": 850, "triggerRange": 3.4, "bleedChance": 0.05 },
       "hit": { "head": { "y": 0.78, "fwd": 0.36, "r": 0.2 }, "torso": { "y": 0.5, "fwd": 0.0, "r": 0.36 }, "legs": { "y": 0.22, "fwd": 0.0, "r": 0.26 } },
       "hurtRadius": 0.35
+    },
+    "containment_alpha": {
+      "id": "containment_alpha", "code": "K-1", "name": "Alfa de contenção", "dossier": null, "boss": true,
+      "hp": 900, "baseCC": 2500, "scale": 1.9, "color": "#4a4a3a", "accent": "#b4512c",
+      "patrolSpeed": 1.8, "chaseSpeed": 4.4, "turnRate": 3.2,
+      "vision": { "range": 34, "fovDeg": 150 }, "hearingScale": 1.2,
+      "attack": { "windupMs": 700, "lungeMs": 320, "lungeDist": 1.6, "reach": 2.4, "damage": 26, "recoverMs": 900, "triggerRange": 3.8, "bleedChance": 0.2 },
+      "hit": { "head": { "y": 2.6, "fwd": 1.55, "r": 0.32 }, "torso": { "y": 1.6, "fwd": 0.0, "r": 1.05 }, "legs": { "y": 0.7, "fwd": 0.0, "r": 0.75 } },
+      "hurtRadius": 1.1,
+      "k1": {
+        "phases": [0.6, 0.25],
+        "charge": { "windupMs": 1100, "phase2Mult": 0.85, "lockAt": 0.6, "speed": 12.5, "maxDist": 24, "maxMs": 2400, "reach": 1.9, "damage": 32, "minRange": 6, "maxRange": 26, "cooldownMs": 2200, "recoverMs": 1000, "dazedMs": 2500, "dazedImmuneMs": 1500 },
+        "tail": { "windupMs": 800, "behindMs": 1500, "reach": 3.6, "damage": 16, "push": 3.0, "recoverMs": 800 },
+        "memory": { "radius": 2, "ms": 6000, "flankMs": 5000 },
+        "dazedHeadMult": 3,
+        "dazedHead": { "y": 1.5, "fwd": 1.8, "r": 0.42 }
+      }
     }
   }
 }

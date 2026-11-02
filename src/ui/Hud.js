@@ -18,7 +18,8 @@ export class Hud {
     this.ticks = ['top', 'bottom', 'left', 'right'].map((s) => { const t = h('div.t'); if (s === 'left' || s === 'right') { t.style.width = '8px'; t.style.height = '2px'; } return t; });
     this.dot = h('div.dot'); this.ring = h('div.ring'); this.reticle = h('div#reticle', this.dot, this.ring, ...this.ticks);
     this.promptEl = h('div#prompt.hidden'); this.toasts = h('div#toasts'); this.subs = h('div#subs');
-    root.append(this.vig, this.threatsEl, this.objective, this.vitals, this.ammo, this.chain, this.feedEl, this.reticle, this.promptEl, this.toasts, this.subs);
+    this.bossName = h('div.name'); this.bossFill = h('i'); this.boss = h('div#hud-boss.hud-box.hidden', this.bossName, h('div.bar', this.bossFill));
+    root.append(this.vig, this.threatsEl, this.objective, this.vitals, this.ammo, this.chain, this.feedEl, this.reticle, this.promptEl, this.toasts, this.subs, this.boss);
     this._hitT = 0; this._lastObj = '';
   }
   show() { this.root.classList.remove('hidden'); }
@@ -48,6 +49,13 @@ export class Hud {
   }
   hitMarker() { this._hitT = 0.12; }
   damageFlash() { this.vig.style.opacity = 0.9; setTimeout(() => { this.vig.style.opacity = 0; }, 140); }
+  /** Barra de vida do chefe; `frac` null esconde. */
+  setBossBar(name, frac) {
+    if (frac == null) { if (!this._bossHidden) { this.boss.classList.add('hidden'); this._bossHidden = true; } return; }
+    if (this._bossHidden !== false) { this.boss.classList.remove('hidden'); this._bossHidden = false; }
+    if (name !== this._bossNameTxt) { this.bossName.textContent = name ?? ''; this._bossNameTxt = name; }
+    this.bossFill.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
+  }
   setChain(count, remainingMs, windowMs, tier, hidden) {
     if (hidden || count < 1) { this.chain.classList.add('hidden'); return; }
     this.chain.classList.remove('hidden');
