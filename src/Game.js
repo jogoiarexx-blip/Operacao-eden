@@ -5,6 +5,7 @@ import { GameLoop } from './core/GameLoop.js';
 import { StateMachine, S } from './core/StateMachine.js';
 import { loadSettings, saveSettings, QUALITY } from './core/Settings.js';
 import { lerp } from './core/math.js';
+import { TouchControls } from './input/TouchControls.js';
 import { Input } from './input/Input.js';
 import { AudioEngine } from './audio/Audio.js';
 import { Hud } from './ui/Hud.js';
@@ -79,6 +80,7 @@ export class Game {
     this.hud = new Hud(this.hudRoot); this.dialogue = new Dialogue(this.hud);
     this.audio = new AudioEngine();
     this.input = new Input(this.canvas, this.settings);
+    this.touchControls = new TouchControls(this.input, this.appEl);
     this.input.onLockLost = () => { if (this.sm.is(S.PLAYING)) this.pause(); };
     this.saveManager = new SaveManager();
     this.records = await new RecordBook(this.saveManager.adapter).load().catch(() => new RecordBook(this.saveManager.adapter));
@@ -147,12 +149,12 @@ export class Game {
       this.audio.suspend();
     } else if (!this.sm.is(S.PAUSED, S.SHOP)) this.audio.resume();
   }
-  onBlur() { if (this.sm.is(S.BENCHMARK) && this.bench?.collector.phase !== 'done') this.bench.collector.invalidate('janela perdeu o foco'); }
+  onBlur() { if (this.sm.is(S.PLAYING)) this.pause(); if (this.sm.is(S.BENCHMARK) && this.bench?.collector.phase !== 'done') this.bench.collector.invalidate('janela perdeu o foco'); }
   onKey(e) {
     if (this.sm.is(S.CUTSCENE) && (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space')) { this.skipCutscene(); return; }
     if (this.sm.is(S.BENCHMARK) && e.code === 'Escape') { this.bench.collector.cancel(); return; }
     if (this.sm.is(S.SHOP) && e.code === 'Escape') { this.closeTerminal(); return; }
-    if (this.sm.is(S.PAUSED) && (e.code === 'Escape') && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { if (this.mapOpen) this.resume(); }
+    if (this.sm.is(S.PAUSED) && (e.code === 'Escape') && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { this.resume(); }
   }
 
   // ---------------------------------------------------------------- UI helpers
@@ -532,6 +534,7 @@ export class Game {
     const ch = this.combo.chain;
     hud.setChain(ch.count, ch.remainingMs(this.simMs), ch.windowMs, ch.count >= 10 ? 'EXTINÇÃO' : ch.count >= 6 ? 'IMPLACÁVEL' : ch.count >= 4 ? 'PREDADOR' : 'CADEIA', this.settings.hideComboHud);
     const obj = this.chapter.currentObjective(); hud.setObjective(obj ? obj.text : 'Capítulo concluído.');
+    hud.setNavigation(this.chapter.objectiveTarget(), p, cam.yaw, this.save.completedObjectives.length, chapterData.objectives.length);
     // ameaças reais fora da tela
     const fwd = { x: -Math.sin(cam.yaw), z: -Math.cos(cam.yaw) }, rgt = { x: Math.cos(cam.yaw), z: -Math.sin(cam.yaw) }, hf = 2 * Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect);
     const th = [];

@@ -67,7 +67,7 @@ export class ChapterRuntime {
   }
   dispose() { if (this.group) { this.g.scene.remove(this.group); this.group.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); }); } }
 
-  labels() { const b = this.g.settings.bindings; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>` }; }
+  labels() { const b = this.g.settings.bindings; if (this.g.input.touchActive) return { move: 'Analógico esquerdo', look: 'arraste no cenário', aim: 'Mirar', fire: 'Atirar', reload: 'Recarregar', swap: 'Ombro', dodge: 'Esquivar', interact: 'Interagir' }; return { move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', look: '<kbd>Mouse</kbd>', aim: `<kbd>${keyLabel(b.aim)}</kbd>`, fire: `<kbd>${keyLabel(b.fire)}</kbd>`, reload: `<kbd>${keyLabel(b.reload)}</kbd>`, swap: `<kbd>${keyLabel(b.swap)}</kbd>`, dodge: `<kbd>${keyLabel(b.dodge)}</kbd>`, interact: `<kbd>${keyLabel(b.interact)}</kbd>` }; }
   tutorial(id) {
     if (this.wf.tutorialSeen.includes(id)) return;
     const t = data.tutorials.find((x) => x.id === id); if (!t) return;
@@ -114,7 +114,7 @@ export class ChapterRuntime {
       case 'enter_zone_01': if (!this.wf.firstTracks) { this.wf.firstTracks = true; g.dialogue.play('ch01_first_tracks'); } break;
       case 'tower_visited': this.tutorial('tut_shoulder'); break;
       case 'suspicious_west': if (hint(save, 'SEC_01')) { g.hud.toast('Fitas laranja e um símbolo de abrigo apontam para o oeste — área suspeita registrada no mapa.', 'warn'); } break;
-      case 'bridge_cross': if (!this.wf.bridgeWarned && p0(g).z > -3) { this.wf.bridgeWarned = true; g.dialogue.play('ch01_passarela'); } break;
+      case 'bridge_cross': if (!this.wf.bridgeWarned && p0(g).z > -9) { this.wf.bridgeWarned = true; g.dialogue.play('ch01_passarela'); } break;
       case 'bridge_mid': if (!this.wf.bridgeCollapsed) { this.wf.bridgeCollapsed = true; g.scenery.startCollapse(); g.audio.play('creak'); g.camera.shake(1.4); g.hud.toast('As tábuas cedem sob seus pés!', 'warn'); } break;
       case 'terminal': break;
       default: break;
@@ -153,10 +153,10 @@ export class ChapterRuntime {
     return best;
   }
   interactions(dt, simMs, inp) {
-    const g = this.g, p = g.player, key = keyLabel(g.settings.bindings.interact);
+    const g = this.g, p = g.player, key = g.input.touchActive ? 'Interagir' : keyLabel(g.settings.bindings.interact);
     if (p.dead || p.dodging) { g.hud.setPrompt(null); this.holdMs = 0; return; }
     const n = this.nearest(p); this.promptTarget = n;
-    if (!n) { g.hud.setPrompt(null); this.holdMs = Math.max(0, this.holdMs - dt * 2000); return; }
+    if (!n) { g.hud.setPrompt(null); this.holdMs = 0; return; }
     if (n.type === 'terminal') this.tutorial('tut_terminal');
     if (n.type === 'beacon') this.tutorial('tut_interact');
     if (n.type === 'beacon') {
@@ -195,8 +195,9 @@ export class ChapterRuntime {
     const capCons = (c) => { inv.consumables[c] = Math.min(5, inv.consumables[c] ?? 0); };
     if (p.kind === 'supplies') {
       const parts = [];
-      for (const [w, n] of Object.entries(p.ammo ?? {})) { const v = ammoScale(n); inv.ammoReserve[w] = (inv.ammoReserve[w] ?? 0) + v; capAmmo(w); parts.push(`+${v} munição`); }
-      for (const [c, n] of Object.entries(p.consumable ?? {})) { inv.consumables[c] = (inv.consumables[c] ?? 0) + n; capCons(c); parts.push(`+${n} ${c === 'medkit' ? 'kit médico' : 'hemostático'}`); }
+      for (const [w, n] of Object.entries(p.ammo ?? {})) { const before = inv.ammoReserve[w] ?? 0; inv.ammoReserve[w] = before + ammoScale(n); capAmmo(w); const gained = inv.ammoReserve[w] - before; if (gained) parts.push(`+${gained} munição`); }
+      for (const [c, n] of Object.entries(p.consumable ?? {})) { const before = inv.consumables[c] ?? 0; inv.consumables[c] = before + n; capCons(c); const gained = inv.consumables[c] - before; if (gained) parts.push(`+${gained} ${c === 'medkit' ? 'kit médico' : 'hemostático'}`); }
+      if (!parts.length) { g.hud.toast('Suprimentos cheios. Este item permanece aqui.', 'warn'); return; }
       msg = parts.join(' · ');
     } else if (p.kind === 'document') { if (!save.documents.includes(p.doc)) save.documents.push(p.doc); msg = `Documento: ${docs.documents[p.doc].title}`; }
     else if (p.kind === 'dossier') {
@@ -207,7 +208,7 @@ export class ChapterRuntime {
       if (!r) taken = false; else { msg = (p.kind === 'secret' ? 'Segredo encontrado: Abrigo do topógrafo. ' : 'Cache encontrado. ') + r.summary.join(' · '); g.stats.secretsFound++; if (p.kind === 'secret') discover(save, 'SEC_01'); capAmmo('pistol'); capCons('medkit'); capCons('hemostatic'); }
     }
     if (!taken) return;
-    this.wf.pickedUp.push(p.id); this.pickups = this.pickups.filter((x) => x !== k); this.group.remove(k.mesh);
+    this.wf.pickedUp.push(p.id); this.pickups = this.pickups.filter((x) => x !== k); this.group.remove(k.mesh); k.mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
     g.syncRuntimeFromSave(); g.hud.toast(msg, 'good'); g.audio.play('pickup');
   }
 

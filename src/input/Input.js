@@ -11,6 +11,8 @@ export class Input {
     this.el = el; this.settings = settings;
     this.down = new Set(); this.simEdges = new Set(); this.frameEdges = new Set();
     this.look = { x: 0, y: 0 }; this.locked = false; this.enabled = false; this.padPrev = {}; this.padLook = { x: 0, y: 0 };
+    this.touchActive = !!globalThis.matchMedia?.('(pointer: coarse)').matches;
+    this.touchHeld = new Set(); this.touchMove = { x: 0, y: 0 };
     this.rebinding = null; this.lastDevice = 'kbm';
     this._bind();
   }
@@ -30,7 +32,7 @@ export class Input {
       this.lastDevice = 'kbm'; this._press(e.code);
     });
     addEventListener('keyup', (e) => this._release(e.code));
-    addEventListener('blur', () => { this.down.clear(); });
+    addEventListener('blur', () => this.reset());
     this.el.addEventListener('mousedown', (e) => { if (!this.enabled) return; this.lastDevice = 'kbm'; this._press(`Mouse${e.button}`); e.preventDefault(); });
     addEventListener('mouseup', (e) => this._release(`Mouse${e.button}`));
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -43,10 +45,26 @@ export class Input {
       if (was && !this.locked) this.onLockLost?.();
     });
   }
-  lock() { try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* sem pointer lock */ } }
-  unlock() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignora */ } }
-  setEnabled(v) { this.enabled = v; if (!v) { this.down.clear(); this.simEdges.clear(); this.look.x = this.look.y = 0; } }
+  lock() { if (this.touchActive) return; try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* sem pointer lock */ } }
+  unlock() { if (this.touchActive) return; try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignora */ } }
+  reset() {
+    this.down.clear(); this.simEdges.clear(); this.frameEdges.clear(); this.touchHeld.clear();
+    this.touchMove.x = this.touchMove.y = this.look.x = this.look.y = 0;
+    this.padEdges = {}; this.navEdges = [];
+    this.onReset?.();
+  }
+  setEnabled(v) { this.enabled = v; if (!v) this.reset(); }
+  touchAction(action, pressed) {
+    if (!this.enabled) return;
+    this.touchActive = true; this.lastDevice = 'touch';
+    if (pressed && !this.touchHeld.has(action)) {
+      if (SIM_EDGE.includes(action)) this.simEdges.add(action);
+      if (FRAME_EDGE.includes(action)) this.frameEdges.add(action);
+    }
+    if (pressed) this.touchHeld.add(action); else this.touchHeld.delete(action);
+  }
   held(action) {
+    if (this.touchHeld.has(action)) return true;
     const code = this.settings.bindings[action];
     if (this.down.has(code)) return true;
     return !!this.padState?.[action];
@@ -66,7 +84,7 @@ export class Input {
   pollGamepad() {
     const pads = navigator.getGamepads?.() ?? [];
     const gp = [...pads].find((p) => p && p.connected);
-    if (!gp) { this.padState = null; this.padLook.x = this.padLook.y = 0; return; }
+    if (!gp) { this.padState = null; this.padAxes = null; this.padPrev = {}; this.padEdges = {}; this.padLook.x = this.padLook.y = 0; return; }
     const dz = this.settings.deadzone, ax = (v) => (Math.abs(v) < dz ? 0 : (Math.sign(v) * (Math.abs(v) - dz)) / (1 - dz));
     this.padState = {}; this.padEdges ||= {};
     for (const [a, b] of Object.entries(PAD)) {
@@ -86,6 +104,7 @@ export class Input {
     const h = (a) => this.held(a);
     let mx = (h('right') ? 1 : 0) - (h('left') ? 1 : 0), my = (h('forward') ? 1 : 0) - (h('back') ? 1 : 0);
     if (this.padAxes && (this.padAxes.x || this.padAxes.y)) { mx = this.padAxes.x; my = -this.padAxes.y; }
+    if (this.touchMove.x || this.touchMove.y) { mx = this.touchMove.x; my = this.touchMove.y; }
     const e = (a) => this.simEdges.delete(a);
     return {
       moveX: mx, moveY: my, run: h('run'), aim: h('aim'), fireHeld: h('fire'),
