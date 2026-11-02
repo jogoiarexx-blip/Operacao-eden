@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "tabs": ["ARMAS", "MUNIÇÃO", "CURA", "MELHORIAS", "ESPECIAIS"],
+  "items": [
+    { "id": "pistol", "tab": "ARMAS", "name": "Pistola de serviço", "price": 0, "chapter": 1, "starter": true, "desc": "Equipamento padrão de Lia. Sem compra." },
+    { "id": "shotgun_lia", "tab": "ARMAS", "name": "Escopeta de contenção (Lia)", "price": 4000, "chapter": 3, "grants": { "weapon": "shotgun" }, "desc": "Poder próximo, recarga gradual. Caio inicia com a própria escopeta." },
+    { "id": "smg", "tab": "ARMAS", "name": "Submetralhadora", "price": 6500, "chapter": 4, "grants": { "weapon": "smg" }, "desc": "Tiro rápido, consumo elevado." },
+    { "id": "rifle", "tab": "ARMAS", "name": "Fuzil de contenção", "price": 9000, "chapter": 6, "grants": { "weapon": "rifle" }, "desc": "Dano preciso, recuo e pouca mobilidade." },
+
+    { "id": "ammo_pistol_30", "tab": "MUNIÇÃO", "name": "30 tiros de pistola", "price": 150, "chapter": 1, "requiresWeapon": "pistol", "grants": { "ammo": { "pistol": 30 } }, "desc": "Reserva limitada pelo inventário." },
+    { "id": "ammo_shotgun_12", "tab": "MUNIÇÃO", "name": "12 cartuchos de escopeta", "price": 450, "chapter": 2, "requiresWeapon": "shotgun", "grants": { "ammo": { "shotgun": 12 } }, "desc": "Recarga por cartucho." },
+    { "id": "ammo_smg_60", "tab": "MUNIÇÃO", "name": "60 tiros de submetralhadora", "price": 600, "chapter": 4, "requiresWeapon": "smg", "grants": { "ammo": { "smg": 60 } }, "desc": "Só após possuir arma compatível." },
+    { "id": "ammo_rifle_8", "tab": "MUNIÇÃO", "name": "8 tiros de fuzil", "price": 800, "chapter": 6, "requiresWeapon": "rifle", "grants": { "ammo": { "rifle": 8 } }, "desc": "Munição rara e de alto impacto." },
+
+    { "id": "hemostatic", "tab": "CURA", "name": "Hemostático", "price": 120, "chapter": 1, "grants": { "consumable": { "hemostatic": 1 } }, "cap": { "consumable": "hemostatic", "max": 5 }, "desc": "Interrompe sangramento." },
+    { "id": "medkit", "tab": "CURA", "name": "Kit médico", "price": 300, "chapter": 1, "grants": { "consumable": { "medkit": 1 } }, "cap": { "consumable": "medkit", "max": 5 }, "desc": "Recupera parte da vida." },
+    { "id": "medkit_adv", "tab": "CURA", "name": "Kit médico avançado", "price": 700, "chapter": 4, "grants": { "consumable": { "medkit_adv": 1 } }, "cap": { "consumable": "medkit_adv", "max": 3 }, "desc": "Cura maior; limite de transporte." },
+
+    { "id": "mag_ext_1", "tab": "MELHORIAS", "name": "Carregador ampliado I", "price": 2500, "chapter": 3, "grants": { "upgrade": "mag_ext_1" }, "unique": true, "desc": "Aumenta a capacidade da arma escolhida." },
+    { "id": "vest_1", "tab": "MELHORIAS", "name": "Colete reforçado I", "price": 5000, "chapter": 4, "grants": { "upgrade": "vest_1" }, "unique": true, "desc": "Redução parcial de dano, não imunidade." },
+    { "id": "recoil_stab", "tab": "MELHORIAS", "name": "Estabilizador de recuo", "price": 3200, "chapter": 5, "grants": { "upgrade": "recoil_stab" }, "unique": true, "desc": "Reduz dispersão durante a mira." },
+
+    { "id": "chain_module", "tab": "ESPECIAIS", "name": "Módulo de sequência", "price": 8000, "chapter": 5, "grants": { "upgrade": "chain_module" }, "unique": true, "desc": "Janela de combo de 4,0 s para 5,0 s; não acumula." },
+    { "id": "sonic_prototype", "tab": "ESPECIAIS", "name": "Dispositivo ressonante protótipo", "price": 12000, "chapter": 5, "requiresSecret": "SEC_03", "grants": { "upgrade": "sonic_prototype" }, "unique": true, "desc": "Interrupção limitada de predadores; sem efeito absoluto em chefes." }
+  ]
+}

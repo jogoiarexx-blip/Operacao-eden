@@ -1,0 +1,1412 @@
+{
+ "id": "jungle_north_01",
+ "chapter": 1,
+ "chapterId": "ch01",
+ "title": "O Sinal na Mata",
+ "protagonist": "lia",
+ "bounds": [
+  -40,
+  -44,
+  40,
+  44
+ ],
+ "treeSeed": 1042,
+ "spawn": {
+  "id": "south_entry",
+  "pos": [
+   0,
+   36
+  ],
+  "yaw": 0
+ },
+ "camera": {
+  "mode": "over_shoulder",
+  "exploreDistance": 3.1,
+  "aimDistance": 2.05,
+  "shoulderOffset": 0.55,
+  "collisionLayer": "camera_blockers",
+  "pitchLimitsDeg": [
+   -60,
+   65
+  ]
+ },
+ "paths": [
+  {
+   "id": "main",
+   "w": 3.2,
+   "pts": [
+    [
+     0,
+     36
+    ],
+    [
+     2,
+     28
+    ],
+    [
+     6,
+     20
+    ],
+    [
+     8,
+     8
+    ],
+    [
+     8,
+     -4
+    ],
+    [
+     8,
+     -16
+    ],
+    [
+     2,
+     -24
+    ],
+    [
+     -2,
+     -30
+    ],
+    [
+     0,
+     -38
+    ]
+   ]
+  },
+  {
+   "id": "tower",
+   "w": 2.4,
+   "pts": [
+    [
+     -2,
+     24
+    ],
+    [
+     -8,
+     20
+    ],
+    [
+     -13,
+     17
+    ]
+   ]
+  },
+  {
+   "id": "east",
+   "w": 2.4,
+   "pts": [
+    [
+     8,
+     14
+    ],
+    [
+     18,
+     14
+    ],
+    [
+     26,
+     14
+    ],
+    [
+     30,
+     10
+    ]
+   ]
+  },
+  {
+   "id": "cache",
+   "w": 2.0,
+   "pts": [
+    [
+     27,
+     13
+    ],
+    [
+     30,
+     4
+    ],
+    [
+     30,
+     -3
+    ]
+   ]
+  },
+  {
+   "id": "west",
+   "w": 2.4,
+   "pts": [
+    [
+     3,
+     12
+    ],
+    [
+     -6,
+     12
+    ],
+    [
+     -14,
+     10
+    ],
+    [
+     -23,
+     5
+    ]
+   ]
+  },
+  {
+   "id": "detour",
+   "w": 2.6,
+   "pts": [
+    [
+     -24,
+     5
+    ],
+    [
+     -30,
+     0
+    ],
+    [
+     -30,
+     -8
+    ],
+    [
+     -30,
+     -16
+    ],
+    [
+     -16,
+     -22
+    ],
+    [
+     -7,
+     -26
+    ]
+   ]
+  }
+ ],
+ "structures": [
+  {
+   "id": "pier_deck",
+   "kind": "box",
+   "visual": "wood",
+   "pos": [
+    0,
+    37.5
+   ],
+   "size": [
+    6,
+    0.3,
+    7
+   ],
+   "y": -0.15,
+   "flags": []
+  },
+  {
+   "id": "pier_rail_l",
+   "kind": "box",
+   "visual": "wood",
+   "pos": [
+    -3,
+    37.5
+   ],
+   "size": [
+    0.2,
+    1.0,
+    7
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "pier_rail_r",
+   "kind": "box",
+   "visual": "wood",
+   "pos": [
+    3,
+    37.5
+   ],
+   "size": [
+    0.2,
+    1.0,
+    7
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "tower_post",
+   "kind": "cyl",
+   "visual": "wood",
+   "pos": [
+    -14,
+    18
+   ],
+   "r": 0.9,
+   "h": 6,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "tower_deck",
+   "kind": "box",
+   "visual": "wood",
+   "pos": [
+    -14,
+    18
+   ],
+   "size": [
+    4.2,
+    0.35,
+    4.2
+   ],
+   "y": 5.6,
+   "flags": []
+  },
+  {
+   "id": "beacon_mast",
+   "kind": "cyl",
+   "visual": "metal",
+   "pos": [
+    10,
+    6
+   ],
+   "r": 0.35,
+   "h": 2.6,
+   "flags": [
+    "move",
+    "bullet"
+   ]
+  },
+  {
+   "id": "terminal_a",
+   "kind": "box",
+   "visual": "terminal",
+   "pos": [
+    6,
+    28
+   ],
+   "size": [
+    0.9,
+    1.3,
+    0.7
+   ],
+   "flags": [
+    "move",
+    "bullet"
+   ]
+  },
+  {
+   "id": "terminal_b",
+   "kind": "box",
+   "visual": "terminal",
+   "pos": [
+    -2.5,
+    -31
+   ],
+   "size": [
+    0.9,
+    1.3,
+    0.7
+   ],
+   "flags": [
+    "move",
+    "bullet"
+   ]
+  },
+  {
+   "id": "vet_box",
+   "kind": "box",
+   "visual": "crate",
+   "pos": [
+    26.5,
+    15.5
+   ],
+   "size": [
+    1.2,
+    0.9,
+    0.8
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "shelter_wall_n",
+   "kind": "box",
+   "visual": "shelter",
+   "pos": [
+    -27,
+    1.2
+   ],
+   "size": [
+    6,
+    2.6,
+    0.4
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_wall_s",
+   "kind": "box",
+   "visual": "shelter",
+   "pos": [
+    -27,
+    6.8
+   ],
+   "size": [
+    6,
+    2.6,
+    0.4
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_wall_w",
+   "kind": "box",
+   "visual": "shelter",
+   "pos": [
+    -29.8,
+    4
+   ],
+   "size": [
+    0.4,
+    2.6,
+    5.6
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_wall_e1",
+   "kind": "box",
+   "visual": "shelter",
+   "pos": [
+    -24.2,
+    2.2
+   ],
+   "size": [
+    0.4,
+    2.6,
+    2.0
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_wall_e2",
+   "kind": "box",
+   "visual": "shelter",
+   "pos": [
+    -24.2,
+    5.9
+   ],
+   "size": [
+    0.4,
+    2.6,
+    1.8
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_roof",
+   "kind": "box",
+   "visual": "shelter_roof",
+   "pos": [
+    -27,
+    4
+   ],
+   "size": [
+    6.4,
+    0.3,
+    6.4
+   ],
+   "y": 2.6,
+   "fade": true,
+   "flags": [
+    "camera"
+   ]
+  },
+  {
+   "id": "shelter_crate",
+   "kind": "box",
+   "visual": "crate",
+   "pos": [
+    -28.6,
+    2.6
+   ],
+   "size": [
+    1.1,
+    0.8,
+    0.8
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "gorge_l",
+   "kind": "box",
+   "visual": "rock",
+   "pos": [
+    -32.3,
+    -9
+   ],
+   "size": [
+    1.6,
+    5,
+    10
+   ],
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "gorge_r",
+   "kind": "box",
+   "visual": "rock",
+   "pos": [
+    -27.7,
+    -9
+   ],
+   "size": [
+    1.6,
+    5,
+    10
+   ],
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "ravine_w",
+   "kind": "box",
+   "visual": "ravine",
+   "pos": [
+    -8.5,
+    -9
+   ],
+   "size": [
+    31,
+    6,
+    6
+   ],
+   "y": -5.8,
+   "flags": [
+    "move"
+   ],
+   "pit": true
+  },
+  {
+   "id": "ravine_e",
+   "kind": "box",
+   "visual": "ravine",
+   "pos": [
+    24.5,
+    -9
+   ],
+   "size": [
+    31,
+    6,
+    6
+   ],
+   "y": -5.8,
+   "flags": [
+    "move"
+   ],
+   "pit": true
+  },
+  {
+   "id": "bridge_deck",
+   "kind": "box",
+   "visual": "wood",
+   "pos": [
+    8,
+    -9
+   ],
+   "size": [
+    2.0,
+    0.2,
+    6.2
+   ],
+   "y": -0.12,
+   "flags": []
+  },
+  {
+   "id": "cache_rock_a",
+   "kind": "box",
+   "visual": "rock",
+   "pos": [
+    28.5,
+    -7.5
+   ],
+   "size": [
+    3.4,
+    2.6,
+    2.6
+   ],
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "cache_rock_b",
+   "kind": "box",
+   "visual": "rock",
+   "pos": [
+    32.8,
+    -6.8
+   ],
+   "size": [
+    3.0,
+    2.2,
+    2.8
+   ],
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "cache_rock_c",
+   "kind": "box",
+   "visual": "rock",
+   "pos": [
+    31,
+    -9.8
+   ],
+   "size": [
+    5.5,
+    2.4,
+    1.8
+   ],
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "tent_a",
+   "kind": "box",
+   "visual": "tent",
+   "pos": [
+    -9,
+    -27.5
+   ],
+   "size": [
+    3.2,
+    2.0,
+    3.0
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "tent_b",
+   "kind": "box",
+   "visual": "tent",
+   "pos": [
+    -4.5,
+    -30.5
+   ],
+   "size": [
+    3.2,
+    2.0,
+    3.0
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "camp_radio",
+   "kind": "box",
+   "visual": "radio",
+   "pos": [
+    -6.5,
+    -25.5
+   ],
+   "size": [
+    0.9,
+    0.9,
+    0.6
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "coro_tower",
+   "kind": "cyl",
+   "visual": "coro",
+   "pos": [
+    14,
+    -34
+   ],
+   "r": 1.3,
+   "h": 13,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "gate_wall_l",
+   "kind": "box",
+   "visual": "concrete",
+   "pos": [
+    -8.2,
+    -40.4
+   ],
+   "size": [
+    12.2,
+    4.2,
+    0.8
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "gate_wall_r",
+   "kind": "box",
+   "visual": "concrete",
+   "pos": [
+    8.2,
+    -40.4
+   ],
+   "size": [
+    12.2,
+    4.2,
+    0.8
+   ],
+   "fade": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  },
+  {
+   "id": "gate_panel",
+   "kind": "box",
+   "visual": "terminal",
+   "pos": [
+    4.2,
+    -37.6
+   ],
+   "size": [
+    0.7,
+    1.2,
+    0.5
+   ],
+   "flags": [
+    "move"
+   ]
+  },
+  {
+   "id": "gate_leaf",
+   "kind": "box",
+   "visual": "gate",
+   "pos": [
+    0,
+    -40.4
+   ],
+   "size": [
+    4.2,
+    3.6,
+    0.8
+   ],
+   "gate": true,
+   "flags": [
+    "move",
+    "bullet",
+    "camera"
+   ]
+  }
+ ],
+ "ribbons": [
+  [
+   -18,
+   12
+  ],
+  [
+   -20,
+   10
+  ],
+  [
+   -22,
+   8
+  ],
+  [
+   -23.5,
+   6.5
+  ]
+ ],
+ "clawMarks": [
+  [
+   -4,
+   22
+  ],
+  [
+   -6,
+   21
+  ],
+  [
+   -8.5,
+   20
+  ],
+  [
+   -11,
+   18.5
+  ]
+ ],
+ "clearings": [
+  {
+   "pos": [
+    0,
+    36
+   ],
+   "r": 6
+  },
+  {
+   "pos": [
+    6,
+    28
+   ],
+   "r": 3
+  },
+  {
+   "pos": [
+    -14,
+    18
+   ],
+   "r": 5
+  },
+  {
+   "pos": [
+    10,
+    6
+   ],
+   "r": 4
+  },
+  {
+   "pos": [
+    -27,
+    4
+   ],
+   "r": 6
+  },
+  {
+   "pos": [
+    -6,
+    -28
+   ],
+   "r": 7
+  },
+  {
+   "pos": [
+    0,
+    -36
+   ],
+   "r": 6
+  },
+  {
+   "pos": [
+    26,
+    14
+   ],
+   "r": 4
+  },
+  {
+   "pos": [
+    30,
+    -3
+   ],
+   "r": 3
+  },
+  {
+   "pos": [
+    8,
+    -9
+   ],
+   "r": 5
+  },
+  {
+   "pos": [
+    -30,
+    -9
+   ],
+   "r": 4
+  },
+  {
+   "pos": [
+    14,
+    -34
+   ],
+   "r": 3
+  }
+ ],
+ "terminals": [
+  {
+   "id": "terminal_a",
+   "name": "Terminal Éden A",
+   "pos": [
+    6,
+    28
+   ],
+   "safe": [
+    5.2,
+    27.2
+   ],
+   "checkpointId": "terminal_A"
+  },
+  {
+   "id": "terminal_b",
+   "name": "Terminal Éden B",
+   "pos": [
+    -2.5,
+    -31
+   ],
+   "safe": [
+    -1.5,
+    -30
+   ],
+   "checkpointId": "terminal_B"
+  }
+ ],
+ "pickups": [
+  {
+   "id": "ammo_pier",
+   "kind": "supplies",
+   "pos": [
+    -2,
+    31
+   ],
+   "ammo": {
+    "pistol": 12
+   },
+   "label": "Munição de pistola"
+  },
+  {
+   "id": "medkit_small_01",
+   "kind": "supplies",
+   "pos": [
+    -9,
+    27
+   ],
+   "consumable": {
+    "medkit": 1
+   },
+   "label": "Kit médico"
+  },
+  {
+   "id": "note_001",
+   "kind": "document",
+   "pos": [
+    0.8,
+    34.6
+   ],
+   "doc": "NOTE_001",
+   "label": "Bilhete"
+  },
+  {
+   "id": "BIO_01",
+   "kind": "dossier",
+   "pos": [
+    -12,
+    17.2
+   ],
+   "dossier": "BIO_01",
+   "label": "Dossiê de campo"
+  },
+  {
+   "id": "BIO_02",
+   "kind": "dossier",
+   "pos": [
+    25.2,
+    15.6
+   ],
+   "dossier": "BIO_02",
+   "label": "Dossiê de campo"
+  },
+  {
+   "id": "ammo_detour",
+   "kind": "supplies",
+   "pos": [
+    -30.4,
+    -12.5
+   ],
+   "ammo": {
+    "pistol": 12
+   },
+   "label": "Munição de pistola"
+  },
+  {
+   "id": "ammo_camp",
+   "kind": "supplies",
+   "pos": [
+    -7.5,
+    -23.5
+   ],
+   "ammo": {
+    "pistol": 10
+   },
+   "consumable": {
+    "hemostatic": 1
+   },
+   "label": "Suprimentos do acampamento"
+  },
+  {
+   "id": "SEC_01",
+   "kind": "secret",
+   "secret": "SEC_01",
+   "pos": [
+    -28.8,
+    3.4
+   ],
+   "label": "Anotações do topógrafo"
+  },
+  {
+   "id": "CACHE_01",
+   "kind": "cache",
+   "cache": "CACHE_01",
+   "pos": [
+    30.4,
+    -8.6
+   ],
+   "label": "Cache de suprimentos"
+  }
+ ],
+ "interactables": [
+  {
+   "id": "beacon",
+   "kind": "beacon",
+   "pos": [
+    10,
+    6
+   ],
+   "r": 2.6,
+   "holdMs": 3200,
+   "label": "Religar baliza"
+  },
+  {
+   "id": "camp_radio",
+   "kind": "recon_radio",
+   "pos": [
+    -6.5,
+    -25.5
+   ],
+   "r": 2.4,
+   "label": "Ouvir o rádio de campo"
+  },
+  {
+   "id": "gate_panel",
+   "kind": "gate_panel",
+   "pos": [
+    4.2,
+    -37.6
+   ],
+   "r": 2.4,
+   "label": "Liberar o portão"
+  }
+ ],
+ "zones": [
+  {
+   "id": "tower_visited",
+   "pos": [
+    -12,
+    18
+   ],
+   "r": 6
+  },
+  {
+   "id": "beacon_area",
+   "pos": [
+    10,
+    6
+   ],
+   "r": 6
+  },
+  {
+   "id": "east_trail",
+   "pos": [
+    26,
+    13
+   ],
+   "r": 6
+  },
+  {
+   "id": "west_trail",
+   "pos": [
+    -23,
+    6
+   ],
+   "r": 6
+  },
+  {
+   "id": "recon_camp",
+   "pos": [
+    -6,
+    -27
+   ],
+   "r": 7
+  },
+  {
+   "id": "enter_zone_01",
+   "pos": [
+    -4,
+    16
+   ],
+   "r": 20
+  },
+  {
+   "id": "bridge_mid",
+   "pos": [
+    8,
+    -9
+   ],
+   "r": 1.6
+  },
+  {
+   "id": "bridge_cross",
+   "pos": [
+    8,
+    -9
+   ],
+   "r": 5
+  },
+  {
+   "id": "detour_cross",
+   "pos": [
+    -30,
+    -9
+   ],
+   "r": 3
+  },
+  {
+   "id": "suspicious_west",
+   "pos": [
+    -27,
+    4
+   ],
+   "r": 12,
+   "hint": "SEC_01"
+  },
+  {
+   "id": "exit_trigger",
+   "pos": [
+    0,
+    -43
+   ],
+   "r": 2.4
+  }
+ ],
+ "encounters": [
+  {
+   "id": "ch01_r4_first",
+   "title": "Primeiro corredor-de-mata",
+   "enemies": [
+    {
+     "id": "r4_a",
+     "type": "forest_runner",
+     "pos": [
+      -6,
+      5
+     ],
+     "patrol": [
+      [
+       -6,
+       5
+      ],
+      [
+       -10,
+       1
+      ],
+      [
+       -3,
+       -1
+      ],
+      [
+       -1,
+       5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ch01_r4_second",
+   "title": "Segundo corredor, chamado à distância",
+   "late": true,
+   "enemies": [
+    {
+     "id": "r4_b",
+     "type": "forest_runner",
+     "spawnCandidates": [
+      [
+       -24,
+       26
+      ],
+      [
+       24,
+       24
+      ],
+      [
+       -8,
+       -4
+      ],
+      [
+       20,
+       0
+      ]
+     ],
+     "patrol": []
+    }
+   ]
+  },
+  {
+   "id": "ch01_r4j_pack",
+   "title": "Bando de juvenis (opcional)",
+   "enemies": [
+    {
+     "id": "r4j_a",
+     "type": "forest_runner_juvenile",
+     "pos": [
+      29,
+      9
+     ],
+     "patrol": [
+      [
+       29,
+       9
+      ],
+      [
+       31,
+       12
+      ],
+      [
+       28,
+       13
+      ]
+     ]
+    },
+    {
+     "id": "r4j_b",
+     "type": "forest_runner_juvenile",
+     "pos": [
+      31,
+      15
+     ],
+     "patrol": [
+      [
+       31,
+       15
+      ],
+      [
+       29,
+       18
+      ],
+      [
+       32,
+       12
+      ]
+     ]
+    },
+    {
+     "id": "r4j_c",
+     "type": "forest_runner_juvenile",
+     "pos": [
+      24,
+      19
+     ],
+     "patrol": [
+      [
+       24,
+       19
+      ],
+      [
+       27,
+       18
+      ],
+      [
+       22,
+       16
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ch01_r4_ambush",
+   "title": "Emboscada do lado norte",
+   "enemies": [
+    {
+     "id": "r4_c",
+     "type": "forest_runner",
+     "pos": [
+      5,
+      -21
+     ],
+     "patrol": [
+      [
+       5,
+       -21
+      ],
+      [
+       9,
+       -24
+      ],
+      [
+       3,
+       -27
+      ]
+     ]
+    },
+    {
+     "id": "r4_d",
+     "type": "forest_runner",
+     "pos": [
+      -12,
+      -20
+     ],
+     "patrol": [
+      [
+       -12,
+       -20
+      ],
+      [
+       -6,
+       -22
+      ],
+      [
+       -14,
+       -17
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "objectives": [
+  {
+   "id": "reach_tower",
+   "text": "Siga a trilha até a torre de observação.",
+   "doneWhen": {
+    "zone": "tower_visited"
+   }
+  },
+  {
+   "id": "repair_beacon",
+   "text": "Religue a baliza no cruzamento.",
+   "doneWhen": {
+    "flag": "beacon_repaired"
+   }
+  },
+  {
+   "id": "find_recon",
+   "text": "Atravesse a ravina e localize o grupo de reconhecimento (acampamento ao norte).",
+   "doneWhen": {
+    "flag": "recon_found"
+   }
+  },
+  {
+   "id": "open_gate",
+   "text": "Libere o acesso ao posto pelo painel do portão.",
+   "doneWhen": {
+    "flag": "outpost_access"
+   }
+  },
+  {
+   "id": "exit_sector",
+   "text": "Atravesse o portão.",
+   "doneWhen": {
+    "flag": "campaign_chapter_exit"
+   }
+  }
+ ],
+ "tutorials": [
+  {
+   "id": "tut_look",
+   "when": "start",
+   "delayMs": 1500,
+   "text": "{move} para andar · {look} para olhar em volta"
+  },
+  {
+   "id": "tut_aim",
+   "when": "moved",
+   "text": "{aim} para mirar · {fire} para atirar · {reload} recarrega"
+  },
+  {
+   "id": "tut_shoulder",
+   "when": "zone:tower_visited",
+   "text": "{swap} troca o lado do ombro quando a parede atrapalha"
+  },
+  {
+   "id": "tut_dodge",
+   "when": "firstWindup",
+   "text": "O animal agachou: {dodge} esquiva para o lado antes do salto"
+  },
+  {
+   "id": "tut_interact",
+   "when": "nearInteract",
+   "text": "{interact} interage — segure para religar a baliza"
+  },
+  {
+   "id": "tut_terminal",
+   "when": "zone:terminal",
+   "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura"
+  }
+ ],
+ "benchmark": {
+  "id": "B01",
+  "name": "Selva Profunda",
+  "seed": 77
+ }
+}

@@ -1,0 +1,103 @@
+{
+  "ch01_intro_radio": [
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Éden, aqui é a Operadora Reis. Janela de extração curta, Lia. A tempestade fecha o céu em quarenta minutos.",
+      "ms": 3600
+    },
+    {
+      "who": "Lia",
+      "text": "Entendido. Desembarcando no píer de serviço. O cais está sem energia.",
+      "ms": 3000
+    },
+    {
+      "who": "Voz truncada",
+      "text": "…não desliguem as torres. Não são elas que estão mentindo.",
+      "ms": 3400
+    },
+    {
+      "who": "Lia",
+      "text": "Quem está nessa frequência? …Reis, você captou isso?",
+      "ms": 3000
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Negativo. Siga para a baliza da trilha norte. Eu fico na escuta.",
+      "ms": 3200
+    }
+  ],
+  "ch01_first_tracks": [
+    {
+      "who": "Lia",
+      "text": "Garras no tronco, recentes. Tem algo grande caçando por aqui. Vou devagar.",
+      "ms": 3800
+    }
+  ],
+  "ch01_second_roar": [
+    {
+      "who": "Lia",
+      "text": "Outro chamado, bem mais longe. Eles estão se respondendo. Reposicione-se.",
+      "ms": 3600
+    }
+  ],
+  "ch01_beacon_revelation": [
+    {
+      "who": "Lia",
+      "text": "A baliza voltou. …Essa autenticação é o meu certificado de auditoria. Eu o revoguei há dois anos.",
+      "ms": 5200
+    },
+    {
+      "who": "Lia",
+      "text": "Alguém ainda usa a minha assinatura. E o SOS saiu daqui.",
+      "ms": 3600
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Lia, o pedido de socorro tem a sua credencial. Preciso entender o que isso significa.",
+      "ms": 4200
+    }
+  ],
+  "ch01_passarela": [
+    {
+      "who": "Lia",
+      "text": "A passarela range. Pelo desvio oeste é mais longo, mas não depende dessas tábuas.",
+      "ms": 4200
+    }
+  ],
+  "ch01_recon_radio": [
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "Lia? Aqui é Caio Neri. Estamos cercados no posto. Não suba pelo portão norte sem sinal da minha parte.",
+      "ms": 5200
+    },
+    {
+      "who": "Lia",
+      "text": "Caio… Eu li o seu relatório de 2041. Você registrou a divergência dos corredores.",
+      "ms": 4200
+    },
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "E aceitei arquivar. Depois a gente conversa. Abra o portão — eu cubro o resto.",
+      "ms": 4400
+    }
+  ],
+  "ch01_gate_open": [
+    {
+      "who": "Lia",
+      "text": "Painel liberado. O portão está se movendo.",
+      "ms": 2800
+    }
+  ],
+  "ch01_coro_tower": [
+    {
+      "who": "Lia",
+      "text": "A torre CORO está tocando. Três pulsos… pausa… três pulsos. De novo. O mesmo padrão.",
+      "ms": 5000
+    },
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "Você também ouviu. Isso não é pane, Lia.",
+      "ms": 3400
+    }
+  ]
+}

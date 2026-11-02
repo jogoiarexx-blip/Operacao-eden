@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "documents": {
+    "DOC_01": { "title": "Registro de baliza", "chapter": 1, "text": "BALIZA N-07 — REGISTRO DE AUTENTICAÇÃO. Último pacote de socorro emitido às 02:14 da Noite Branca. Certificado de assinatura: AUDIT-LA-0231, emitido para L. Azevedo (auditoria de redundância, revogação solicitada em 2040, pendente de execução). O pacote usou o canal de contingência reservado a auditorias e não o canal de resgate corporativo. Observação do técnico de campo: o relé da baliza foi religado manualmente; nenhum alerta correspondente consta no sistema central da Vértice." },
+    "NOTE_001": { "title": "Bilhete no píer", "chapter": 1, "text": "Quem chegar depois de mim: a trilha norte ficou perigosa. Sigam as fitas laranja só se precisarem de abrigo. A baliza fica depois da torre, no cruzamento. Não confiem no mapa impresso — a numeração das torres foi trocada. — J." }
+  }
+}

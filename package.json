@@ -1,0 +1,23 @@
+{
+  "name": "projeto-extincao-operacao-eden",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Projeto Extinção — Operação Éden: R0 (fundação + câmera sobre o ombro) e R1 (Capítulo 01, O Sinal na Mata).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:single": "vite build --config vite.single.config.js",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11",
+    "vite-plugin-singlefile": "^2.0.3",
+    "vitest": "^2.1.8"
+  }
+}
