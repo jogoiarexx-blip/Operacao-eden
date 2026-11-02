@@ -282,6 +282,17 @@ export class DinosaurAgent {
     }
     return out;
   }
+  /** Interrupção por impacto pesado (escopeta): só afeta quem está em preparação de ataque. */
+  interrupt(ctx) {
+    if (this.dead || this.state !== AI.ATTACK_WINDUP) return false;
+    const { sim, bus, coordinator, tick } = ctx;
+    coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true;
+    if (!this.interruptDone.has(this.attackId)) {
+      this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
+      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });
+    }
+    return true;
+  }
   stun(ms, ctx) {
     if (this.dead) return false;
     ctx.coordinator.release(this); this.setState(AI.STAGGER, ms); this.vulnerable = true;

@@ -25,7 +25,7 @@ import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
 import { DinosaurAgent, AttackCoordinator, AI } from './actors/DinosaurAgent.js';
 import { CreatureView } from './actors/CreatureView.js';
-import { resolveShot, reticleState } from './actors/Combat.js';
+import { resolveShot, reticleState, shouldInterrupt } from './actors/Combat.js';
 import { EconomyLedger } from './gameplay/EconomyLedger.js';
 import { ComboSystem } from './gameplay/ComboSystem.js';
 import { difficulty } from './gameplay/DifficultyManager.js';
@@ -437,6 +437,8 @@ export class Game {
       case 'fire': this.shoot(); break;
       case 'dryFire': this.audio.play('dry'); this.hud.toast('Sem munição', 'warn'); break;
       case 'reloadStart': this.audio.play('reload'); break;
+      case 'shellLoaded': this.audio.play('reload'); break;
+      case 'weaponSwitch': this.audio.play('ui'); this.hud.toast(p.weapon.name, ''); break;
       case 'dodge': this.audio.play('lunge', p.x, p.z); break;
       case 'itemStart': this.audio.play('ui'); break;
       case 'itemUsed': {
@@ -456,6 +458,19 @@ export class Game {
     this.stats.shotsFired++; this.audio.play('shot', p.x, p.z); this.playerView.muzzleFlash();
     cam.kick(w.recoilKickDeg); cam.shake(0.35);
     this.noises.push({ x: p.x, z: p.z, r: w.noiseRadius });
+    if (res.kind === 'spread') {
+      for (const t of res.tracers) this.fx.tracer(t.from, t.point);
+      for (const pt of res.impacts) this.fx.burst(pt, 0xffd98a, 3, 2.4, 0.2);
+      if (res.hits.length) { this.stats.shotsHit++; this.hud.hitMarker(); }
+      for (const hit of res.hits) {
+        const ag = hit.enemy; this.audio.play('hit', ag.x, ag.z);
+        this.fx.burst(hit.point, 0x9a1c1c, 7, 3.4);
+        const ctx = { ...this.aiCtx(), sim: this.simMs };
+        const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx);
+        if (!r.dead && shouldInterrupt(w, hit, !!ag.species.boss)) ag.interrupt(ctx);
+      }
+      return;
+    }
     this.fx.tracer(res.tracerFrom, res.point);
     if (res.kind === 'enemy') {
       const ag = res.enemy; this.stats.shotsHit++; this.hud.hitMarker(); this.audio.play('hit', ag.x, ag.z);
@@ -531,7 +546,7 @@ export class Game {
     const p = this.player, cam = this.camera, w = p.weapon, hud = this.hud;
     const muzzle = p.muzzle(cam.yaw), live = this.liveAgents();
     const retic = reticleState({ world: this.world, enemies: live, camera: cam, muzzle, weapon: w });
-    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), fov: cam.fov, reticle: retic, consumables: activeInventory(this.save).consumables, infinite: p.infiniteAmmo }, frameDt);
+    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), pellets: w.pellets ?? 1, weaponName: w.name, fov: cam.fov, reticle: retic, consumables: activeInventory(this.save).consumables, infinite: p.infiniteAmmo }, frameDt);
     const ch = this.combo.chain;
     hud.setChain(ch.count, ch.remainingMs(this.simMs), ch.windowMs, ch.count >= 10 ? 'EXTINÇÃO' : ch.count >= 6 ? 'IMPLACÁVEL' : ch.count >= 4 ? 'PREDADOR' : 'CADEIA', this.settings.hideComboHud);
     const obj = this.chapter.currentObjective(); hud.setObjective(obj ? obj.text : 'Capítulo concluído.');

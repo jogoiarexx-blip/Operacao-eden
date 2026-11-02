@@ -2,12 +2,12 @@
 export const DEFAULT_BINDINGS = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', run: 'ShiftLeft', aim: 'Mouse2', fire: 'Mouse0',
   dodge: 'Space', reload: 'KeyR', interact: 'KeyF', swap: 'KeyV', utility: 'KeyQ', turn180: 'KeyE',
-  map: 'KeyM', inventory: 'KeyI', medkit: 'Digit1', hemo: 'Digit2', pause: 'Escape',
+  map: 'KeyM', inventory: 'KeyI', medkit: 'Digit3', hemo: 'Digit4', pause: 'Escape', weapon1: 'Digit1', weapon2: 'Digit2',
 };
 export const ACTION_LABELS = {
   forward: 'Andar para frente', back: 'Andar para trás', left: 'Andar à esquerda', right: 'Andar à direita', run: 'Corrida',
   aim: 'Mirar', fire: 'Atirar', dodge: 'Esquivar', reload: 'Recarregar', interact: 'Interagir', swap: 'Trocar ombro',
-  utility: 'Ferramenta elétrica', turn180: 'Meia-volta', map: 'Mapa', inventory: 'Diário/Inventário', medkit: 'Usar kit médico', hemo: 'Usar hemostático', pause: 'Pausa',
+  utility: 'Ferramenta elétrica', turn180: 'Meia-volta', map: 'Mapa', inventory: 'Diário/Inventário', medkit: 'Usar kit médico', hemo: 'Usar hemostático', pause: 'Pausa', weapon1: 'Arma 1 (pistola)', weapon2: 'Arma 2 (escopeta)',
 };
 export const DEFAULTS = {
   version: 1, sensX: 1, sensY: 1, invertY: false, fovOffset: 0, shoulder: 'right',
@@ -26,4 +26,4 @@ export function loadSettings(storage = globalThis.localStorage) {
   return structuredClone(DEFAULTS);
 }
 export function saveSettings(s, storage = globalThis.localStorage) { try { storage?.setItem(KEY, JSON.stringify(s)); } catch { /* ignora */ } }
-export const keyLabel = (code) => ({ Mouse0: 'Botão esq.', Mouse1: 'Botão meio', Mouse2: 'Botão dir.', Space: 'Espaço', ShiftLeft: 'Shift', Escape: 'Esc' }[code] ?? code.replace(/^Key/, '').replace(/^Digit/, ''));
+export const keyLabel = (code) => ({ Mouse0: 'Botão esq.', Mouse1: 'Botão meio', Mouse2: 'Botão dir.', Wheel: 'Roda do mouse', Space: 'Espaço', ShiftLeft: 'Shift', Escape: 'Esc' }[code] ?? code.replace(/^Key/, '').replace(/^Digit/, ''));

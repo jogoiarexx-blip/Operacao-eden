@@ -53,6 +53,8 @@ export class PlayerView {
     this.arms[1].rotation.x = aim ? -1.5 : -0.5 + Math.sin(p.walkPhase * 3.2) * 0.4 * sp * -1;
     this.arms[0].rotation.x = aim ? -1.35 : Math.sin(p.walkPhase * 3.2) * 0.5 * sp;
     this.arms[0].rotation.z = aim ? 0.25 : 0; this.arms[1].rotation.z = 0;
+    const sg = p.weaponId === 'shotgun'; this.gun.scale.set(1, 1, sg ? 2.6 : 1); this.gun.position.z = sg ? -0.3 : -0.14; this.flash.position.z = sg ? -0.62 : -0.34;
+    if (p.switchT > 0) { this.arms[1].rotation.x = -0.2 - p.switchT * 2; }
     if (p.reloading) { this.arms[0].rotation.x = -0.9; this.arms[1].rotation.x = -0.8; this.arms[0].rotation.z = -0.5; }
     if (p.using) { this.arms[0].rotation.x = -1.1; this.arms[1].rotation.x = -1.0; }
     this.head.position.y = 1.62; this.body.rotation.z = 0;

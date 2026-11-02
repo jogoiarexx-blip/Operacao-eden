@@ -68,6 +68,7 @@ export function applyAssist(dir, camPos, enemies, world, strength) {
  * @returns {kind:'enemy'|'world'|'none', point:{x,y,z}, enemy?, part?, damage?, obstructed:boolean, tracerFrom, t}
  */
 export function resolveShot({ world, enemies, camera, muzzle, weapon, spreadDeg, rng, assist = 0 }) {
+  if (weapon.pellets > 1) return resolveSpread({ world, enemies, camera, muzzle, weapon, spreadDeg, rng, assist });
   const cam = camera.reticleRay();
   let dir = perturb(cam.dx, cam.dy, cam.dz, spreadDeg, rng);
   dir = applyAssist(dir, { x: cam.ox, y: cam.oy, z: cam.oz }, enemies, world, assist);
@@ -94,6 +95,50 @@ export function resolveShot({ world, enemies, camera, muzzle, weapon, spreadDeg,
   }
   if (bWorld) return { kind: 'world', obstructed, tracerFrom: from, t: tb, point: { x: muzzle.x + mx * tb, y: muzzle.y + my * tb, z: muzzle.z + mz * tb }, aim, collider: bWorld.collider };
   return { kind: 'none', obstructed: false, tracerFrom: from, t: maxT, point: { x: muzzle.x + mx * maxT, y: muzzle.y + my * maxT, z: muzzle.z + mz * maxT }, aim };
+}
+
+/** Multiplicador de dano por distância: 1 até `full`, cai linearmente até 0 em `zero`. */
+export function falloffMult(dist, [full, zero]) {
+  if (dist <= full) return 1;
+  if (dist >= zero) return 0;
+  return (zero - dist) / (zero - full);
+}
+
+/** Regra de interrupção da escopeta: chumbos suficientes em um mesmo animal, a curta distância. */
+export function shouldInterrupt(weapon, hit, boss = false) {
+  const r = weapon.interrupt; if (!r) return false;
+  return hit.dist <= r.range && hit.pellets >= (boss ? r.bossMinPellets : r.minPellets);
+}
+
+/** Armas de vários projéteis: cada chumbo faz o teste do retículo + cano; acertos são agrupados por animal. */
+function resolveSpread({ world, enemies, camera, muzzle, weapon, spreadDeg, rng, assist }) {
+  const cam = camera.reticleRay(), camPos = { x: cam.ox, y: cam.oy, z: cam.oz };
+  const center = applyAssist([cam.dx, cam.dy, cam.dz], camPos, enemies, world, assist);
+  const range = weapon.range, from = { x: muzzle.x, y: muzzle.y, z: muzzle.z };
+  const byEnemy = new Map(), tracers = [], impacts = [];
+  for (let i = 0; i < weapon.pellets; i++) {
+    const dir = perturb(center[0], center[1], center[2], spreadDeg, rng);
+    const wHit = world.raycast(cam.ox, cam.oy, cam.oz, dir[0], dir[1], dir[2], range, 'bullet');
+    const tWorld = wHit ? wHit.t : range;
+    const eHit = rayEnemies(enemies, cam.ox, cam.oy, cam.oz, dir[0], dir[1], dir[2], tWorld);
+    const tAim = eHit ? eHit.t : tWorld;
+    let mx = cam.ox + dir[0] * tAim - muzzle.x, my = cam.oy + dir[1] * tAim - muzzle.y, mz = cam.oz + dir[2] * tAim - muzzle.z;
+    const ml = Math.hypot(mx, my, mz) || 1; mx /= ml; my /= ml; mz /= ml;
+    const maxT = Math.min(range, ml + (eHit ? 0 : 20));
+    const bWorld = world.raycast(muzzle.x, muzzle.y, muzzle.z, mx, my, mz, maxT, 'bullet');
+    const tb = bWorld ? bWorld.t : maxT;
+    const bEnemy = rayEnemies(enemies, muzzle.x, muzzle.y, muzzle.z, mx, my, mz, tb);
+    const t = bEnemy ? bEnemy.t : tb, point = { x: muzzle.x + mx * t, y: muzzle.y + my * t, z: muzzle.z + mz * t };
+    tracers.push({ from, point });
+    if (bEnemy) {
+      const dmg = Math.round(weapon.damage * PART_MULT(weapon, bEnemy.part) * falloffMult(t, weapon.falloff));
+      if (dmg <= 0) continue;
+      let h = byEnemy.get(bEnemy.enemy);
+      if (!h) { h = { enemy: bEnemy.enemy, damage: 0, pellets: 0, parts: {}, dist: t, point }; byEnemy.set(bEnemy.enemy, h); }
+      h.damage += dmg; h.pellets++; h.parts[bEnemy.part] = (h.parts[bEnemy.part] ?? 0) + 1; h.dist = Math.min(h.dist, t);
+    } else if (bWorld) impacts.push(point);
+  }
+  return { kind: 'spread', hits: [...byEnemy.values()], tracers, impacts, tracerFrom: from, obstructed: false };
 }
 
 /** Estado do retículo (por quadro): 'clear' | 'enemy' | 'blocked' (cano obstruído por cobertura rente). */

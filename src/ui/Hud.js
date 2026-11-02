@@ -16,7 +16,7 @@ export class Hud {
     this.chain = h('div#hud-chain.hud-box.hidden', this.chainTier, this.chainSub, h('div.tm', this.chainTm));
     this.feedEl = h('div#hud-feed');
     this.ticks = ['top', 'bottom', 'left', 'right'].map((s) => { const t = h('div.t'); if (s === 'left' || s === 'right') { t.style.width = '8px'; t.style.height = '2px'; } return t; });
-    this.dot = h('div.dot'); this.reticle = h('div#reticle', this.dot, ...this.ticks);
+    this.dot = h('div.dot'); this.ring = h('div.ring'); this.reticle = h('div#reticle', this.dot, this.ring, ...this.ticks);
     this.promptEl = h('div#prompt.hidden'); this.toasts = h('div#toasts'); this.subs = h('div#subs');
     root.append(this.vig, this.threatsEl, this.objective, this.vitals, this.ammo, this.chain, this.feedEl, this.reticle, this.promptEl, this.toasts, this.subs);
     this._hitT = 0; this._lastObj = '';
@@ -31,12 +31,17 @@ export class Hud {
     this.hpText.textContent = `${Math.ceil(v.hp)}`;
     this.bleed.textContent = v.bleeding ? '● SANGRANDO' : '';
     this.items.textContent = `Kit médico ${v.consumables.medkit ?? 0} · Hemostático ${v.consumables.hemostatic ?? 0}${v.consumables.medkit_adv ? ` · Avançado ${v.consumables.medkit_adv}` : ''}`;
+    if (v.weaponName && v.weaponName !== this._lastWname) { this.wname.textContent = v.weaponName; this._lastWname = v.weaponName; }
     this.magEl.textContent = v.infinite ? '∞' : `${v.mag}`; this.magEl.classList.toggle('low', !v.infinite && v.mag <= 3);
     this.resEl.textContent = v.reloading ? 'RECARREGANDO…' : v.using ? 'USANDO ITEM…' : v.infinite ? 'Capacitor' : `Reserva ${v.reserve}`;
     // retículo dinâmico: afastamento proporcional à dispersão
     const px = Math.max(5, Math.tan(v.spreadDeg * DEG) / Math.tan((v.fov * DEG) / 2) * (innerHeight / 2));
     const [t, b, l, r] = this.ticks;
     t.style.transform = `translate(-1px, ${-px - 8}px)`; b.style.transform = `translate(-1px, ${px}px)`; l.style.transform = `translate(${-px - 8}px, -1px)`; r.style.transform = `translate(${px}px, -1px)`;
+    const cone = (v.pellets ?? 1) > 1;                      // escopeta: anel de raio proporcional à dispersão
+    this.ring.style.display = cone ? 'block' : 'none';
+    for (const k of this.ticks) k.style.display = cone ? 'none' : '';
+    if (cone) { this.ring.style.width = this.ring.style.height = `${px * 2}px`; this.ring.style.left = this.ring.style.top = `${-px}px`; }
     this.reticle.className = v.reticle + (this._hitT > 0 ? ' hit' : '');
     this._hitT = Math.max(0, this._hitT - dt);
     this.reticle.style.opacity = v.aiming || v.reticle === 'enemy' ? 1 : 0.75;
