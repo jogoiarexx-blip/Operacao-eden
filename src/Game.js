@@ -24,6 +24,7 @@ import { buildScenery } from './world/SectorScenery.js';
 import { FX } from './world/FX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
+import { resolveDifficultyOffer } from './gameplay/DifficultyOffer.js';
 import { DinosaurAgent, AttackCoordinator, AI } from './actors/DinosaurAgent.js';
 import { CreatureView } from './actors/CreatureView.js';
 import { K1Agent, K1 } from './actors/K1Agent.js';
@@ -73,7 +74,7 @@ export class Game {
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.Fog(0x0a1719, 8, 80);
     this.threeCam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 150);
     this.loadChapter(CHAPTER_IDS[0]);
-    this.camera = new ShoulderCameraController(this.world);
+    this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
     this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
     this.fx = new FX(this.scene);
     this.coordinator = new AttackCoordinator(2);
@@ -118,7 +119,7 @@ export class Game {
     this.scenery.onLightning = () => this.audio?.play('thunder');
     this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
-    if (this.camera) this.camera.world = this.world;
+    if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
     if (this.player) this.player.world = this.world;
     this.chapter = new ChapterRuntime(this, this.chapterDef);
     if (this.settings && this.audio) this.applySettings();
@@ -221,7 +222,7 @@ export class Game {
     this.audio.ensure(); this.audio.play('ui');
     await this._loading();
     const s = advanceToChapter(this.save, id);
-    if (difficultyId) difficulty.change(s, difficultyId, { newChapterStart: true });
+    const offer = resolveDifficultyOffer(s, difficultyId, this.profile); if (!offer.ok) this.hud.toast(offer.message, 'warn');
     this.save = s;
     this.stats = new RunStats({ objectivesTotal: getChapter(id).data.objectives.length });
     this._startRun(true);
@@ -432,8 +433,10 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- simulação (passo fixo)
+  /** Zona `narrow` do capítulo em (x,z)? Usada pelo coordenador de ataques (corredor/passagem → 1 atacante). */
+  narrowAt(x, z) { for (const q of this.chapterDef.data.zones ?? []) if (q.narrow && Math.hypot(x - q.pos[0], z - q.pos[1]) <= q.r) return true; return false; }
   aiCtx() {
-    return { player: this.player, world: this.world, noises: this.noises, coordinator: this.coordinator, diff: this.diffPreset, diffMgr: difficulty, bus: this.bus, sim: this.simMs, rng: this.rng, allies: this.agents.map((a) => a.agent), tick: this.loop.tick, runId: this.save.runId };
+    return { player: this.player, world: this.world, noises: this.noises, coordinator: this.coordinator, narrowAt: (x, z) => this.narrowAt(x, z), diff: this.diffPreset, diffMgr: difficulty, bus: this.bus, sim: this.simMs, rng: this.rng, allies: this.agents.map((a) => a.agent), tick: this.loop.tick, runId: this.save.runId };
   }
   step(dt) {
     const p = this.player, tick = this.loop.tick; this.simMs += dt * 1000;

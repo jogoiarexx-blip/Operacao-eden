@@ -106,3 +106,14 @@ describe('Capítulo 02 — dados', () => {
     expect(data.zones.some((z) => z.narrow)).toBe(true);
   });
 });
+
+describe('Capítulo 02 — caixas de munição compartilham o relógio', () => {
+  it('usar a caixa B logo após a A não reabastece (um único lastAt)', () => {
+    const inv = { weapons: { shotgun: { mag: 0 } }, ammoReserve: { shotgun: 0 } }, shared = {};
+    expect(arenaResupply(1000, inv, shared)).toBe(6);
+    inv.ammoReserve.shotgun = 0;
+    expect(arenaResupply(1500, inv, shared)).toBe(0);                   // "outra caixa" = mesmo objeto de estado
+    expect(arenaResupply(1000 + RESUPPLY.everyMs, inv, shared)).toBe(6);
+    expect(RESUPPLY.amount / (RESUPPLY.everyMs / 1000)).toBeCloseTo(0.15, 5);   // ≤ 6 cartuchos / 40 s
+  });
+});

@@ -15,7 +15,9 @@ export const AI = Object.freeze({
 export class AttackCoordinator {
   constructor(max = 2) { this.max = max; this.holders = new Set(); }
   setMax(n) { this.max = n; }
-  request(agent) { if (this.holders.has(agent)) return true; if (this.holders.size < this.max) { this.holders.add(agent); return true; } return false; }
+  /** Em zona `narrow` (corredor/passagem) só 1 atacante de contato por vez; fora dela, o máximo da dificuldade. */
+  maxFor(zoneNarrow) { return zoneNarrow ? Math.min(1, this.max) : this.max; }
+  request(agent, zoneNarrow = false) { if (this.holders.has(agent)) return true; if (this.holders.size < this.maxFor(zoneNarrow)) { this.holders.add(agent); return true; } return false; }
   release(agent) { this.holders.delete(agent); }
   clear() { this.holders.clear(); }
 }
@@ -146,7 +148,7 @@ export class DinosaurAgent {
         if (sp.id === 'forest_runner_juvenile' && !this.fled && this.hp < this.maxHp * 0.3) { this.fled = true; this.setState(AI.FLEE, 2200); break; }
         const tgt = sees ? player : (this.lastKnown ?? player);
         const dT = Math.hypot(tgt.x - this.x, tgt.z - this.z);
-        if (sees && distP <= at.triggerRange && coordinator.request(this)) { this._beginWindup(player, diffMgr, diff, bus); break; }
+        if (sees && distP <= at.triggerRange && coordinator.request(this, !!(ctx.narrowAt && (ctx.narrowAt(this.x, this.z) || ctx.narrowAt(player.x, player.z))))) { this._beginWindup(player, diffMgr, diff, bus); break; }
         if (sees && distP < 9.5 && !coordinator.holders.has(this)) {
           // sem permissão de ataque: reposiciona em anel e simula pressão (sem fila de inimigos parados)
           const ang = Math.atan2(this.x - player.x, this.z - player.z) + this.circleDir * 0.55;

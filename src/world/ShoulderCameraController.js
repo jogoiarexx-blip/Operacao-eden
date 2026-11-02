@@ -17,6 +17,16 @@ export function forwardVec(yaw, pitch) {
 }
 export const rightVec = (yaw) => ({ x: Math.cos(yaw), y: 0, z: -Math.sin(yaw) });
 
+/** Zona de câmera ativa em (x,z): retângulo `rect:[x0,z0,x1,z1]` e/ou círculo da zona de capítulo referenciada por `zone`. */
+export function zoneAtPoint(cameraZones, zones, x, z) {
+  for (const cz of cameraZones ?? []) {
+    if (cz.rect && x >= cz.rect[0] && x <= cz.rect[2] && z >= cz.rect[1] && z <= cz.rect[3]) return cz;
+    if (cz.zone) { const q = (zones ?? []).find((y) => y.id === cz.zone); if (q && Math.hypot(x - q.pos[0], z - q.pos[1]) <= q.r) return cz; }
+  }
+  return null;
+}
+export const SIDE_WALL_M = 0.6;           // parede mais perto que isso do lado do ombro → troca de lado temporariamente
+
 export class ShoulderCameraController {
   constructor(world, opts = {}) {
     this.world = world;
@@ -39,7 +49,12 @@ export class ShoulderCameraController {
     this.blocked = false;
     this.cinematic = false;
     this.aspect = 16 / 9;
+    this.cameraZones = []; this.zoneDefs = [];
+    this.zoneExplore = CAMERA_PRESETS.explore.dist; this.zoneAim = CAMERA_PRESETS.ads.dist;   // distâncias interpoladas da zona ativa
+    this.activeZone = null;
+    this.autoFlip = false; this._clearT = 0;                                                  // troca temporária de ombro por parede
   }
+  setZones(cameraZones, zones = []) { this.cameraZones = cameraZones ?? []; this.zoneDefs = zones; this.activeZone = null; }
   get side() { return this.sideCur >= 0 ? 'right' : 'left'; }
   swapShoulder() { this.preferredSide = this.preferredSide === 'right' ? 'left' : 'right'; }
   startTurn180() { if (Math.abs(this.turnLeft) < 0.01) this.turnLeft = Math.PI; }
@@ -63,10 +78,17 @@ export class ShoulderCameraController {
     // 2) preset mesclado (mirar)
     this.aimT += ((input.aim ? 1 : 0) - this.aimT) * damp(dt, 0.07);
     const k = this.aimT;
-    const dist = lerp(P0.dist, P1.dist, k), offset = lerp(P0.offset, P1.offset, k), pivotH = lerp(P0.pivotH, P1.pivotH, k);
+    const zone = this.cameraZones.length ? zoneAtPoint(this.cameraZones, this.zoneDefs, target.x, target.z) : null;
+    this.activeZone = zone;
+    const za = damp(dt, 0.15);
+    this.zoneExplore += ((zone?.exploreDistance ?? P0.dist) - this.zoneExplore) * za;
+    this.zoneAim += ((zone?.aimDistance ?? P1.dist) - this.zoneAim) * za;
+    const dist = lerp(this.zoneExplore, this.zoneAim, k), offset = lerp(P0.offset, P1.offset, k), pivotH = lerp(P0.pivotH, P1.pivotH, k);
     this.fov = lerp(P0.fov, P1.fov, k) + this.fovOffset;
     // 3) ombro (interpolado)
-    const sideTarget = this.preferredSide === 'right' ? 1 : -1;
+    const prefSign = this.preferredSide === 'right' ? 1 : -1;
+    this._autoFlip(dt, prefSign);
+    const sideTarget = this.autoFlip ? -prefSign : prefSign;
     this.sideCur += (sideTarget - this.sideCur) * damp(dt, 0.09);
     // 4) pivô suavizado
     const wantPivot = { x: target.x, y: target.y + pivotH, z: target.z };
@@ -95,6 +117,16 @@ export class ShoulderCameraController {
     const sx = Math.sin(this._shakeT * 1.7) * this.shakeAmt * 0.03, sy = Math.cos(this._shakeT * 2.3) * this.shakeAmt * 0.03;
     this.pos.x = ax - d.x * this.dist + r.x * sx; this.pos.y = ay - d.y * this.dist + sy; this.pos.z = az - d.z * this.dist + r.z * sx;
     this.playerOpacity = clamp((this.dist - 0.55) / 0.5, 0.0, 1);       // some o avatar quando a câmera encosta
+  }
+
+  /** Parede a <0,6 m do lado do ombro (e o outro lado livre) → troca de lado; volta após 0,3 s com o lado preferido livre a 0,9 m. */
+  _autoFlip(dt, prefSign) {
+    const r = rightVec(this.yaw), px = this.pivot.x, py = this.pivot.y, pz = this.pivot.z;
+    const hit = (s, d) => !!this.world.raycast(px, py, pz, r.x * s, 0, r.z * s, d, 'camera', 0.05);
+    if (!this.autoFlip) {
+      if (hit(prefSign, SIDE_WALL_M) && !hit(-prefSign, SIDE_WALL_M)) { this.autoFlip = true; this._clearT = 0; }
+    } else if (hit(prefSign, SIDE_WALL_M + 0.3)) this._clearT = 0;
+    else { this._clearT += dt; if (this._clearT >= 0.3) this.autoFlip = false; }
   }
 
   /** Raio do retículo = centro da projeção. */

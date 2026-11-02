@@ -11,10 +11,10 @@
  "spawn": {"id": "south_breach", "pos": [11.3, 33.5], "yaw": 0},
  "camera": {"mode": "over_shoulder", "exploreDistance": 3.1, "aimDistance": 2.05, "shoulderOffset": 0.55, "collisionLayer": "camera_blockers", "pitchLimitsDeg": [-60, 65]},
  "cameraZones": [
-   {"id": "cz_admin", "rect": [-28, 4, -12, 18], "exploreDistance": 2.2, "aimDistance": 1.6},
-   {"id": "cz_shed", "rect": [16, 6, 28, 18], "exploreDistance": 2.4, "aimDistance": 1.7},
-   {"id": "cz_archive", "rect": [3.5, -38, 22, -26], "exploreDistance": 2.4, "aimDistance": 1.7},
-   {"id": "cz_yard", "rect": [-13, -26, 13, -4], "exploreDistance": 2.8, "aimDistance": 1.9}
+   {"id": "cz_admin", "zone": "admin_corridor", "rect": [-28, 4, -12, 18], "exploreDistance": 2.2, "aimDistance": 1.6},
+   {"id": "cz_shed", "zone": "generator_shed", "rect": [16, 6, 28, 18], "exploreDistance": 2.4, "aimDistance": 1.7},
+   {"id": "cz_archive", "zone": "archive", "rect": [3.5, -38, 22, -26], "exploreDistance": 2.4, "aimDistance": 1.7},
+   {"id": "cz_yard", "zone": "yard", "rect": [-13, -26, 13, -4], "exploreDistance": 2.8, "aimDistance": 1.9}
   ],
  "paths": [
    {"id": "service", "w": 3.4, "pts": [[11.3, 37], [11.3, 31], [4, 34], [-8, 34.2], [-18, 33.8], [-27, 33.4]]},

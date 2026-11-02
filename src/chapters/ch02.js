@@ -61,7 +61,7 @@ export class TomasDefense {
 }
 
 export const RESUPPLY = Object.freeze({ everyMs: 40000, amount: 6, below: 6 });
-/** Caixa de munição da arena: +6 cartuchos se (reserva + pente) < 6 e ≥ 40 s desde o último uso DESTA caixa (`box.lastAt`). */
+/** Caixas de munição da arena: +6 cartuchos se (reserva + pente) < 6 e ≥ 40 s desde o último uso de QUALQUER caixa (estado compartilhado `box.lastAt`: no máx. +6 a cada 40 s no total). */
 export function arenaResupply(simMs, inv, box = {}) {
   const sg = inv.weapons?.shotgun; if (!sg) return 0;
   const have = (inv.ammoReserve.shotgun ?? 0) + (sg.mag ?? 0);
@@ -189,15 +189,15 @@ function useGate(rt) {
   g.props.dropGate(); g.audio.play('gate'); g.camera.shake(r.hit ? 1.6 : 0.7);
   g.hud.toast(r.hit ? 'O portão caiu em cheio sobre o K-1!' : 'O portão caiu no vazio — recarregando (20 s).', r.hit ? 'good' : 'warn');
 }
-function useAmmoBox(rt, it) {
-  const g = rt.g, inv = activeInventory(g.save), box = (rt.boxes[it.id] ??= {});
+function useAmmoBox(rt, it) {   // `it` ignorado de propósito: as duas caixas dividem o mesmo relógio
+  const g = rt.g, inv = activeInventory(g.save), box = rt.box;
   g.syncSaveFromRuntime();
   const n = arenaResupply(g.simMs, inv, box);
   if (!n) { g.audio.play('deny'); g.hud.toast(ammoBoxLabel(rt, it), 'warn'); return; }
   g.syncRuntimeFromSave(); g.audio.play('pickup'); g.hud.toast(`+${n} cartuchos de escopeta`, 'good');
 }
 function ammoBoxLabel(rt, it) {
-  const g = rt.g, box = rt.boxes[it.id] ?? {}, p = g.player;
+  const g = rt.g, box = rt.box, p = g.player;
   const sgHave = p.weaponId === 'shotgun' ? p.mag + p.reserve : p.stash?.shotgun ? p.stash.shotgun.mag + p.stash.shotgun.reserve : 0;
   if (sgHave >= RESUPPLY.below) return 'Caixa de munição — você já tem 6 ou mais cartuchos';
   if (box.lastAt != null && g.simMs - box.lastAt < RESUPPLY.everyMs) return `Caixa de munição — reabastece em ${Math.ceil((RESUPPLY.everyMs - (g.simMs - box.lastAt)) / 1000)} s`;
@@ -377,7 +377,7 @@ export default {
   onLoad(rt) {
     const g = rt.g, save = g.save, c = chapterState(save);
     rt.gate = makeGate(); rt.gate.restore(c.gate, g.simMs);
-    rt.defense = null; rt.defQueue = 0; rt.defSpawned = new Set(); rt.boxes = {};
+    rt.defense = null; rt.defQueue = 0; rt.defSpawned = new Set(); rt.box = {};
     rt.k1At = k1ShouldSpawn(save) ? 0 : null; rt.k1Since = null;                 // retry: agente novo ⇒ vida cheia
     rt.roarPendingSince = c.roarSpawned && !rt.wf.defeatedEnemies.includes('r4j_roar') ? 0 : null;
     const P = g.props;
