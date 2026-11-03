@@ -194,6 +194,30 @@ POSES.reload = {
 function createAnimations(scene) {
   const bones = {};
   scene.traverse((node) => { if (node.isBone) bones[node.name] = node; });
+  // A orientação local dos ossos depende do exportador GLB. Em vez de supor
+  // que X positivo/negativo ergue a mão para a frente, medimos a posição
+  // real de cada mão após um giro experimental, sempre restaurando o bind.
+  const armCorrection = {};
+  scene.updateMatrixWorld(true);
+  for (const side of ['Left', 'Right']) {
+    const arm = bones[side + 'Arm'];
+    const hand = bones[side + 'Hand'] || bones[side + 'HandWeaponSocket'];
+    armCorrection[side + 'Arm'] = 1;
+    if (!arm || !hand) continue;
+    const base = arm.quaternion.clone();
+    const samples = [-0.85, 0.85].map(angle => {
+      arm.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(angle, 0, 0)));
+      scene.updateMatrixWorld(true);
+      const point = hand.getWorldPosition(new THREE.Vector3());
+      return scene.worldToLocal(point).z;
+    });
+    arm.quaternion.copy(base);
+    scene.updateMatrixWorld(true);
+    // Todas as poses armadas foram autoradas com valores X negativos.
+    // Se X positivo coloca a mão mais à frente, inverte apenas esse braço.
+    armCorrection[side + 'Arm'] = samples[1] > samples[0] ? -1 : 1;
+  }
+  const armedStates = new Set(['aim','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight','shoot','reload']);
   const clips = {};
   for (const [state, poses] of Object.entries(POSES)) {
     const duration = CLIP_DURATIONS[state];
@@ -204,7 +228,8 @@ function createAnimations(scene) {
       const times = values.map((_, idx) => idx * duration / (values.length - 1));
       const samples = values.flatMap(([x, y, z]) => {
         // Multiplicação relativa à pose de bind evita trocar o eixo das juntas.
-        const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+        const armScale = armedStates.has(state) ? (armCorrection[name] ?? 1) : 1;
+        const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(x * armScale, y, z));
         return bone.quaternion.clone().multiply(offset).toArray();
       });
       tracks.push(new THREE.QuaternionKeyframeTrack(`${name}.quaternion`, times, samples));
@@ -338,7 +363,11 @@ export class ReginaRig {
       const next = this.actions[wanted];
       const transition = wanted === 'shoot' || wanted === 'dodge' || wanted === 'hurt' ? 0.07 : 0.16;
       if (prev && prev !== next) prev.fadeOut(transition);
+      const gaitStates = new Set(['walk','walkBack','run','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight']);
+      const phase = gaitStates.has(this.state) && gaitStates.has(wanted) && prev
+        ? (prev.time / prev.getClip().duration) % 1 : null;
       next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(transition).play();
+      if (phase !== null) next.time = phase * next.getClip().duration;
       this.state = wanted;
     }
     if (['walk','walkBack','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight'].includes(wanted))
