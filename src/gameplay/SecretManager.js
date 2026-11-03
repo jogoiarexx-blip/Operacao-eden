@@ -1,5 +1,6 @@
 import secretsData from '../data/secrets.json';
 import { EconomyLedger } from './EconomyLedger.js';
+import { activeInventory } from './Characters.js';
 
 /**
  * Segredos, caches e dossiês (GDD 5.4–5.10).
@@ -36,7 +37,7 @@ export function conditionMet(cond, flags) {
 /** Aplica recompensas de abastecimento; munição escala pela dificuldade. Retorna resumo para o HUD. */
 export function applyRewards(save, rewards, { id, ammoScale = (n) => n } = {}) {
   const summary = [];
-  const inv = save.inventory;
+  const inv = activeInventory(save);
   for (const r of rewards) {
     if (r.type === 'supplies') {
       for (const [w, n] of Object.entries(r.ammo ?? {})) { const v = ammoScale(n); inv.ammoReserve[w] = (inv.ammoReserve[w] ?? 0) + v; summary.push(`+${v} munição`); }

@@ -26,6 +26,16 @@ export class CollisionWorld {
     const f = Object.fromEntries(flags.map((k) => [k, true]));
     return this.add({ id, type: 'cyl', x, z, r, y0: y, y1: y + h, ...f, ...extra });
   }
+  /** Remove definitivamente (guarda em `removed` para `restoreById`, usado ao recarregar saves). */
+  removeById(id) {
+    const c = this.byId.get(id); if (!c) return false;
+    this.list = this.list.filter((x) => x !== c); this.byId.delete(id);
+    (this.removed ??= new Map()).set(id, c); return true;
+  }
+  restoreById(id) {
+    const c = this.removed?.get(id); if (!c) return false;
+    this.removed.delete(id); this.list.push(c); this.byId.set(id, c); return true;
+  }
   setEnabled(id, v) { const c = this.byId.get(id); if (c) c.enabled = v; }
 
   /** Empurra um corpo circular (x,z,r) para fora dos colisores `move`. Retorna posição corrigida. */

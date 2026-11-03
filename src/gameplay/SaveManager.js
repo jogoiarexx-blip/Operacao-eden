@@ -53,26 +53,37 @@ export function validateSave(s) {
   if (typeof s.sectorId !== 'string') errors.push('sectorId inválido');
   if (!['lia', 'caio'].includes(s.playerId)) errors.push('playerId inválido');
   if (!isObj(s.health)) errors.push('health inválido');
-  if (!isObj(s.inventory)) errors.push('inventory inválido');
+  if (!isObj(s.inventories) || !isObj(s.inventories.lia) || !isObj(s.inventories.caio)) errors.push('inventories inválido');
+  if (!Array.isArray(s.teamKeys)) errors.push('teamKeys inválido');
   const credits = s.economyLedger?.credits ?? s.credits;
   if (!Number.isFinite(credits) || credits < 0) errors.push('CC inválido ou negativo');
   for (const k of ['storyFlags', 'secretFlags', 'persistentWorldFlags']) if (s[k] !== undefined && !isObj(s[k])) errors.push(`${k} inválido`);
-  if (s.inventory) for (const [w, n] of Object.entries(s.inventory.ammoReserve ?? {})) if (!Number.isFinite(n) || n < 0) errors.push(`munição negativa: ${w}`);
+  for (const [c, inv] of Object.entries(isObj(s.inventories) ? s.inventories : {})) for (const [w, n] of Object.entries(inv?.ammoReserve ?? {})) if (!Number.isFinite(n) || n < 0) errors.push(`munição negativa: ${c}/${w}`);
   return { ok: errors.length === 0, errors };
 }
 
-/** v1/v2 conceituais → v3 → v4, sem apagar progressão. */
+/** v1/v2 conceituais → v3 → v4 → v5, sem apagar progressão. */
 export function migrateSave(raw) {
   const from = raw.schemaVersion ?? 1;
   if (from >= SCHEMA_VERSION) return { save: raw, from, migrated: false };
   const base = createNewSave({ slot: raw.slot ?? 1, profileId: raw.profileId, runId: raw.runId });
   const s = structuredClone(raw);
   // v1/v2 → v3: campos conceituais ganham padrões
-  for (const k of ['health', 'inventory', 'storyFlags', 'rescueFlags', 'containmentFlags', 'secretFlags', 'persistentWorldFlags', 'cameraSettings']) {
+  for (const k of ['health', 'storyFlags', 'rescueFlags', 'containmentFlags', 'secretFlags', 'persistentWorldFlags', 'cameraSettings']) {
     if (s[k] === undefined) s[k] = base[k];
   }
-  s.inventory = { ...base.inventory, ...s.inventory, ammoReserve: { ...base.inventory.ammoReserve, ...(s.inventory?.ammoReserve ?? {}) } };
   s.persistentWorldFlags = { ...base.persistentWorldFlags, ...s.persistentWorldFlags };
+  // v4 → v5: inventário único vira o da Lia; chaves sobem para o topo; gateOpen vira flag de capítulo
+  if (from < 5) {
+    const old = s.inventory ?? {}, bl = base.inventories.lia;
+    s.inventories = { lia: { ...bl, ...old, weapons: { ...bl.weapons, ...(old.weapons ?? {}) }, ammoReserve: { ...bl.ammoReserve, ...(old.ammoReserve ?? {}) }, consumables: { ...bl.consumables, ...(old.consumables ?? {}) }, upgrades: [...(old.upgrades ?? [])] }, caio: base.inventories.caio };
+    delete s.inventories.lia.teamKeys;
+    s.teamKeys = [...new Set([...(s.teamKeys ?? []), ...(old.teamKeys ?? [])])];
+    delete s.inventory;
+    const wf = s.persistentWorldFlags;
+    wf.chapter = { ...base.persistentWorldFlags.chapter, ...(wf.chapter ?? {}) };
+    if (wf.gateOpen !== undefined) { wf.chapter.ch01 = { ...wf.chapter.ch01, gateOpen: !!wf.gateOpen }; delete wf.gateOpen; }
+  }
   // v3 → v4
   const credits = s.economyLedger?.credits ?? s.credits ?? 0;
   s.economyLedger = { ...base.economyLedger, ...(s.economyLedger ?? {}), credits };

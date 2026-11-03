@@ -1,7 +1,9 @@
+import { keyLabel } from '../core/Settings.js';
 import { h, fmtNum } from './dom.js';
 import { SHOP_ITEMS, SHOP_TABS, itemState, ERROR_TEXT } from '../gameplay/ShopSystem.js';
 import { difficulty, ORDER } from '../gameplay/DifficultyManager.js';
 import { WEAPONS } from '../gameplay/GameState.js';
+import { activeInventory, getCharacter } from '../gameplay/Characters.js';
 import { drawMap } from './MapView.js';
 import docs from '../data/documents.json';
 import { getDossier, DOSSIER_IDS } from '../gameplay/SecretManager.js';
@@ -48,7 +50,7 @@ export class TerminalUI {
     const tabs = h('div.tabs', ...SHOP_TABS.map((t) => h(`button${this.buyTab === t ? '.on' : ''}`, { onclick: () => { this.buyTab = t; this.sel = null; this.confirming = null; this.render(); } }, t)));
     const list = h('div');
     for (const it of SHOP_ITEMS.filter((i) => i.tab === this.buyTab)) {
-      const st = itemState(it, s, 1);
+      const st = itemState(it, s, g.chapterNumber);
       list.append(h(`button.item${this.sel === it.id ? '.card.sel' : ''}`, { onclick: () => { this.sel = it.id; this.confirming = null; this.msg = null; this.render(); } },
         h('span', h('b', it.name), h('div.dim.small', st.reason || it.desc)), h('span', it.price ? `${fmtNum(it.price)} CC` : '—'), h(`span.badge.${st.state}`, { owned: 'possui', available: 'disponível', locked: 'bloqueado', out_of_stock: 'sem estoque', incompatible: 'incompatível' }[st.state])));
     }
@@ -56,8 +58,8 @@ export class TerminalUI {
     const it = SHOP_ITEMS.find((i) => i.id === this.sel);
     if (!it) detail.append(h('p.dim', 'Selecione um item para ver detalhes. Nada é comprado ao navegar.'));
     else {
-      const st = itemState(it, s, 1), afford = s.economyLedger.credits >= it.price;
-      detail.append(h('h3', { style: { marginTop: 0 } }, it.name), h('p.small', it.desc), this._compare(it),
+      const st = itemState(it, s, g.chapterNumber), afford = s.economyLedger.credits >= it.price;
+      detail.append(h('h3', { style: { marginTop: 0 } }, it.name), h('p.small', it.desc), it.tab === 'MELHORIAS' ? h('p.small.amber', `Aplicada a ${getCharacter(s.playerId).name}`) : null, this._compare(it),
         h('p', `Preço: ${fmtNum(it.price)} CC · Saldo: ${fmtNum(s.economyLedger.credits)} CC`));
       if (this.confirming === it.id) {
         detail.append(h('p.amber', `Confirmar compra de “${it.name}” por ${fmtNum(it.price)} CC?`), h('div.row',
@@ -69,7 +71,7 @@ export class TerminalUI {
     body.append(tabs, h('div.grid2', h('div', list), detail));
   }
   _compare(it) {
-    const inv = this.game.save.inventory, g = it.grants || {};
+    const inv = activeInventory(this.game.save), g = it.grants || {};
     if (g.ammo) { const [w, n] = Object.entries(g.ammo)[0]; return h('p.small.dim', `Reserva ${inv.ammoReserve[w] ?? 0} → ${(inv.ammoReserve[w] ?? 0) + n} (máx. ${WEAPONS[w]?.reserveCap ?? '—'})`); }
     if (g.consumable) { const [c, n] = Object.entries(g.consumable)[0]; return h('p.small.dim', `Estoque ${inv.consumables[c] ?? 0} → ${(inv.consumables[c] ?? 0) + n} (máx. ${it.cap?.max ?? '—'})`); }
     return null;
@@ -84,11 +86,11 @@ export class TerminalUI {
   }
 
   _equip(body) {
-    const g = this.game, s = g.save, p = g.player, inv = s.inventory;
+    const g = this.game, s = g.save, p = g.player, inv = activeInventory(s);
     body.append(h('h3', 'Arma equipada'), h('div.card', h('b', WEAPONS[inv.equipped].name), h('p.small.dim', `Carregador ${p.mag}/${p.magSize} · Reserva ${p.reserve} · Dano ${WEAPONS[inv.equipped].damage} (cabeça ×${WEAPONS[inv.equipped].headMult})`)),
       h('h3', 'Suprimentos'), h('div.grid2', ...[['medkit', 'Kit médico'], ['medkit_adv', 'Kit médico avançado'], ['hemostatic', 'Hemostático']].map(([k, n]) => h('div.card', h('b', n), h('div.dim', `x${inv.consumables[k] ?? 0}`)))),
-      h('p.dim.small', 'Uso em campo: kit médico [1] · hemostático [2] (teclas configuráveis em Opções).'),
-      h('h3', 'Melhorias'), h('p.dim', inv.upgrades.length ? inv.upgrades.join(', ') : 'Nenhuma instalada.'));
+      h('p.dim.small', `Uso em campo: kit médico [${keyLabel(g.settings.bindings.medkit)}] · hemostático [${keyLabel(g.settings.bindings.hemo)}] (teclas configuráveis em Opções).`),
+      h('h3', `Melhorias (${getCharacter(s.playerId).name})`), h('p.dim', inv.upgrades.length ? inv.upgrades.join(', ') : 'Nenhuma instalada.'));
   }
   _docs(body) {
     const s = this.game.save;

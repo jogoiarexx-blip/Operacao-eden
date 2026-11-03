@@ -15,7 +15,9 @@ export const AI = Object.freeze({
 export class AttackCoordinator {
   constructor(max = 2) { this.max = max; this.holders = new Set(); }
   setMax(n) { this.max = n; }
-  request(agent) { if (this.holders.has(agent)) return true; if (this.holders.size < this.max) { this.holders.add(agent); return true; } return false; }
+  /** Em zona `narrow` (corredor/passagem) só 1 atacante de contato por vez; fora dela, o máximo da dificuldade. */
+  maxFor(zoneNarrow) { return zoneNarrow ? Math.min(1, this.max) : this.max; }
+  request(agent, zoneNarrow = false) { if (this.holders.has(agent)) return true; if (this.holders.size < this.maxFor(zoneNarrow)) { this.holders.add(agent); return true; } return false; }
   release(agent) { this.holders.delete(agent); }
   clear() { this.holders.clear(); }
 }
@@ -146,7 +148,7 @@ export class DinosaurAgent {
         if (sp.id === 'forest_runner_juvenile' && !this.fled && this.hp < this.maxHp * 0.3) { this.fled = true; this.setState(AI.FLEE, 2200); break; }
         const tgt = sees ? player : (this.lastKnown ?? player);
         const dT = Math.hypot(tgt.x - this.x, tgt.z - this.z);
-        if (sees && distP <= at.triggerRange && coordinator.request(this)) { this._beginWindup(player, diffMgr, diff, bus); break; }
+        if (sees && distP <= at.triggerRange && coordinator.request(this, !!(ctx.narrowAt && (ctx.narrowAt(this.x, this.z) || ctx.narrowAt(player.x, player.z))))) { this._beginWindup(player, diffMgr, diff, bus); break; }
         if (sees && distP < 9.5 && !coordinator.holders.has(this)) {
           // sem permissão de ataque: reposiciona em anel e simula pressão (sem fila de inimigos parados)
           const ang = Math.atan2(this.x - player.x, this.z - player.z) + this.circleDir * 0.55;
@@ -211,7 +213,10 @@ export class DinosaurAgent {
       }
       default: break;
     }
-    // separação entre animais (evita sobreposição)
+    this._separate(allies, world);
+  }
+  /** Separação entre animais (evita sobreposição). */
+  _separate(allies, world) {
     for (const o of allies) {
       if (o === this || o.dead) continue;
       const dx = this.x - o.x, dz = this.z - o.z, d = Math.hypot(dx, dz), min = this.radius + o.radius + 0.1;
@@ -267,13 +272,14 @@ export class DinosaurAgent {
       bus.emit('counterHit', { attackId: this.attackId, enemyId: this.id, encounterId: this.encounterId });
     }
     if (this.hp <= 0) {
-      const wasVulnerable = this.state === AI.STAGGER;
+      const wasVulnerable = this.state === AI.STAGGER || this.vulnerable;
       this.dead = true; this.deadAt = sim; this.setState(AI.DEAD); coordinator.release(this);
       out.dead = true;
       bus.emit('enemyNeutralized', { eventId: `kill:${this.id}`, runId: ctx.runId, encounterId: this.encounterId, enemyId: this.id, tick, creditedTo: 'player', baseCC: this.ccBase, vulnerable: wasVulnerable });
       return out;
     }
-    if (this.state === AI.ATTACK_WINDUP && this.windupProgress < 0.7 && !this.interruptDone.has(this.attackId) && sim >= this.staggerImmuneUntil) {
+    // chefes: qualquer dano não interrompe; só o impacto pesado (`interrupt`, escopeta com bossMinPellets)
+    if (this.state === AI.ATTACK_WINDUP && !this.species.boss && this.windupProgress < 0.7 && !this.interruptDone.has(this.attackId) && sim >= this.staggerImmuneUntil) {
       this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
       coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true; out.interrupted = true;
       bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });
@@ -281,6 +287,29 @@ export class DinosaurAgent {
       this.lastKnown = { x: ctx.player.x, z: ctx.player.z }; this.lastSeenAt = sim; this.alerted = true; this._beginChase(bus, ctx.allies);
     }
     return out;
+  }
+  /** Interrupção por impacto pesado (escopeta): só afeta quem está em preparação de ataque. */
+  interrupt(ctx) {
+    if (this.dead || this.state !== AI.ATTACK_WINDUP) return false;
+    const { sim, bus, coordinator, tick } = ctx;
+    coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true;
+    if (!this.interruptDone.has(this.attackId)) {
+      this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
+      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });
+    }
+    return true;
+  }
+  /** Empurra `dist` m na direção (dx,dz) (normalizada aqui), resolvido contra colisores em passos curtos. */
+  knockback(dx, dz, dist, world) {
+    if (this.dead) return;
+    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const steps = Math.max(1, Math.ceil(dist / 0.25)), st = dist / steps;
+    for (let i = 0; i < steps; i++) {
+      const r = world.resolveCircle(this.x + dx * st, this.z + dz * st, this.radius);
+      if (Math.hypot(r.x - this.x, r.z - this.z) < st * 0.25) break;
+      this.x = r.x; this.z = r.z;
+    }
+    this.px = this.x; this.pz = this.z;
   }
   stun(ms, ctx) {
     if (this.dead) return false;

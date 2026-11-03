@@ -7,10 +7,19 @@
       "fireIntervalMs": 280, "reloadMs": 1400, "range": 60,
       "spreadAimDeg": 0.45, "spreadHipDeg": 1.6, "spreadMoveDeg": 2.4, "recoilKickDeg": 0.9,
       "noiseRadius": 30, "implemented": true
+    },
+    "shotgun": {
+      "id": "shotgun", "name": "Escopeta de contenção", "ammoType": "shotgun",
+      "damage": 11, "headMult": 1.5, "limbMult": 0.8, "magSize": 6, "reserveCap": 36,
+      "fireIntervalMs": 820, "reloadMs": 1400, "range": 22,
+      "spreadAimDeg": 5.5, "spreadHipDeg": 8, "spreadMoveDeg": 2.4, "recoilKickDeg": 3.2,
+      "noiseRadius": 38, "implemented": true,
+      "pellets": 8, "falloff": [14, 22], "reloadMode": "shell", "reloadOpenMs": 250, "reloadShellMs": 520,
+      "interrupt": { "range": 6, "minPellets": 4, "bossMinPellets": 6 }
     }
   },
   "utility": {
-    "electric_tool": { "id": "electric_tool", "name": "Ferramenta elétrica (Lia)", "range": 3.2, "stunMs": 2200, "cooldownMs": 6000, "noiseRadius": 6 }
-  },
-  "start": { "weapon": "pistol", "ammoInMag": 12, "reserve": 24, "consumables": { "medkit": 1, "hemostatic": 1 } }
+    "electric_tool": { "id": "electric_tool", "name": "Ferramenta elétrica (Lia)", "range": 3.2, "stunMs": 2200, "cooldownMs": 6000, "noiseRadius": 6 },
+    "impact_tool": { "id": "impact_tool", "name": "Ferramenta de impacto (Caio)", "range": 2.6, "knockback": 2.5, "stunMs": 1200, "cooldownMs": 7000, "noiseRadius": 10 }
+  }
 }

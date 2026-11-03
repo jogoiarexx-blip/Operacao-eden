@@ -9,6 +9,8 @@ const COLORS = {
   fog: 0x0a1719, sky: 0x0d1d20,
   wood: 0x5a4430, woodDark: 0x3b2c20, metal: 0x58666c, rock: 0x4b4f4a, concrete: 0x7b8279, shelter: 0x4a4636,
   tent: 0x5a6a46, crate: 0x6b5a3a, terminal: 0x2a3438, ravine: 0x050809, gate: 0x6a7176, dirt: 0x5b4a33,
+  // Cap. 02 (posto avançado)
+  slab: 0x3d4440, shed: 0x5d5a4c, container: 0x7a4a2e, truck: 0x4d5a3e, fence: 0x8a9196,
 };
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
@@ -30,6 +32,7 @@ export function buildScenery({ world, data, quality }) {
   const updaters = [];
   const [bx0, bz0, bx1, bz1] = data.bounds;
   const rng = createRng(data.treeSeed);
+  const treeMaxZ = data.treeMaxZ ?? 33;   // limite sul da vegetação (a margem do rio fica livre)
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -59,11 +62,10 @@ export function buildScenery({ world, data, quality }) {
   // ---------- estruturas ----------
   const wood = mat(COLORS.wood), woodDark = mat(COLORS.woodDark), rockMat = mat(COLORS.rock), metal = mat(COLORS.metal);
   const glowCyan = new THREE.MeshBasicMaterial({ color: 0x57e6e0 });
-  const redLamp = new THREE.MeshBasicMaterial({ color: 0xd92d2d });
-  let beaconLamp = null, gateMesh = null, coroRings = [];
-  const matFor = (v) => ({
+      const matFor = (v) => ({
     wood, metal, rock: rockMat, concrete: mat(COLORS.concrete), shelter: mat(COLORS.shelter), shelter_roof: mat(0x3a3f35),
     tent: mat(COLORS.tent), crate: mat(COLORS.crate), terminal: mat(COLORS.terminal), ravine: mat(COLORS.ravine), gate: mat(COLORS.gate), radio: mat(0x3d4440), coro: mat(0x5c666b),
+    slab: mat(COLORS.slab), shed: mat(COLORS.shed), container: mat(COLORS.container), truck: mat(COLORS.truck), fence: mat(COLORS.fence, { transparent: true, opacity: 0.55 }),
   }[v] || wood);
 
   for (const s of data.structures) {
@@ -92,47 +94,22 @@ export function buildScenery({ world, data, quality }) {
     // detalhes
     if (s.visual === 'terminal') {
       const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.38), glowCyan); scr.position.set(0, 0.2, s.size ? s.size[2] / 2 + 0.01 : 0.3); mesh.add(scr);
-      scr.rotation.y = 0; mesh.rotation.y = s.id === 'terminal_b' ? 0.5 : -0.4;
+      scr.rotation.y = 0; mesh.rotation.y = s.id === 'terminal_b' || s.id === 'terminal_outpost_b' ? 0.5 : -0.4;
     }
-    if (s.id === 'beacon_mast') { beaconLamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), redLamp.clone()); beaconLamp.position.set(0, s.h / 2 + 0.2, 0); mesh.add(beaconLamp); }
     if (s.visual === 'tent') { const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.2, 4), mat(0x6c7c52)); roof.position.y = s.size[1] / 2 + 0.6; roof.rotation.y = Math.PI / 4; mesh.add(roof); }
     if (s.visual === 'radio') { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 4), metal); ant.position.set(0.3, 1.0, 0); mesh.add(ant); const led = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.02), new THREE.MeshBasicMaterial({ color: 0xffb347 })); led.position.set(-0.2, 0.2, 0.31); mesh.add(led); }
-    if (s.visual === 'gate') { gateMesh = mesh; for (let i = -1; i <= 1; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 0.05), mat(0xb08c22)); st.position.set(i * 1.3, 0, 0.43); st.rotation.z = 0.5; mesh.add(st); } }
-    if (s.visual === 'coro') {
-      for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(s.r * 1.25, 0.12, 6, 14), new THREE.MeshBasicMaterial({ color: 0x57e6e0 })); ring.rotation.x = Math.PI / 2; ring.position.y = -s.h / 2 + 4 + i * 3.4; mesh.add(ring); coroRings.push(ring); }
-    }
     if (s.visual === 'crate') { const lid = new THREE.Mesh(new THREE.BoxGeometry(s.size[0] * 1.04, 0.08, s.size[2] * 1.04), wood); lid.position.y = s.size[1] / 2; mesh.add(lid); }
     if (s.visual === 'ravine') {
       // borda de pedra para o abismo ler como abismo
       for (const sz of [-1, 1]) { const lip = new THREE.Mesh(new THREE.BoxGeometry(s.size[0], 0.3, 0.55), rockMat); lip.position.set(0, 0.12, sz * (s.size[2] / 2 - 0.1)); mesh.add(lip); }
     }
   }
-  // corrimãos da passarela (visuais)
-  for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 0.1), woodDark); post.position.set(8 + sx * 1.0, 0.5, -11.5 + k * 1.4); group.add(post);
-  }
-  for (const sx of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 5.8), woodDark); rail.position.set(8 + sx * 1.0, 0.95, -9); group.add(rail); }
-
-  // ---------- passarela: tábuas que cedem ----------
-  const planks = [];
-  const bridgeGroup = new THREE.Group(); group.add(bridgeGroup);
-  for (let i = 0; i < 12; i++) {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.42), wood); p.position.set(8, 0.02, -11.7 + i * 0.5); p.castShadow = true; bridgeGroup.add(p); planks.push(p);
-  }
-  const collapse = { t: -1 };
-  const startCollapse = () => { if (collapse.t < 0) collapse.t = 0; };
-  updaters.push((t, dt) => {
-    if (collapse.t < 0) return;
-    collapse.t += dt;
-    for (let i = 4; i < 8; i++) { const p = planks[i], k = Math.min(1, collapse.t / 0.9); p.position.y = 0.02 - k * 0.45 * (1 + (i % 2) * 0.4); p.rotation.z = (i % 2 ? 1 : -1) * k * 0.35; p.rotation.x = k * 0.2; }
-  });
-
   // ---------- árvores (InstancedMesh + colisores) ----------
   const trees = [];
   const nearStruct = (x, z) => data.structures.some((s) => s.kind === 'box' && Math.abs(x - s.pos[0]) < s.size[0] / 2 + 2 && Math.abs(z - s.pos[1]) < s.size[2] / 2 + 2);
   for (let attempt = 0; attempt < 2600 && trees.length < 190; attempt++) {
     const x = rng.range(bx0 + 2, bx1 - 2), z = rng.range(bz0 + 2, bz1 - 2);
-    if (z > 33) continue;
+    if (z > treeMaxZ) continue;
     if (data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 1.7)) continue;
     if (data.clearings.some((c) => Math.hypot(x - c.pos[0], z - c.pos[1]) < c.r)) continue;
     if (nearStruct(x, z)) continue;
@@ -159,7 +136,7 @@ export function buildScenery({ world, data, quality }) {
   let placed = 0;
   for (let a = 0; a < 3000 && placed < bushCountMax; a++) {
     const x = rng.range(bx0 + 1, bx1 - 1), z = rng.range(bz0 + 1, bz1 - 1);
-    if (z > 33 || data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 0.4) || nearStruct(x, z)) continue;
+    if (z > treeMaxZ || data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 0.4) || nearStruct(x, z)) continue;
     const s = rng.range(0.5, 1.3);
     ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc); bushes.setMatrixAt(placed++, m4);
   }
@@ -175,10 +152,6 @@ export function buildScenery({ world, data, quality }) {
     const st = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.7, 5), woodDark); st.position.set(rx, 0.85, rz); group.add(st);
     const ta = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.03), tape); ta.position.set(rx + 0.15, 1.55, rz); ta.rotation.y = 0.7; group.add(ta);
   }
-  // símbolo de abrigo (placa) perto do início da trilha oeste
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.05), mat(0xe8dcc0, { emissive: 0x2a2418 })); sign.position.set(-16.5, 1.7, 12.6); sign.rotation.y = 0.6; group.add(sign);
-  const signPost = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.8, 5), woodDark); signPost.position.set(-16.5, 0.9, 12.6); group.add(signPost);
-
   // ---------- luzes, névoa, chuva ----------
   const hemi = new THREE.HemisphereLight(0x5c7f90, 0x1a2418, 0.95); group.add(hemi);
   const moon = new THREE.DirectionalLight(0x9db9d4, 0.85); moon.position.set(-20, 40, 14); moon.castShadow = false; group.add(moon); group.add(moon.target);
@@ -195,10 +168,9 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, beaconLamp, gateMesh, coroRings, planks,
-    startCollapse,
-    setBeaconPowered(on) { if (beaconLamp) beaconLamp.material.color.setHex(on ? 0x38e07a : 0xd92d2d); },
-    setGateOpen(open, instant) { if (gateMesh) { gateMesh.userData.target = open ? 3.8 : 0; if (instant) gateMesh.position.y = 1.8 + gateMesh.userData.target; } },
+    group, meshes, fadeMats, trees,
+    /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
+    onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       bushes.count = Math.floor(bushes.userData.max * qc.foliage);
@@ -210,14 +182,8 @@ export function buildScenery({ world, data, quality }) {
       }
       group.userData.q = qc;
     },
-    /** Pulsos da torre CORO: 3 pulsos – pausa – 3 pulsos. */
-    coroPattern: { active: false, t: 0 },
     update(t, dt, camPos, camDir, playerPos) {
       for (const u of updaters) u(t, dt);
-      // portão
-      if (gateMesh && gateMesh.userData.target !== undefined) {
-        const base = 1.8, tgt = base + gateMesh.userData.target; gateMesh.position.y += (tgt - gateMesh.position.y) * Math.min(1, dt * 1.6);
-      }
       // chuva segue a câmera
       if (rain.visible) {
         const a = rainGeo.attributes.position; rain.position.set(camPos.x, camPos.y - 6, camPos.z);
@@ -233,18 +199,16 @@ export function buildScenery({ world, data, quality }) {
       // lanterna e lua seguem o jogador
       moon.position.set(playerPos.x - 20, 40, playerPos.z + 14); moon.target.position.set(playerPos.x, 0, playerPos.z);
       flash.position.set(camPos.x, camPos.y, camPos.z); flash.target.position.set(camPos.x + camDir.x * 10, camPos.y + camDir.y * 10, camPos.z + camDir.z * 10);
-      // torre CORO
-      const cp = api.coroPattern;
-      let on = 0.35 + 0.15 * Math.sin(t * 2);
-      if (cp.active) {
-        cp.t += dt; const cycle = cp.t % 3.6;                // 3 pulsos (0–1.5s), pausa, 3 pulsos
-        const pulse = (cycle < 1.5 && Math.floor(cycle / 0.5) % 2 === 0) || (cycle > 2.1 && cycle < 3.6 && Math.floor((cycle - 2.1) / 0.5) % 2 === 0);
-        on = pulse ? 1 : 0.1;
-      }
-      for (const r of coroRings) r.material.color.setRGB(0.2 * on + 0.1, 0.9 * on, 0.88 * on);
+      api.onUpdate?.(t, dt);
     },
     setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
-    dispose() { group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
+    dispose() {
+      group.traverse((o) => {
+        o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
+        if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
+      });
+      rainGeo.dispose();
+    },
   };
   api.onLightning = null;
   return api;

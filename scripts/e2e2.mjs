@@ -6,7 +6,7 @@ const errs = [];
 pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 pg.on('pageerror', (e) => errs.push('PAGEERR ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 5).join('\n')));
 pg.on('dialog', (d) => { errs.push('DIALOG ' + d.message()); d.dismiss(); });
-const S = () => pg.evaluate(() => { const g = window.__game; return { st: g.sm.state, cc: g.ledger?.credits, hp: g.player.hp, att: g.save?.attempts, inv: g.save && JSON.stringify(g.save.inventory.consumables) }; });
+const S = () => pg.evaluate(() => { const g = window.__game; return { st: g.sm.state, cc: g.ledger?.credits, hp: g.player.hp, att: g.save?.attempts, inv: g.save && JSON.stringify(g.save.inventories[g.save.playerId].consumables) }; });
 const step = async (n, fn) => { try { const r = await fn(); console.log(n, JSON.stringify(r ?? await S())); } catch (e) { errs.push(n + ' THREW ' + e.message); console.log(n, 'THREW', e.message); } };
 await pg.goto('http://localhost:4177/?debug=1'); await pg.waitForTimeout(1500);
 await pg.click('text=Novo jogo'); await pg.click('text=Iniciar Capítulo 01'); await pg.waitForTimeout(800);

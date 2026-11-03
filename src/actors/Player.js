@@ -1,5 +1,6 @@
 import { clamp, damp, wrapAngle } from '../core/math.js';
 import { WEAPONS, UTILITY } from '../gameplay/GameState.js';
+import { getCharacter, activeInventory } from '../gameplay/Characters.js';
 
 /**
  * Lia — lógica do jogador (sem THREE). Movimento relativo à câmera, strafe ao mirar, esquiva com i-frames,
@@ -8,21 +9,24 @@ import { WEAPONS, UTILITY } from '../gameplay/GameState.js';
 export const PLAYER_RADIUS = 0.4;
 export const WALK = 3.7, SPRINT = 5.6, AIM_WALK = 2.3, DODGE_SPEED = 7.6;
 export const DODGE_T = 0.34, DODGE_IFRAMES = 0.27, DODGE_CD = 0.85, DODGE_BUFFER = 0.12;
-const FIRE_BUFFER = 0.1;
+const FIRE_BUFFER = 0.1, SWITCH_T = 0.4;
+const SLOT_ORDER = ['pistol', 'shotgun'];
 
 export class Player {
   constructor(world) {
     this.world = world;
     this.x = 0; this.z = 36; this.px = 0; this.pz = 36;       // atual e anterior (interpolação)
     this.vx = 0; this.vz = 0; this.yaw = 0; this.pYaw = 0;
-    this.hp = 100; this.maxHp = 100; this.bleeding = false; this._bleedT = 0; this.dead = false;
+    this.hp = 100; this.maxHp = 100; this.dmgMult = 1; this.dodgeCdS = DODGE_CD; this.bleeding = false; this._bleedT = 0; this.dead = false;
     this.aiming = false; this.sprinting = false; this.moving = false; this.speed = 0;
     this.dodgeT = -1; this.dodgeCd = 0; this.dodgeDir = { x: 0, z: -1 }; this.dodgeBuf = 0; this.dodgeId = 0;
-    this.fireBuf = 0; this.fireCd = 0; this.reloadT = -1; this.lastFireT = -99; this.utilityCd = 0;
+    this.fireBuf = 0; this.fireCd = 0; this.reloadT = -1; this.lastFireT = -99; this.utilityCd = 0; this.utilityId = 'electric_tool';
     this.using = null;                      // {kind, t, dur}
     this.weaponId = 'pistol'; this.mag = 12; this.reserve = 24; this.magBonus = 0;
     this.upgrades = []; this.hurtT = 0; this.infiniteAmmo = false;
     this.animTime = 0; this.walkPhase = 0; this.recentShot = false;
+    this.stash = {};                        // mag/reserva das armas NÃO equipadas { id: {mag, reserve} }
+    this.switchT = 0; this.shellsLoaded = 0; this._pendingEv = [];
   }
   get weapon() { return WEAPONS[this.weaponId]; }
   get magSize() { return this.weapon.magSize + (this.upgrades.includes('mag_ext_1') ? 4 : 0); }
@@ -33,18 +37,36 @@ export class Player {
   teleport(x, z, yaw = this.yaw) { this.x = this.px = x; this.z = this.pz = z; this.yaw = this.pYaw = yaw; this.vx = this.vz = 0; this.dodgeT = -1; this.reloadT = -1; this.using = null; }
 
   loadFromSave(save) {
-    const inv = save.inventory;
+    const inv = activeInventory(save), ch = getCharacter(save.playerId);
+    this.maxHp = ch.maxHp; this.dmgMult = ch.damageTakenMult; this.dodgeCdS = ch.dodgeCdS; this.utilityId = ch.utility;
     this.weaponId = inv.equipped; this.upgrades = [...inv.upgrades];
+    this.stash = {};
+    for (const id of Object.keys(inv.weapons)) if (id !== this.weaponId && WEAPONS[id]) this.stash[id] = { mag: inv.weapons[id]?.mag ?? 0, reserve: inv.ammoReserve[id] ?? 0 };
     this.mag = inv.weapons[this.weaponId]?.mag ?? 0; this.reserve = inv.ammoReserve[this.weaponId] ?? 0;
+    this.switchT = 0; this.reloadT = -1; this.shellsLoaded = 0; this._pendingEv = [];
     this.hp = save.health[save.playerId]; this.bleeding = !!save.bleeding[save.playerId];
     this.infiniteAmmo = !!save.runRules.infiniteAmmo; this.dead = this.hp <= 0;
   }
   writeToSave(save) {
-    const inv = save.inventory;
+    const inv = activeInventory(save);
+    for (const [id, st] of Object.entries(this.stash)) { inv.weapons[id] = { mag: st.mag }; inv.ammoReserve[id] = st.reserve; }
     inv.equipped = this.weaponId; inv.weapons[this.weaponId] = { mag: this.mag }; inv.ammoReserve[this.weaponId] = this.reserve;
     save.health[save.playerId] = Math.round(this.hp); save.bleeding[save.playerId] = this.bleeding;
   }
 
+  /** Armas possuídas na ordem dos slots (1, 2…). */
+  ownedWeapons() { return SLOT_ORDER.filter((id) => id === this.weaponId || this.stash[id]); }
+  /** Troca de arma (400 ms, cancela recarga); mag/reserva de cada arma ficam preservados. */
+  switchWeapon(id) {
+    if (this.dead || id === this.weaponId || !WEAPONS[id] || !this.stash[id] || this.dodging || this.using) return false;
+    if (this.reloadT >= 0) { this.reloadT = -1; this.shellsLoaded = 0; this._pendingEv.push({ type: 'reloadCancelled' }); }
+    this.stash[this.weaponId] = { mag: this.mag, reserve: this.reserve };
+    const nx = this.stash[id]; delete this.stash[id];
+    this.weaponId = id; this.mag = nx.mag; this.reserve = nx.reserve;
+    this.switchT = SWITCH_T; this.fireBuf = 0; this.fireCd = Math.max(this.fireCd, SWITCH_T);
+    this._pendingEv.push({ type: 'weaponSwitch', weaponId: id });
+    return true;
+  }
   /** Dispersão atual em graus (alimenta o retículo dinâmico e o disparo). */
   spreadDeg() {
     const w = this.weapon;
@@ -56,6 +78,7 @@ export class Player {
 
   takeDamage(amount, simMs, bleedChance = 0, rngVal = 1) {
     if (this.dead || this.invulnerable || amount <= 0) return 0;
+    amount = Math.max(1, Math.round(amount * this.dmgMult));
     if (this.upgrades.includes('vest_1')) amount = Math.max(1, Math.round(amount * 0.85));
     this.hp = Math.max(0, this.hp - amount); this.hurtT = 0.35;
     if (rngVal < bleedChance) this.bleeding = true;
@@ -70,11 +93,11 @@ export class Player {
    * @returns lista de eventos {type, ...}
    */
   step(dt, simMs, input, camYaw, consumables) {
-    const ev = [];
+    const ev = this._pendingEv.splice(0);
     this.px = this.x; this.pz = this.z; this.pYaw = this.yaw;
     if (this.dead) return ev;
     this.animTime += dt;
-    this.fireCd = Math.max(0, this.fireCd - dt); this.dodgeCd = Math.max(0, this.dodgeCd - dt); this.utilityCd = Math.max(0, this.utilityCd - dt);
+    this.switchT = Math.max(0, this.switchT - dt); this.fireCd = Math.max(0, this.fireCd - dt); this.dodgeCd = Math.max(0, this.dodgeCd - dt); this.utilityCd = Math.max(0, this.utilityCd - dt);
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.dodgeBuf = input.dodgePressed ? DODGE_BUFFER : Math.max(0, this.dodgeBuf - dt);
     this.fireBuf = input.firePressed ? FIRE_BUFFER : Math.max(0, this.fireBuf - dt);
@@ -90,13 +113,13 @@ export class Player {
       return ev;
     }
     if (this.dodgeBuf > 0 && this.dodgeCd <= 0 && !this.using) {
-      this.dodgeBuf = 0; this.dodgeT = 0; this.dodgeCd = DODGE_CD; this.dodgeId++;
+      this.dodgeBuf = 0; this.dodgeT = 0; this.dodgeCd = this.dodgeCdS; this.dodgeId++;
       const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
       let dx = fx * input.moveY + rx * input.moveX, dz = fz * input.moveY + rz * input.moveX;
       const l = Math.hypot(dx, dz);
       if (l < 0.1) { dx = -fx; dz = -fz; } else { dx /= l; dz /= l; }          // sem direção: salto para trás
       this.dodgeDir = { x: dx, z: dz };
-      if (this.reloadT >= 0) { this.reloadT = -1; ev.push({ type: 'reloadCancelled' }); }   // esquiva cancela recarga
+      if (this.reloadT >= 0) { this.reloadT = -1; this.shellsLoaded = 0; ev.push({ type: 'reloadCancelled' }); }   // esquiva cancela recarga
       ev.push({ type: 'dodge', id: this.dodgeId });
       return ev;
     }
@@ -128,15 +151,36 @@ export class Player {
     const turn = this.aiming || shooting ? 16 : 10;
     this.yaw += clamp(wrapAngle(wantYaw - this.yaw), -turn * dt, turn * dt);
 
+    // troca de arma
+    if (!this.using) {
+      const own = this.ownedWeapons();
+      if (input.weaponSlot) this.switchWeapon(SLOT_ORDER[input.weaponSlot - 1]);
+      else if (input.weaponNext && own.length > 1) this.switchWeapon(own[(own.indexOf(this.weaponId) + 1) % own.length]);
+      ev.push(...this._pendingEv.splice(0));
+    }
+    const shell = this.weapon.reloadMode === 'shell';
+
     // recarga
-    if (this.reloadT >= 0) {
+    if (this.reloadT >= 0 && shell) {
+      if (input.firePressed && this.mag > 0) { this.reloadT = -1; this.shellsLoaded = 0; ev.push({ type: 'reloadCancelled' }); }   // tiro interrompe a recarga
+      else {
+        this.reloadT += dt;
+        const w = this.weapon, due = (this.reloadT * 1000 - w.reloadOpenMs) / w.reloadShellMs;
+        while (this.reloadT >= 0 && due >= this.shellsLoaded + 1) {
+          if (this.mag < this.magSize && (this.reserve > 0 || this.infiniteAmmo)) {
+            this.mag++; if (!this.infiniteAmmo) this.reserve--; this.shellsLoaded++; ev.push({ type: 'shellLoaded', mag: this.mag });
+          }
+          if (this.mag >= this.magSize || (this.reserve <= 0 && !this.infiniteAmmo)) { this.reloadT = -1; this.shellsLoaded = 0; ev.push({ type: 'reloaded' }); }
+        }
+      }
+    } else if (this.reloadT >= 0) {
       this.reloadT += dt;
       if (this.reloadT * 1000 >= this.weapon.reloadMs) {
         const need = this.magSize - this.mag, take = this.infiniteAmmo ? need : Math.min(need, this.reserve);
         this.mag += take; if (!this.infiniteAmmo) this.reserve -= take; this.reloadT = -1; ev.push({ type: 'reloaded' });
       }
-    } else if (input.reloadPressed && this.mag < this.magSize && (this.reserve > 0 || this.infiniteAmmo) && !this.using) {
-      this.reloadT = 0; ev.push({ type: 'reloadStart' });
+    } else if (input.reloadPressed && this.mag < this.magSize && (this.reserve > 0 || this.infiniteAmmo) && !this.using && this.switchT <= 0) {
+      this.reloadT = 0; this.shellsLoaded = 0; ev.push({ type: 'reloadStart' });
     }
 
     // uso de itens (kit médico / hemostático)
@@ -162,16 +206,16 @@ export class Player {
 
     // ferramenta elétrica (Q)
     if (input.utilityPressed && this.utilityCd <= 0 && !this.using && !this.reloading) {
-      this.utilityCd = UTILITY.electric_tool.cooldownMs / 1000; ev.push({ type: 'utility' });
+      this.utilityCd = UTILITY[this.utilityId].cooldownMs / 1000; ev.push({ type: 'utility' });
     }
 
     // disparo (semiautomática, com buffer de 100 ms)
-    if (this.fireBuf > 0 && this.fireCd <= 0 && !this.reloading && !this.using) {
+    if (this.fireBuf > 0 && this.fireCd <= 0 && !this.reloading && !this.using && this.switchT <= 0) {
       if (this.mag > 0 || this.infiniteAmmo) {
         this.fireBuf = 0; this.fireCd = this.weapon.fireIntervalMs / 1000; this.lastFireT = simMs / 1000;
         if (!this.infiniteAmmo) this.mag--;
         ev.push({ type: 'fire' });
-      } else if (this.reserve > 0) { this.reloadT = 0; ev.push({ type: 'reloadStart' }); this.fireBuf = 0; }
+      } else if (this.reserve > 0) { this.reloadT = 0; this.shellsLoaded = 0; ev.push({ type: 'reloadStart' }); this.fireBuf = 0; }
       else { this.fireBuf = 0; this.fireCd = 0.3; ev.push({ type: 'dryFire' }); }
     }
     return ev;

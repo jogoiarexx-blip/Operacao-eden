@@ -17,16 +17,19 @@ export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, s
   for (const s of data.structures) {
     if (s.visual === 'wood' && s.id.startsWith('pier_rail')) continue;
     if (s.kind === 'box') {
-      if (s.visual === 'ravine') c.fillStyle = '#020405';
+      if (s.visual === 'slab') c.fillStyle = 'rgba(70,80,76,.35)';
+      else if (s.visual === 'ravine') c.fillStyle = '#020405';
       else if (s.visual === 'rock') c.fillStyle = '#4b4f4a';
       else if (s.id === 'gate_leaf') c.fillStyle = gateOpen ? 'rgba(82,224,138,.5)' : '#c9a227';
+      else if (s.gate || s.visual === 'gate') c.fillStyle = '#c9a227';
       else if (s.visual === 'terminal') { continue; }
       else c.fillStyle = 'rgba(140,150,140,.7)';
       c.fillRect(tx(s.pos[0] - s.size[0] / 2), tz(s.pos[1] - s.size[2] / 2), s.size[0] * scale, s.size[2] * scale);
     } else { c.fillStyle = 'rgba(90,110,100,.8)'; c.beginPath(); c.arc(tx(s.pos[0]), tz(s.pos[1]), Math.max(2, s.r * scale), 0, 7); c.fill(); }
   }
-  // ponte
-  c.fillStyle = '#7a5c3a'; c.fillRect(tx(7), tz(-12), 2 * scale, 6 * scale);
+  // ponte (só onde existe)
+  const br = data.structures.find((s) => s.id === 'bridge_deck');
+  if (br) { c.fillStyle = '#7a5c3a'; c.fillRect(tx(br.pos[0] - 1), tz(br.pos[1] - 3), 2 * scale, 6 * scale); }
   // terminais
   for (const t of terminals) { c.fillStyle = '#57e6e0'; c.fillRect(tx(t.pos[0]) - 4, tz(t.pos[1]) - 4, 8, 8); }
   // área suspeita

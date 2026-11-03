@@ -91,7 +91,7 @@ describe('dificuldade e saves', () => {
     expect(m.importJson(txt).ok).toBe(true); expect(m.importJson(txt.replace('"credits": 0', '"credits": 5')).ok).toBe(false); expect(m.importJson('{x').ok).toBe(false);
   });
   it('save novo valida', () => { expect(validateSave(createNewSave()).ok).toBe(true); });
-  it('migração de schema antigo', () => { const old = createNewSave(); old.schemaVersion = 3; const r = migrateSave(old); expect(r.save.schemaVersion).toBe(4); });
+  it('migração de schema antigo', () => { const old = createNewSave(); old.schemaVersion = 3; const r = migrateSave(old); expect(r.save.schemaVersion).toBe(5); });
 });
 
 describe('benchmark', () => {
