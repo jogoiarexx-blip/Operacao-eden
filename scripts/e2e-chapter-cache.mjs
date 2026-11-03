@@ -35,6 +35,8 @@ try {
       firstCh01: g.chapterId === 'ch01',
       detached02: scene02.group.parent !== g.scene,
       cached02: g.sceneCache.stats().cached.includes('ch02'),
+      inactiveBuffersFreed: scene02.regionalDetails.stats().drawCalls === 0,
+      activeDetailsReady: scene01.regionalDetails.stats().drawCalls > 0,
       createdCh01: scene01.group.parent === g.scene,
     };
 
@@ -47,6 +49,8 @@ try {
       sameChapterProps: g.props === props02,
       attached02: scene02.group.parent === g.scene,
       detached01: scene01.group.parent !== g.scene,
+      inactiveBuffersFreed: scene01.regionalDetails.stats().drawCalls === 0,
+      activeDetailsReady: scene02.regionalDetails.stats().drawCalls > 0,
       cacheIsCh01: g.sceneCache.stats().cached.join(',') === 'ch01',
       objective: g.save.completedObjectives.includes('qa_progress_remains'),
       runId: g.save.runId,
@@ -79,10 +83,13 @@ try {
   console.log('CHAPTER_SCENE_CACHE_QA', JSON.stringify({report, errors}));
   const { first, second, third, fresh } = report;
   if (!first.to01 || !first.sceneSwitched || !first.firstCh01 ||
-      !first.detached02 || !first.cached02 || !first.createdCh01 ||
+      !first.detached02 || !first.cached02 || !first.inactiveBuffersFreed ||
+      !first.activeDetailsReady || !first.createdCh01 ||
       !second.to02 || second.chapter !== 'ch02' || !second.sameScenery ||
       !second.sameCollisionWorld || !second.sameChapterProps ||
-      !second.attached02 || !second.detached01 || !second.cacheIsCh01 ||
+      !second.attached02 || !second.detached01 ||
+      !second.inactiveBuffersFreed || !second.activeDetailsReady ||
+      !second.cacheIsCh01 ||
       !second.objective ||
       !third.to01Again || !third.sameScenery || !third.sameWorld ||
       !third.sameProps || !third.cached02 || !third.ch01 ||
