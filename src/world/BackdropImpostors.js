@@ -69,10 +69,11 @@ function drawCanopy(ctx, cx, cy, size, color, random) {
   ctx.fillStyle = color;
   // Copas irregulares: volumes arredondados em vez de 3 triângulos repetidos.
   for (let l = 0; l < 4; l++) {
-    const dx = (l - 1.5) * size * .43 + (random() - .5) * size * .16;
+    // Ruído geométrico determinístico: copiar nos extremos não muda a copa.
+    const dx = (l - 1.5) * size * .43 + Math.sin(l * 2.3 + cy * .09) * size * .07;
     const dy = (l % 2) * size * .14 - size * .10;
     ctx.beginPath();
-    ctx.arc(cx + dx, cy + dy, size * (.43 + random() * .18), 0, Math.PI * 2);
+    ctx.arc(cx + dx, cy + dy, size * (.51 + Math.sin(l * 3.1 + cy * .13) * .07), 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -102,8 +103,9 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
     const trunk = Math.max(1.2, radius * .16);
     const color = i % 5 === 0 ? colors.mid : (i % 3 === 0 ? colors.distant : colors.canopy);
     const alpha = near ? .70 : .57;
-    ctx.globalAlpha = alpha + random() * .18;
+    const treeAlpha = alpha + random() * .18;
     wrapDraw(w, x, radius * 2.5, px => {
+      ctx.globalAlpha = treeAlpha;
       ctx.fillStyle = colors.trunks;
       ctx.fillRect(px - trunk / 2, base - height * .64, trunk, height * .64);
       ctx.strokeStyle = colors.trunks; ctx.lineWidth = Math.max(1, trunk * .4);
@@ -123,7 +125,7 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
         }
       } else {
         drawCanopy(ctx, px, base - height * .76, radius, color, random);
-        ctx.globalAlpha *= .77;
+        ctx.globalAlpha = treeAlpha * .77;
         drawCanopy(ctx, px + radius * .22, base - height * .87, radius * .57, colors.glint, random);
       }
     });
@@ -141,7 +143,8 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
     for (let i = 0; i < 85; i++) {
       const x = random() * w, y = 236 + random() * 21;
       ctx.globalAlpha = .33 + random() * .22;
-      wrapDraw(w, x, 7, px => drawCanopy(ctx, px, y, 5 + random() * 4, colors.canopy, random));
+      const crownSize = 5 + random() * 4;
+      wrapDraw(w, x, 12, px => drawCanopy(ctx, px, y, crownSize, colors.canopy, random));
     }
     ctx.globalAlpha = 1;
   }
