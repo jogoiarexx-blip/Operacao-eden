@@ -17,7 +17,8 @@ A referência é **Dino Crisis 2** (ação fluida, combates em sequências, prog
 4. Carregamento do segundo capítulo sinaliza “Posto Norte — acesso lateral” por 0,8 s antes de entrar na cutscene.
 5. Cinco zonas de câmera no Capítulo 01 (píer, torre, ravina, acampamento, portão): aproximação suave para reforçar cenas com paredes, passagem estreita e revelação visual. Não há teleporte nem troca para câmera fixa; o jogador mantém controle e mira por cima do ombro.
 6. Atualizados tanto os arquivos-fonte quanto o `index.html` compilado, preservando o Pages atual.
-7. O teste E2E foi atualizado para a continuação direta; criado teste unitário de diálogos, enquadramentos e preservação de save.
+7. Os roteiros E2E `e2e-transition.mjs` e `e2e3.mjs` foram atualizados para a continuação direta; criado teste unitário de diálogos, enquadramentos e preservação de save.
+8. Criado workflow `.github/workflows/eden-ci.yml` para executar `npm test` e `npm run build:single` a cada push/PR; execução do GitHub Actions ainda não confirmada.
 
 ## Verificações executadas nesta sessão
 - **Passou:** análise sintática do JavaScript compilado (adaptação apenas de `import.meta` ao parser isolado).
