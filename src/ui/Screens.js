@@ -147,14 +147,16 @@ export function resultsScreen(game, r) {
   return h('div.screen.solid.fade-in', h('div.panel',
     h('div.row.between', h('div', h('h2', `Capítulo ${String(r.chapterNumber ?? 1).padStart(2, '0')} concluído`), h('p.dim', r.title ?? 'O Sinal na Mata')), h('div', { style: { textAlign: 'center' } }, h('div.grade', r.score.grade), h('div.dim.small', `${r.score.total}/100`))),
     h('table.stats', ...rows.map(([a, b]) => h('tr', h('td', a), h('td', b)))),
+    r.nextChapter ? h('p.card.small.amber', 'Sinal de Lia no portão sul. Caio segue pelo acesso lateral do Posto Norte — a operação continua.') : null,
     det,
     h('div.row', { style: { marginTop: '16px' } },
       r.nextChapter
-        ? btn(`Continuar — Capítulo ${nextNum}`, () => game.ui.nextChapterDifficulty(), 'primary')
+        ? btn(`Continuar — Capítulo ${nextNum}`, () => game.startChapter(r.nextChapter), 'primary')
         : btn(`Continuar — Capítulo ${nextNum}`, () => {}, 'primary', { disabled: true, title: LATER[r.chapterNumber ?? 1] ?? `Capítulo ${nextNum} chega em um marco futuro do roteiro.` }),
+      r.nextChapter ? btn('Alterar dificuldade', () => game.ui.nextChapterDifficulty()) : null,
       btn('Ver detalhes', (e) => { det.classList.toggle('hidden'); e.target.textContent = det.classList.contains('hidden') ? 'Ver detalhes' : 'Ocultar detalhes'; }),
       btn('Menu principal', () => game.quitToMenu())),
-    h('p.dim.small', r.nextChapter ? 'Progresso gravado no Autosave. Ao continuar, você pode ajustar a dificuldade do próximo capítulo.' : `Progresso gravado no Autosave. ${LATER[r.chapterNumber ?? 1] ?? ''}`)));
+    h('p.dim.small', r.nextChapter ? 'Progresso gravado no Autosave. Continue diretamente ou escolha Alterar dificuldade.' : `Progresso gravado no Autosave. ${LATER[r.chapterNumber ?? 1] ?? ''}`)));
 }
 
 export function benchIntro(game) {
