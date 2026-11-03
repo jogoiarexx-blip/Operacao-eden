@@ -1,4 +1,4 @@
-// Transição Cap. 01 → Cap. 02 pela tela de resultados (?debug=1): Continuar → dificuldade → intro → Caio com escopeta e 120 HP.
+// Transição Cap. 01 → Cap. 02 (?debug=1): Continuar → acesso lateral → intro → Caio com escopeta e 120 HP.
 import { chromium } from 'playwright';
 const URL = process.env.URL || 'http://localhost:4177/?debug=1';
 const SHOT = process.env.SHOT_DIR || '.';
@@ -14,8 +14,15 @@ await pg.goto(URL); await pg.waitForTimeout(2000);
 await pg.click('text=Novo jogo'); await pg.waitForTimeout(500); await pg.click('text=Iniciar Capítulo 01'); await pg.waitForTimeout(1500);
 await ev(() => window.__eden.skip()); await pg.waitForTimeout(1500);
 await step('finish-ch01', async () => { await ev(() => { window.__eden.giveCC(777); window.__game.player.hp = 33; window.__game.finishChapter(); }); await pg.waitForTimeout(500); await ev(() => window.__eden.skip()); await pg.waitForFunction(() => window.__game.sm.state === 'CHAPTER_COMPLETE', null, { timeout: 15000 }); await pg.waitForTimeout(500); await pg.screenshot({ path: SHOT + '/t8-results-ch01.png' }); return { ...(await S()), btn: await ev(() => { const bt = [...document.querySelectorAll('button')].find((x) => x.textContent.startsWith('Continuar')); return [bt.textContent, bt.disabled]; }) }; });
-await step('continue-click', async () => { await pg.click('text=Continuar — Capítulo 02'); await pg.waitForTimeout(500); await pg.screenshot({ path: SHOT + '/t8-difficulty.png' }); return { title: await ev(() => document.querySelector('h2')?.textContent), confirm: await ev(() => [...document.querySelectorAll('button')].map((x) => x.textContent).filter((t) => /Iniciar|Voltar/.test(t))) }; });
-await step('pick-veteran+start', async () => { await pg.click('text=Veterano').catch(() => {}); await pg.click('text=Iniciar Capítulo 02'); await pg.waitForFunction(() => window.__game.sm.state === 'CUTSCENE', null, { timeout: 15000 }); await pg.waitForTimeout(3000); await pg.screenshot({ path: SHOT + '/t8-intro-a.png' }); return S(); });
+await step('continue-direct', async () => {
+  await pg.click('text=Continuar — Capítulo 02');
+  await pg.waitForFunction(() => window.__game.sm.state === 'CUTSCENE' && window.__game.chapterId === 'ch02', null, { timeout: 15000 });
+  await pg.waitForTimeout(800);
+  await pg.screenshot({ path: SHOT + '/t8-intro-a.png' });
+  const now = await S();
+  if (now.ch !== 'ch02' || now.pl !== 'caio' || now.hp !== 120 || now.diff !== 'standard') throw new Error('continuidade inválida: ' + JSON.stringify(now));
+  return now;
+});
 await step('intro-mid', async () => { await ev(() => { window.__game.cine.t = 11; }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-intro-b.png' }); await ev(() => { window.__game.cine.t = 19; }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-intro-c.png' }); return S(); });
 await step('intro-end', async () => { await ev(() => window.__eden.skip()); await pg.waitForFunction(() => window.__game.sm.state === 'PLAYING', null, { timeout: 8000 }); await pg.waitForTimeout(800); await pg.screenshot({ path: SHOT + '/t8-playing-caio.png' }); return S(); });
 await step('ch02-first-objective', async () => { const r = await ev(() => { const g = window.__game, c = g.chapter; return { done: g.save.completedObjectives.slice(), cur: c.currentObjective()?.id, first: c.data.objectives[0].id }; }); if (r.done.length || r.cur !== r.first) throw new Error('objetivo inicial do Cap. 02 incorreto: ' + JSON.stringify(r)); return r; });
