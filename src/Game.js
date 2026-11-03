@@ -287,7 +287,7 @@ export class Game {
     this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => activeInventory(this.save).upgrades.includes('chain_module') });
     if (s.stats) { this.stats = new RunStats(s.stats); this.combo.style.restore(this.stats.style); this.combo.chain.maxCount = this.stats.maxChain; }
     this.stats.objectivesTotal = this.chapterDef.data.objectives.length;
-    this.simMs = 0; this.deathAt = null; this.mapOpen = false; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
+    this.simMs = 0; this.deathAt = null; this.mapOpen = false; this._lastSafeRoomId = null; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
     this.playerView.setCharacter(s.playerId); this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
     const r = this.world.resolveCircle(this.player.x, this.player.z, 0.4); this.player.teleport(r.x, r.z, s.checkpoint.yaw ?? 0);
     this._clearAgents(); this.chapter.exiting = false; this.chapter._roared = false; this.chapter.load();
@@ -388,7 +388,7 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · P = passagem entre cenários · “?” = área suspeita · clique ou M para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · P = passagem entre cenários · S = sala segura · “?” = área suspeita · clique ou M para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {
@@ -510,6 +510,10 @@ export class Game {
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
     const safeRoom = safeRoomAt(this.chapterDef.data, p.x, p.z);
+    if (safeRoom?.id !== this._lastSafeRoomId) {
+      if (safeRoom) this.hud.toast('Área segura: ' + safeRoom.name + ' — salvar e comprar', 'good');
+      this._lastSafeRoomId = safeRoom?.id ?? null;
+    }
     const nr = p.noiseRadius();
     if (!safeRoom && nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
     const ctx = this.aiCtx();

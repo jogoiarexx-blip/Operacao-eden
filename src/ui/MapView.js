@@ -30,6 +30,14 @@ export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, s
   // ponte (só onde existe)
   const br = data.structures.find((s) => s.id === 'bridge_deck');
   if (br) { c.fillStyle = '#7a5c3a'; c.fillRect(tx(br.pos[0] - 1), tz(br.pos[1] - 3), 2 * scale, 6 * scale); }
+  // Áreas sem invasão de IA, visíveis para planejar reabastecimento.
+  for (const room of data.safeRooms ?? []) {
+    c.fillStyle = 'rgba(82,224,138,.12)'; c.strokeStyle = 'rgba(82,224,138,.65)'; c.lineWidth = 1.8;
+    c.beginPath(); c.arc(tx(room.center[0]), tz(room.center[1]), room.radius * scale, 0, Math.PI * 2);
+    c.fill(); c.stroke();
+    c.fillStyle = '#a1f3ca'; c.font = 'bold 11px sans-serif'; c.textAlign = 'center';
+    c.fillText('S', tx(room.center[0]), tz(room.center[1]) + 3);
+  }
   // terminais
   for (const t of terminals) { c.fillStyle = '#57e6e0'; c.fillRect(tx(t.pos[0]) - 4, tz(t.pos[1]) - 4, 8, 8); }
   // área suspeita

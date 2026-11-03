@@ -98,7 +98,7 @@ export class TerminalUI {
       h('h3', `Dossiês de campo (${this.game.profile.dossiers.length}/${DOSSIER_IDS.length})`), ...s.dossiersInRun.map((id) => h('div.card', { style: { marginBottom: '8px' } }, h('b', `${id} — ${getDossier(id).title}`), h('p.small', getDossier(id).text ?? ''))));
   }
   _map(body) {
-    const cv = h('canvas'); body.append(cv, h('p.dim.small', 'Losango = objetivo atual · “?” = área suspeita (aproximada) · quadrado ciano = terminal.'));
+    const cv = h('canvas'); body.append(cv, h('p.dim.small', 'Losango = objetivo · P = passagem · círculo S = sala segura · quadrado ciano = terminal.'));
     requestAnimationFrame(() => this.game.drawMapInto(cv));
   }
 }
