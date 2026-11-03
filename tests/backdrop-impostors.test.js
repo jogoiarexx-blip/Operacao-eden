@@ -60,6 +60,10 @@ describe('Panoramas 360 graus dos dois capítulos', () => {
     expect(near.radius).toBeCloseTo(diagonal + BACKDROP_OFFSETS.near, 5);
     expect(far.radius).toBeCloseTo(diagonal + BACKDROP_OFFSETS.far, 5);
     expect(far.radius).toBeGreaterThan(near.radius);
+    // O horizonte mais alto deixa as serras visíveis, sem suspender a base do chão.
+    expect(far.height).toBe(42);
+    expect(far.y - far.height / 2).toBeLessThan(0);
+    expect(far.y).toBeGreaterThan(near.y);
     expect(near.radialSegments).toBe(48);
     expect(far.radialSegments).toBe(48);
     expect(near.x).toBe((bounds[0] + bounds[2]) / 2);
