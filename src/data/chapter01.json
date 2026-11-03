@@ -834,6 +834,24 @@
         "bullet",
         "camera"
       ]
+    },
+    {
+      "id": "terminal_shelter",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        -26.9,
+        4.35
+      ],
+      "size": [
+        0.85,
+        1.25,
+        0.65
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
     }
   ],
   "ribbons": [
@@ -984,6 +1002,19 @@
         -30
       ],
       "checkpointId": "terminal_B"
+    },
+    {
+      "id": "terminal_shelter",
+      "name": "Estação Segura do Abrigo",
+      "pos": [
+        -26.9,
+        4.35
+      ],
+      "safe": [
+        -27,
+        4
+      ],
+      "checkpointId": "terminal_shelter"
     }
   ],
   "pickups": [
@@ -1505,6 +1536,41 @@
       "title": "PORTÃO SUL",
       "subtitle": "A trilha continua até o Posto Norte.",
       "sound": "creak"
+    }
+  ],
+  "safeRooms": [
+    {
+      "id": "safe_forest_entry",
+      "name": "Abrigo Logístico Norte",
+      "center": [
+        5.2,
+        27.2
+      ],
+      "radius": 4.3,
+      "terminalId": "terminal_a",
+      "kind": "camp"
+    },
+    {
+      "id": "safe_forest_shelter",
+      "name": "Cabana de Sobrevivência",
+      "center": [
+        -27,
+        4
+      ],
+      "radius": 3,
+      "terminalId": "terminal_shelter",
+      "kind": "interior"
+    },
+    {
+      "id": "safe_forest_gate",
+      "name": "Estação de Retaguarda",
+      "center": [
+        -1.5,
+        -30
+      ],
+      "radius": 4,
+      "terminalId": "terminal_b",
+      "kind": "camp"
     }
   ]
 }

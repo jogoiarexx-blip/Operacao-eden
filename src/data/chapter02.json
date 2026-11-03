@@ -1629,6 +1629,24 @@
         "bullet",
         "camera"
       ]
+    },
+    {
+      "id": "terminal_generator",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        25.1,
+        11.5
+      ],
+      "size": [
+        0.85,
+        1.25,
+        0.65
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
     }
   ],
   "flares": [
@@ -1704,6 +1722,19 @@
         14
       ],
       "checkpointId": "terminal_B2"
+    },
+    {
+      "id": "terminal_generator",
+      "name": "Estação Segura do Gerador",
+      "pos": [
+        25.1,
+        11.5
+      ],
+      "safe": [
+        25,
+        12
+      ],
+      "checkpointId": "terminal_generator"
     }
   ],
   "pickups": [
@@ -2430,6 +2461,30 @@
       "title": "PORTÃO DE SERVIÇO",
       "subtitle": "Caminho liberado para a extração.",
       "requires": "k1_defeated"
+    }
+  ],
+  "safeRooms": [
+    {
+      "id": "safe_outpost_admin",
+      "name": "Sala Segura Administrativa",
+      "center": [
+        -25,
+        14
+      ],
+      "radius": 4,
+      "terminalId": "terminal_outpost_b",
+      "kind": "interior"
+    },
+    {
+      "id": "safe_outpost_shed",
+      "name": "Sala Segura do Gerador",
+      "center": [
+        25,
+        12
+      ],
+      "radius": 3.1,
+      "terminalId": "terminal_generator",
+      "kind": "interior"
     }
   ]
 }
