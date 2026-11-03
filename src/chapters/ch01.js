@@ -125,7 +125,7 @@ const cutscenes = {
       cam.position.set(5.5 - t * 0.04, 2.0 + Math.sin(t * 0.4) * 0.05, 41.5); cam.lookAt(c.heli.position.x * 0.3, 8 + t * 0.2, 30); cam.fov = 64; cam.updateProjectionMatrix();
       g.playerView.sync(1, dt, 1);
     },
-    end(g, c) { if (c.heli) g.scene.remove(c.heli); },
+    end(g, c) { if (c.heli) { g.scene.remove(c.heli); c.heli.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); } },   // libera geometrias/materiais do helicoptero (vazavam por inicio de capitulo)
   },
   ending: {
     dur: 9.2,

@@ -124,6 +124,7 @@ function rockGeo(seed) {
 const logGeo = () => new THREE.CylinderGeometry(0.17, 0.21, 1, 6).rotateZ(Math.PI / 2);
 
 // ---------------------------------------------------------------- espalhamento
+const CULL_DIST = 30;   // m: além disso o bloco some (a névoa esconde a borda)
 const MAX = { grass: 3000, ferns: 180, rocks: 70, logs: 14 };
 /**
  * Vegetação rasteira decorativa. Densidade: grass × QUALITY.grass; ferns/rocks/logs × QUALITY.foliage.
@@ -169,11 +170,27 @@ export function scatterVegetation({ data, quality = 'medium', rng, trees = [] })
     (x, z, t, t2, t3) => ({ x, y: 0.17, z, yaw: t2 * 6.28, rz: (t3 - 0.5) * 0.12, sx: 1.8 + t * 1.8, sy: 1, sz: 1 }));
 
   const uniforms = { uTime: { value: 0 } }, geos = [], mats = [];
+  /** Capim/samambaias em blocos espaciais (TILE m): um InstancedMesh por bloco com esfera de contorno correta → frustum culling do three;
+   *  update() esconde blocos além de CULL_DIST da câmera. O bloco de cada instância não depende da qualidade; a qualidade só limita o prefixo usado. */
+  const TILE = 20;
+  const mkTiled = (geo, mat, list, factor, name) => {
+    const buckets = new Map();
+    for (const l of list) { const k = `${Math.floor(l.x / TILE)},${Math.floor(l.z / TILE)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)).push(l); }
+    const g = new THREE.Group(); g.name = name; g.tiles = []; g.material = mat; g.geometry = geo; g.count = 0;
+    for (const k of [...buckets.keys()].sort()) {
+      const l = buckets.get(k), n = Math.floor(l.length * factor); if (n < 1) continue;
+      const im = mk(geo, mat, l, n, `${name}_${k}`); im.frustumCulled = true; im.computeBoundingSphere();
+      im.userData.cx = l.reduce((a, b) => a + b.x, 0) / l.length; im.userData.cz = l.reduce((a, b) => a + b.z, 0) / l.length; im.userData.rad = im.boundingSphere.radius;
+      g.add(im); g.tiles.push(im); g.count += im.count;
+    }
+    g.dispose = () => g.tiles.forEach((t) => t.dispose());
+    return g.tiles.length ? g : null;
+  };
   const grassCount = Math.floor(grassL.length * qc.grass), decoCount = (l) => Math.floor(l.length * qc.foliage);
   let grass = null;
-  if (grassCount > 0) { const g = grassGeo(seeds[4]), m = applyWind(cloneForVeg('foliage', qk, 0xffffff), uniforms, 'grass', 0.55); geos.push(g); mats.push(m); grass = mk(g, m, grassL, grassCount, 'grass'); }
+  if (grassCount > 0) { const g = grassGeo(seeds[4]), m = applyWind(cloneForVeg('foliage', qk, 0xffffff), uniforms, 'grass', 0.55); geos.push(g); mats.push(m); grass = mkTiled(g, m, grassL, qc.grass, 'grass'); }
   const fg = fernGeo(seeds[4] ^ 77), fm = applyWind(cloneForVeg('foliage', qk, 0xffffff), uniforms, 'fern', 0.9); geos.push(fg); mats.push(fm);
-  const ferns = mk(fg, fm, fernL, decoCount(fernL), 'ferns');
+  const ferns = mkTiled(fg, fm, fernL, qc.foliage, 'ferns');
   const rg = rockGeo(seeds[4] ^ 99), lg = logGeo(); geos.push(rg, lg);
   const rocks = mk(rg, getMaterial('concrete', qk, { color: 0x4b4f4a }), rockL, decoCount(rockL), 'rocks');
   const logs = mk(lg, getMaterial('bark', qk, { color: 0x3a2c20 }), logL, decoCount(logL), 'logs');
@@ -183,7 +200,10 @@ export function scatterVegetation({ data, quality = 'medium', rng, trees = [] })
   let disposed = false;
   return {
     grass, ferns, rocks, logs, group,
-    update(t) { uniforms.uTime.value = t; },
+    update(t, dt, cam) {
+      uniforms.uTime.value = t;
+      if (cam) for (const g of [grass, ferns]) if (g) for (const im of g.tiles) im.visible = Math.hypot(im.userData.cx - cam.x, im.userData.cz - cam.z) < CULL_DIST + im.userData.rad;
+    },
     dispose() {
       if (disposed) return; disposed = true;
       for (const m of [grass, ferns, rocks, logs]) m?.dispose();   // buffers de instância

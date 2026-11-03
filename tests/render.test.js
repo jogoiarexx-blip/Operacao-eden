@@ -132,7 +132,9 @@ import { createRng } from '../src/core/rng.js';
 
 const fakeWorld = () => { const cyl = [], adds = []; return { cyl, adds, add: (c) => adds.push(c), addCyl: (id, x, z, r, h, y0, fl) => cyl.push([id, x, z, r, h, y0, fl]) }; };
 const distPoly = (x, z, pts) => { let b = Infinity; for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); b = Math.min(b, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return b; };
-const instPositions = (im) => { const out = [], m = new THREE.Matrix4(); for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); out.push([m.elements[12], m.elements[14]]); } return out; };
+const tilesOf = (o) => (o.tiles ?? [o]);
+const instPositions = (o) => { const out = [], m = new THREE.Matrix4(); for (const im of tilesOf(o)) for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); out.push([m.elements[12], m.elements[14]]); } return out; };
+const allMatrices = (o) => tilesOf(o).flatMap((im) => Array.from(im.instanceMatrix.array.slice(0, im.count * 16)));
 
 describe('etapa 3: árvores com posições/colisores idênticos', () => {
   afterEach(() => disposeRenderResources());
@@ -175,7 +177,7 @@ describe('scatterVegetation', () => {
   const run = (quality, d = ch01Data, seed = 5) => scatterVegetation({ data: d, quality, rng: createRng(seed) });
   it('low: sem capim; demais camadas existem e são baratas', () => {
     const v = run('low'); expect(v.grass).toBeNull();
-    expect(v.ferns.count + v.rocks.count + v.logs.count).toBeGreaterThan(0); expect(v.ferns.count).toBeLessThan(300);
+    expect((v.ferns?.count ?? 0) + v.rocks.count + v.logs.count).toBeGreaterThan(0); expect(v.ferns.count).toBeLessThan(300);
     v.dispose();
   });
   it('densidade escala com QUALITY.grass', () => {
@@ -197,20 +199,32 @@ describe('scatterVegetation', () => {
   });
   it('mesma seed → mesmas matrizes; seed diferente → outras', () => {
     const a = run('high'), b = run('high'), c = run('high', ch01Data, 6);
-    expect(Array.from(a.grass.instanceMatrix.array)).toEqual(Array.from(b.grass.instanceMatrix.array));
-    expect(Array.from(a.rocks.instanceMatrix.array)).toEqual(Array.from(b.rocks.instanceMatrix.array));
-    expect(Array.from(a.grass.instanceMatrix.array)).not.toEqual(Array.from(c.grass.instanceMatrix.array));
+    expect(allMatrices(a.grass)).toEqual(allMatrices(b.grass));
+    expect(allMatrices(a.rocks)).toEqual(allMatrices(b.rocks));
+    expect(allMatrices(a.grass)).not.toEqual(allMatrices(c.grass));
     a.dispose(); b.dispose(); c.dispose();
   });
   it('vento é por material próprio (clone), nunca no material compartilhado; sem sombra', () => {
     const v = run('high'), shared = getMaterial('foliage', 'high', undefined);
     expect(v.grass.material).not.toBe(shared); expect(shared.onBeforeCompile).toBe(THREE.Material.prototype.onBeforeCompile);
-    expect(v.grass.material.customProgramCacheKey()).toMatch(/veg/); expect(v.grass.castShadow).toBe(false);
+    expect(v.grass.material.customProgramCacheKey()).toMatch(/veg/); expect(v.grass.tiles.every((t) => t.castShadow === false && t.frustumCulled === true)).toBe(true);
     expect(v.grass.material.userData.shared).toBeFalsy(); v.dispose();
   });
   it('dispose libera geometrias, clones e instâncias (materiais em cache ficam)', () => {
     const v = run('high'); const ev = { geo: 0, clone: 0, shared: 0 };
     for (const m of [v.grass, v.ferns, v.rocks, v.logs]) { m.geometry.addEventListener('dispose', () => ev.geo++); m.material.addEventListener('dispose', () => (m.material.userData.shared ? ev.shared++ : ev.clone++)); }
     v.dispose(); expect(ev.geo).toBe(4); expect(ev.clone).toBe(2); expect(ev.shared).toBe(0);
+  });
+});
+
+describe('vegetação em blocos', () => {
+  it('capim em vários blocos com esfera de contorno; update esconde blocos distantes e só mexe em visible', () => {
+    const v = scatterVegetation({ data: ch01Data, quality: 'high', rng: createRng(5) });
+    expect(v.grass.tiles.length).toBeGreaterThan(6);
+    for (const t of v.grass.tiles) expect(t.boundingSphere.radius).toBeGreaterThan(0);
+    v.update(1, 0.016, { x: -40, y: 1, z: -44 });
+    const vis = v.grass.tiles.filter((t) => t.visible).length; expect(vis).toBeGreaterThan(0); expect(vis).toBeLessThan(v.grass.tiles.length);
+    v.update(1, 0.016, { x: 0, y: 1, z: 0 }); expect(v.grass.tiles.filter((t) => t.visible).length).toBeGreaterThan(vis);
+    v.dispose();
   });
 });

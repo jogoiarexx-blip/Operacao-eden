@@ -76,8 +76,8 @@ uniform vec2 uDetailRep;
   diffuseColor.rgb = mix(diffuseColor.rgb, gpc, gpm.r);`);
   };
   groundMat.customProgramCacheKey = () => 'eden-ground-paths';
-  // Baixo: só cor de vértice + máscara de trilhas (1 amostra/pixel, custo ≈ antes); Médio: + terra; Alto: + detalhe em 2ª escala e cascalho na trilha
-  const groundQ = (qk) => { groundMat.defines = qk === 'high' ? { GROUND_DETAIL: 1 } : {}; groundMat.map = qk === 'low' ? null : dirtTex; groundMat.needsUpdate = true; };
+  // Baixo: só cor de vértice + máscara de trilhas (1 amostra/pixel, custo ≈ antes); Médio = Baixo (custo de preenchimento em software); Alto: terra em grande escala + detalhe em 2ª escala + cascalho na trilha
+  const groundQ = (qk) => { groundMat.defines = qk === 'high' ? { GROUND_DETAIL: 1 } : {}; groundMat.map = qk === 'high' ? dirtTex : null; groundMat.needsUpdate = true; };
   groundQ(quality in QUALITY ? quality : 'medium');
   const ground = new THREE.Mesh(gg, groundMat);
   ground.receiveShadow = true; ground.position.set((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2); group.add(ground);
@@ -167,7 +167,7 @@ uniform vec2 uDetailRep;
   let veg = null;
   const buildVeg = (qk) => { veg = scatterVegetation({ data, quality: qk, rng: createRng(((data.treeSeed ?? 1) ^ 0x5eed5eed) >>> 0), trees }); group.add(veg.group); };
   buildVeg(qKeyNow);
-  updaters.push((t) => veg?.update(t));
+  updaters.push((t, dt, cam) => veg?.update(t, dt, cam));
 
   // ---------- pistas ambientais ----------
   const clawMat = mat(0x2a1612);
@@ -213,7 +213,7 @@ uniform vec2 uDetailRep;
       group.userData.q = qc;
     },
     update(t, dt, camPos, camDir, playerPos) {
-      for (const u of updaters) u(t, dt);
+      for (const u of updaters) u(t, dt, camPos);
       // chuva segue a câmera
       if (rain.visible) {
         const a = rainGeo.attributes.position; rain.position.set(camPos.x, camPos.y - 6, camPos.z);
@@ -237,7 +237,7 @@ uniform vec2 uDetailRep;
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { if (!m.userData.shared) m.dispose?.(); });
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
       });
-      veg?.dispose(); treeSet.dispose(); groundMask.dispose();   // máscara é por capítulo; texturas de getTexture são compartilhadas e não são tocadas
+      moon.dispose(); flash.dispose(); veg?.dispose(); treeSet.dispose(); groundMask.dispose();   // máscara é por capítulo; texturas de getTexture são compartilhadas e não são tocadas
       rainGeo.dispose();
     },
   };
