@@ -8,7 +8,9 @@ import { createRng } from '../core/rng.js';
  * recursos (geometrias, materiais, textura), liberados em setQuality/dispose. Nada aqui é alvo de raycast nem escreve profundidade.
  */
 const NO_RAY = () => {};
-const CONE_LEN = 15, CONE_R = 4.2, DUST = 36, FOG_N = 8, FOG_SPAN = 56;
+/** Contraste da sombra da lua: baseline suave, 1 durante o relâmpago (a intensidade da luz já sobe em SectorScenery). */
+export const MOON_SHADOW_BASE = 0.75;
+const CONE_LEN = 15, CONE_R = 3.2, DUST = 36, FOG_N = 8, FOG_SPAN = 56;
 
 const CONE_VS = `varying vec3 vP; varying vec3 vN; varying vec3 vV;
 void main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
@@ -41,7 +43,6 @@ export function createAtmosphere({ scene, quality = 'medium', data }) {
   const group = new THREE.Group(); group.name = 'atmosphere'; scene.add(group);
   let t = 0, cone = null, dust = null, fogQuads = [], own = [];          // own: tudo que este módulo criou e deve liberar
   const _r = new THREE.Vector3(), _d = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3();
-  let moonRadius = null;
 
   const track = (o) => { own.push(o); return o; };
   function build(q) {
@@ -83,10 +84,7 @@ export function createAtmosphere({ scene, quality = 'medium', data }) {
     /** camera: { pos, dir }; player: { x, z }; flashlight: bool; lightning: 0..1 (força do relâmpago); moon: DirectionalLight opcional. */
     update(dt, { player, flashlight, camera, lightning = 0, moon } = {}) {
       t += dt;
-      if (moon?.shadow) {                       // sombra dura e breve durante o relâmpago
-        if (moonRadius === null) moonRadius = moon.shadow.radius;
-        moon.shadow.radius = lightning > 0.3 ? 0 : moonRadius;
-      }
+      if (moon?.shadow) moon.shadow.intensity = lightning > 0.3 ? 1 : MOON_SHADOW_BASE;   // sombra contrastada só durante o flash; função pura do estado, sempre restaurada
       if (!cone || !camera) return;
       const on = !!flashlight; cone.visible = on;
       if (on) {

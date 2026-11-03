@@ -155,7 +155,7 @@ export function buildScenery({ world, data, quality }) {
   }
   // ---------- luzes, névoa, chuva ----------
   const hemi = new THREE.HemisphereLight(0x5c7f90, 0x1a2418, 0.95); group.add(hemi);
-  const moon = new THREE.DirectionalLight(0x9db9d4, 0.85); moon.position.set(-20, 40, 14); moon.castShadow = false; group.add(moon); group.add(moon.target);
+  const moon = new THREE.DirectionalLight(0x9db9d4, 0.85); moon.position.set(-20, 40, 14); moon.castShadow = false; moon.shadow.intensity = 0.75; group.add(moon); group.add(moon.target);
   const flash = new THREE.SpotLight(0xfff1d0, 0, 34, 0.5, 0.65, 1.2); group.add(flash); group.add(flash.target);
 
   const RAIN = 520;

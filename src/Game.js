@@ -133,8 +133,8 @@ export class Game {
     this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
     this.scene.add(this.scenery.group);
     this.scenery.onLightning = () => this.audio?.play('thunder');
-    this.atmosphere = createAtmosphere({ scene: this.scene, quality: this.settings.quality, data });
     this._applyChapterRender(data.render);
+    this.atmosphere = createAtmosphere({ scene: this.scene, quality: this.settings.quality, data });
     this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
     if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }

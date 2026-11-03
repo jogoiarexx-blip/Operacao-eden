@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createAtmosphere } from '../src/render/Atmosphere.js';
+import { createAtmosphere, MOON_SHADOW_BASE } from '../src/render/Atmosphere.js';
 import { QUALITY } from '../src/core/Settings.js';
 import { generatePixels, getTexture, disposeTextures, textureCacheSize } from '../src/render/ProceduralTextures.js';
 import { getMaterial, disposeMaterials, disposeRenderResources } from '../src/render/Materials.js';
@@ -110,5 +110,14 @@ describe('atmosfera', () => {
   it('lanterna desligada esconde o cone', () => {
     const { atmo } = mk('medium'); atmo.update(0.016, { player: { x: 0, z: 0 }, flashlight: false, camera: { pos: { x: 0, y: 1.6, z: 0 }, dir: { x: 0, y: 0, z: -1 } }, lightning: 0 });
     expect(atmo.group.getObjectByName('flashlightCone').visible).toBe(false); atmo.dispose();
+  });
+});
+describe('relâmpago e sombra da lua', () => {
+  it('shadow.intensity sobe a 1 no flash e volta exatamente ao baseline (também em low)', () => {
+    for (const q of ['low', 'medium']) {
+      const scene = new THREE.Scene(), atmo = createAtmosphere({ scene, quality: q, data: {} }), moon = new THREE.DirectionalLight(); moon.shadow.intensity = MOON_SHADOW_BASE;
+      const u = (l) => atmo.update(0.016, { player: { x: 0, z: 0 }, flashlight: false, camera: { pos: { x: 0, y: 1, z: 0 }, dir: { x: 0, y: 0, z: -1 } }, lightning: l, moon });
+      u(0); expect(moon.shadow.intensity).toBe(0.75); u(1); expect(moon.shadow.intensity).toBe(1); u(0.8); expect(moon.shadow.intensity).toBe(1); u(0); expect(moon.shadow.intensity).toBe(MOON_SHADOW_BASE); atmo.dispose();
+    }
   });
 });
