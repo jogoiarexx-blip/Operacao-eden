@@ -220,7 +220,8 @@ export class Game {
    */
   async startChapter(id, { difficultyId = null } = {}) {
     this.audio.ensure(); this.audio.play('ui');
-    await this._loading();
+    await this._loading(id === 'ch02' ? 'Posto Norte — acesso lateral' : 'Carregando…');
+    if (id === 'ch02') await new Promise((resolve) => setTimeout(resolve, 800));
     const s = advanceToChapter(this.save, id);
     const offer = resolveDifficultyOffer(s, difficultyId, this.profile); if (!offer.ok) this.hud.toast(offer.message, 'warn');
     this.save = s;
