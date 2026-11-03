@@ -98,13 +98,23 @@
       "who": "Caio Neri (rádio)",
       "text": "Você também ouviu. Isso não é pane, Lia.",
       "ms": 3400
+    },
+    {
+      "who": "Lia",
+      "text": "Estou no portão sul. Há sinais de uma retirada às pressas do outro lado.",
+      "ms": 3700
+    },
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "Estou chegando ao Posto Norte pela estrada de serviço. Se o acesso principal estiver fechado, entro pela brecha lateral.",
+      "ms": 3600
     }
   ],
   "ch02_intro_radio": [
     {
       "who": "Caio",
-      "text": "Reis, cheguei ao Posto Norte. O portão principal está trancado por dentro.",
-      "ms": 4008
+      "text": "Reis, recebi o último sinal da Lia. Cheguei ao Posto Norte. O portão principal está trancado por dentro.",
+      "ms": 4600
     },
     {
       "who": "Caio",
