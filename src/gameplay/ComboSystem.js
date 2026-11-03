@@ -34,7 +34,7 @@ export class ComboSystem {
   registerEncounter(id, total, eligible = true) { this.encounters[id] = { total, dead: 0, damage: 0, eligible, cleared: false }; }
   syncWindow() { this.chain.setWindow(this.hasChainModule() ? MODULE_WINDOW_MS : BASE_WINDOW_MS); }
 
-  _style(award, e) { if (award) this.bus.emit('reward', { kind: 'style', cc: 0, pe: award.pe, label: award.label, encounterId: e?.encounterId }); }
+  _style(award, e) { if (award && !e?.backtrack) this.bus.emit('reward', { kind: 'style', cc: 0, pe: award.pe, label: award.label, encounterId: e?.encounterId }); }
 
   /** Chamado uma vez por tick de simulação, DEPOIS da resolução de dano. */
   flush(tick, simMs) {
@@ -58,7 +58,7 @@ export class ComboSystem {
     if (enc) { enc.dead++; }
     this.bus.emit('reward', { kind: 'kill', cc: paid, pe: 0, label: k.count > 1 ? `${k.tier || 'CADEIA'} x${k.count}` : 'NEUTRALIZADO', chain: k, enemyId: ev.enemyId, encounterId: ev.encounterId });
     this.bus.emit('chainChanged', { count: k.count, remainingMs: this.chain.remainingMs(simMs), windowMs: this.chain.windowMs, tier: k.tier });
-    for (const a of this.style.onKill({ chainCount: k.count, enemyId: ev.enemyId, encounterId: ev.encounterId, vulnerable: !!ev.vulnerable })) {
+    for (const a of (ev.backtrack ? [] : this.style.onKill({ chainCount: k.count, enemyId: ev.enemyId, encounterId: ev.encounterId, vulnerable: !!ev.vulnerable }))) {
       this.bus.emit('reward', { kind: 'style', cc: 0, pe: a.pe, label: a.label, encounterId: ev.encounterId });
     }
     if (enc && enc.dead >= enc.total && !enc.cleared) {

@@ -179,7 +179,7 @@ export class DinosaurAgent {
             if (player.invulnerable) {
               if (!this.dodgedAttacks.has(this.attackId)) {          // esquiva perfeita: i-frames no instante do impacto
                 this.dodgedAttacks.add(this.attackId); this.hitThisAttack = true;
-                bus.emit('perfectDodge', { eventId: `pd:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick: ctx.tick });
+                bus.emit('perfectDodge', { eventId: `pd:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick: ctx.tick, backtrack: !!this.backtrack });
                 this.counterWindowUntil = sim + 1700;
               }
             } else {
@@ -269,7 +269,7 @@ export class DinosaurAgent {
     const out = { dead: false, interrupted: false, counter: false };
     if (sim < this.counterWindowUntil && this.attackId && !this.counterPaid.has(this.attackId)) {
       this.counterPaid.add(this.attackId); out.counter = true;
-      bus.emit('counterHit', { attackId: this.attackId, enemyId: this.id, encounterId: this.encounterId });
+      bus.emit('counterHit', { attackId: this.attackId, enemyId: this.id, encounterId: this.encounterId, backtrack: !!this.backtrack });
     }
     if (this.hp <= 0) {
       const wasVulnerable = this.state === AI.STAGGER || this.vulnerable;
@@ -282,7 +282,7 @@ export class DinosaurAgent {
     if (this.state === AI.ATTACK_WINDUP && !this.species.boss && this.windupProgress < 0.7 && !this.interruptDone.has(this.attackId) && sim >= this.staggerImmuneUntil) {
       this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
       coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true; out.interrupted = true;
-      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });
+      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick, backtrack: !!this.backtrack });
     } else if ([AI.IDLE, AI.PATROL, AI.INVESTIGATE, AI.SEARCH, AI.STALK].includes(this.state)) {
       this.lastKnown = { x: ctx.player.x, z: ctx.player.z }; this.lastSeenAt = sim; this.alerted = true; this._beginChase(bus, ctx.allies);
     }
@@ -295,7 +295,7 @@ export class DinosaurAgent {
     coordinator.release(this); this.setState(AI.STAGGER, 700); this.vulnerable = true;
     if (!this.interruptDone.has(this.attackId)) {
       this.interruptDone.add(this.attackId); this.staggerImmuneUntil = sim + 3500;
-      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick });
+      bus.emit('interrupt', { eventId: `int:${this.attackId}`, attackId: this.attackId, sourceEnemyId: this.id, encounterId: this.encounterId, tick, backtrack: !!this.backtrack });
     }
     return true;
   }
