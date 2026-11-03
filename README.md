@@ -1,6 +1,14 @@
-# Projeto Extinção — Operação Éden (R0 + R1 + R2.4)
+# Projeto Extinção — Operação Éden (R0 + R1 + R2.5)
 
 Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) e o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados). Capítulos 03–10 seguem o roadmap do GDD v4.
+
+## R2.5 — Panorama ilustrado 360° sem emendas
+- **Duas faixas cilíndricas por fase** (distante e próxima) substituem os 8 planos retos da R2.4. A câmera pode girar 360° sem encontrar cantos/quadrados de imagem ou uma lacuna nas diagonais.
+- **Pintura repetível**: montanhas desenhadas com perfil periódico; árvores e prédios que cruzam a borda da textura são repetidos do lado oposto. A transparência desaparece apenas no alto da silhueta, não nas laterais.
+- **Integração com a névoa**: panoramas permanecem sem sombra, luz dinâmica ou colisão; a opacidade da imagem acompanha `fogFar` dos presets (62 m baixo, 78 m médio, 92 m alto), mantendo fundos suaves e sem alterar a distância da névoa real.
+- **Segurança espacial**: os cilindros ficam além dos quatro cantos dos dois mapas (raio = metade da diagonal do mapa + 15/29 m), sem paredes invisíveis novas nem alterações no fluxo de fases/backtracking.
+- **Custo menor**: de 8 malhas de fundo para **2 malhas e 2 texturas de 1024×256**, sem downloads ou processamento de Canvas por frame. No preset baixo, só uma malha aparece.
+- **QA**: testes de `tests/backdrop-impostors.test.js` e `scripts/e2e-backdrops.mjs` ampliados para raio, costura, transparência e qualidade. Testes isolados de fonte e bundle passaram; Playwright real e ganho de FPS ainda requerem resultado do CI.
 
 ## R2.4 — Fundos ilustrados inacessíveis (2D matte painting)
 - **Aplicado no Capítulo 01 — Lia:** horizonte de montanhas, mata úmida, copas de árvores e silhuetas além dos limites do mapa.
@@ -56,7 +64,7 @@ Servir `dist-single` em :4177 (`npm run build:single && npx vite preview --confi
 - `scripts/e2e-area-transitions.mjs` — entrada no Posto Norte com apresentação visual e R-4 sem duplicação.
 - `scripts/e2e-portals.mjs` — LOD de detalhes, câmera dos portais e emboscada do rádio (Chromium + screenshots).
 - `scripts/e2e-vegetation.mjs` — vegetação setorial, qualidade, colisões e triângulos renderizados nos dois capítulos.
-- `scripts/e2e-backdrops.mjs` — fundos ilustrados dos capítulos 1 e 2, imagens fora do mapa e presets de qualidade.
+- `scripts/e2e-backdrops.mjs` — panoramas 360° dos capítulos 1 e 2, costura, distância, névoa e presets de qualidade.
 - `scripts/play-ch02.mjs` — partida do Cap. 02 com teclado/mouse reais (sem teleporte/god), relata até onde chegou.
 
 Jogo original, inspirado apenas em convenções do gênero.
