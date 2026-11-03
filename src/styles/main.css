@@ -115,3 +115,9 @@ body.hc .threat { border-bottom-color: #fff; outline: 2px solid var(--red); }
 @keyframes area-reveal-fade { 0% { opacity:0; } 15%,68% { opacity:1; } 100% { opacity:0; } }
 @media (max-width:720px) { .area-reveal { padding-bottom:29vh; } .area-reveal::before,.area-reveal::after { height:4vh; } }
 @media (prefers-reduced-motion:reduce) { .area-reveal { animation:none; opacity:1; } }
+
+/* Costura entre setores: fade curto, sem tela de carregamento nem mudança de controle. */
+.travel-veil { position:fixed; inset:0; z-index:85; pointer-events:none; background:#061111; opacity:.97;
+  transition:opacity .72s ease-out; }
+.travel-veil.fading { opacity:0; }
+@media (prefers-reduced-motion:reduce) { .travel-veil { transition:opacity .18s linear; } }
