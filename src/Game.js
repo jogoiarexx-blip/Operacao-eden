@@ -278,8 +278,11 @@ export class Game {
   /** Entrada e saída pelos portais de retorno, sem resetar história, inventário ou chefe. */
   _stepBacktrack(inp) {
     if (!this.sm.is(S.PLAYING) || this.player.dead || this.player.dodging) return false;
-    const portal = availableBacktrackPortal(this.save, this.player.x, this.player.z);
     const walkedThrough = crossedServicePassage(this.save, this.player.x, this.player.z);
+    // A linha física é maior que o círculo usado pelo atalho F.
+    // Recuperar o portal oficial quando a travessia aconteceu na borda.
+    const portal = availableBacktrackPortal(this.save, this.player.x, this.player.z)
+      ?? (walkedThrough ? BACKTRACK_PORTALS[this.save.chapterId] : null);
     if ((!portal && !walkedThrough) || (this.chapter.promptTarget && !walkedThrough)) return false;
     // O atalho F permanece disponível; chegar ao fim da passagem também
     // aciona a viagem, sem teleporte prematuro perto da entrada.
