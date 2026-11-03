@@ -24,6 +24,17 @@ describe('Regina — controlador de estados (sem alterar gameplay)', () => {
     expect(stateForRegina(player({ dodging: true, hurtT: 0.2 }), 0)).toBe('dodge');
     expect(stateForRegina(player({ hurtT: 0.2, reloading: true }), 0)).toBe('hurt');
   });
+
+  it('distingue marcha ré e passos laterais ao mirar com os ossos do GLB', async () => {
+    const { directionForRegina } = await import('../src/actors/ReginaRig.js');
+    expect(directionForRegina(player({ vx: 0, vz: 2, yaw: 0 }))).toBe('back');
+    expect(directionForRegina(player({ vx: -2, vz: 0, yaw: 0 }))).toBe('left');
+    expect(directionForRegina(player({ vx: 2, vz: 0, yaw: 0 }))).toBe('right');
+    expect(stateForRegina(player({ aiming: true, vx: 0, vz: 2, yaw: 0, speed: 2 }), 0)).toBe('aimBack');
+    expect(stateForRegina(player({ aiming: true, vx: -2, vz: 0, yaw: 0, speed: 2 }), 0)).toBe('aimStrafeLeft');
+    expect(stateForRegina(player({ aiming: true, vx: 2, vz: 0, yaw: 0, speed: 2 }), 0)).toBe('aimStrafeRight');
+    expect(stateForRegina(player({ vx: 0, vz: 2, yaw: 0, speed: 2 }), 0)).toBe('walkBack');
+  });
   it('morte sempre prevalece', () => {
     expect(stateForRegina(player({ dead:true, dodging:true, hurtT:1 }), 1)).toBe('death');
   });

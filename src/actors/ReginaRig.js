@@ -4,7 +4,8 @@ import * as THREE from 'three';
 // Em vez de presumir que os slots TESTE são definitivos, usamos ações normalizadas
 // de tempo fixo sobre o próprio esqueleto, preservando os 17 clips no arquivo.
 const CLIP_DURATIONS = {
-  idle: 1.8, walk: 0.88, run: 0.62, aim: 0.9, aimWalk: 0.88,
+  idle: 1.8, walk: 0.88, walkBack: 1.02, run: 0.62, aim: 0.9, aimWalk: 0.88,
+  aimBack: 1.04, aimStrafeLeft: 0.95, aimStrafeRight: 0.95,
   shoot: 0.28, reload: 1.1, use: 0.8, dodge: 0.34, hurt: 0.35, death: 0.95,
 };
 const ONESHOT = new Set(['shoot', 'reload', 'use', 'dodge', 'hurt', 'death']);
@@ -90,6 +91,51 @@ POSES.aimWalk = {
   LeftForeArm: step(q(0.5), q(0.5), q(0.5), q(0.5), q(0.5)),
 };
 
+// Deslocamento relativo à direção do tronco; strafe preserva a direção da mira.
+export function directionForRegina(player) {
+  const { vx, vz, yaw } = player;
+  const speed = Math.hypot(vx ?? 0, vz ?? 0);
+  if (!Number.isFinite(speed) || speed < 0.45 || !Number.isFinite(yaw)) return 'forward';
+  const forward = -(vx * Math.sin(yaw) + vz * Math.cos(yaw));
+  const right = vx * Math.cos(yaw) - vz * Math.sin(yaw);
+  if (forward < -Math.max(0.4, Math.abs(right) * 0.85)) return 'back';
+  if (Math.abs(right) > Math.abs(forward) * 1.2) return right > 0 ? 'right' : 'left';
+  return 'forward';
+}
+
+// Passos menores e apoio dos pés evitam "patinação" durante a mira e a marcha ré.
+POSES.walk.LeftFoot = step(q(-0.12), q(0.06), q(0.20), q(0.06), q(-0.12));
+POSES.walk.RightFoot = step(q(0.20), q(0.06), q(-0.12), q(0.06), q(0.20));
+POSES.run.LeftFoot = step(q(-0.23), q(0.14), q(0.33), q(0.14), q(-0.23));
+POSES.run.RightFoot = step(q(0.33), q(0.14), q(-0.23), q(0.14), q(0.33));
+POSES.walkBack = {
+  ...POSES.walk,
+  LeftUpLeg: step(q(0.32), q(), q(-0.32), q(), q(0.32)),
+  RightUpLeg: step(q(-0.32), q(), q(0.32), q(), q(-0.32)),
+  LeftArm: step(q(-0.18), q(), q(0.18), q(), q(-0.18)),
+  RightArm: step(q(0.18), q(), q(-0.18), q(), q(0.18)),
+};
+POSES.aimBack = { ...POSES.walkBack, LeftArm: POSES.aimWalk.LeftArm,
+  RightArm: POSES.aimWalk.RightArm, LeftForeArm: POSES.aimWalk.LeftForeArm };
+for (const [name, sign] of [['aimStrafeLeft', -1], ['aimStrafeRight', 1]]) {
+  POSES[name] = {
+    ...POSES.aimWalk,
+    Hips: step(q(0, 0, sign * 0.025), q(0, 0, -sign * 0.02),
+      q(0, 0, sign * 0.025), q(0, 0, -sign * 0.02), q(0, 0, sign * 0.025)),
+    LeftUpLeg: step(q(0, 0, sign * -0.24), q(), q(0, 0, sign * 0.24), q(), q(0, 0, sign * -0.24)),
+    RightUpLeg: step(q(0, 0, sign * 0.24), q(), q(0, 0, sign * -0.24), q(), q(0, 0, sign * 0.24)),
+    LeftFoot: step(q(-0.1), q(0.08), q(0.17), q(0.08), q(-0.1)),
+    RightFoot: step(q(0.17), q(0.08), q(-0.1), q(0.08), q(0.17)),
+  };
+}
+POSES.aimWalk.LeftFoot = POSES.walk.LeftFoot;
+POSES.aimWalk.RightFoot = POSES.walk.RightFoot;
+
+// Respiração e balanço dos ombros no repouso, sem deslocar o collider.
+POSES.idle.Spine2 = step(q(0.008), q(0.022), q(0.008));
+POSES.idle.LeftShoulder = step(q(0), q(0, 0, 0.025), q(0));
+POSES.idle.RightShoulder = step(q(0), q(0, 0, -0.025), q(0));
+
 function createAnimations(scene) {
   const bones = {};
   scene.traverse((node) => { if (node.isBone) bones[node.name] = node; });
@@ -109,10 +155,10 @@ function createAnimations(scene) {
       tracks.push(new THREE.QuaternionKeyframeTrack(`${name}.quaternion`, times, samples));
     }
     // Passos, sem root motion para não desalinhar as colisões.
-    if (bones.Hips && (state === 'walk' || state === 'run' || state === 'aimWalk' || state === 'idle' || state === 'dodge')) {
+    if (bones.Hips && (['walk', 'walkBack', 'run', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight', 'idle', 'dodge'].includes(state))) {
       const base = bones.Hips.position;
       const offsets = state === 'run' ? [0, 0.037, 0, 0.037, 0] :
-        state === 'walk' || state === 'aimWalk' ? [0, 0.014, 0, 0.014, 0] :
+        ['walk', 'walkBack', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight'].includes(state) ? [0, 0.014, 0, 0.014, 0] :
         state === 'dodge' ? [0, -0.14, -0.28, -0.14, 0] : [0, 0.012, 0];
       const times = offsets.map((_, idx) => idx * duration / (offsets.length - 1));
       tracks.push(new THREE.VectorKeyframeTrack('Hips.position',times,offsets.flatMap(y=>[base.x,base.y+y,base.z])));
@@ -129,9 +175,14 @@ export function stateForRegina(player, flashT) {
   if (player.using) return 'use';
   if (player.reloading) return 'reload';
   if (flashT > 0) return 'shoot';
-  if (player.aiming || player.simShooting) return player.speed > 0.5 ? 'aimWalk' : 'aim';
+  const dir = directionForRegina(player);
+  if (player.aiming || player.simShooting) {
+    if (player.speed <= 0.5) return 'aim';
+    return dir === 'back' ? 'aimBack' : dir === 'left' ? 'aimStrafeLeft' :
+      dir === 'right' ? 'aimStrafeRight' : 'aimWalk';
+  }
   if (player.sprinting && player.speed > 0.6) return 'run';
-  if (player.speed > 0.5) return 'walk';
+  if (player.speed > 0.5) return dir === 'back' ? 'walkBack' : 'walk';
   return 'idle';
 }
 
@@ -234,8 +285,10 @@ export class ReginaRig {
       next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(transition).play();
       this.state = wanted;
     }
-    if (wanted === 'walk' || wanted === 'aimWalk') this.actions[wanted].timeScale = Math.max(0.6,Math.min(1.5,player.speed/3.7));
-    if (wanted === 'run') this.actions[wanted].timeScale = Math.max(0.7,Math.min(1.4,player.speed/5.6));
+    if (['walk','walkBack','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight'].includes(wanted))
+      this.actions[wanted].setEffectiveTimeScale(Math.max(0.65, Math.min(1.5, player.speed / 3.7)));
+    if (wanted === 'run')
+      this.actions[wanted].setEffectiveTimeScale(Math.max(0.75, Math.min(1.45, player.speed / 5.6)));
     this.mixer.update(Math.min(Math.max(dt,0), 0.05));
     if (this.weapon) {
       this.weapon.scale.z = player.weaponId === 'shotgun' ? 2.2 : 1;
