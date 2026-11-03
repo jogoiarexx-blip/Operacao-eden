@@ -3,7 +3,7 @@ import { getChapter } from '../chapters/index.js';
 // A conclusão inicial permanece narrativa; depois, as duas passagens são reversíveis.
 export const BACKTRACK_PORTALS = Object.freeze({
   ch01: { to: 'ch02', pos: [0, -42], radius: 3.1, entry: [11.3, 34], yaw: 0, label: 'Ir para o Posto Norte' },
-  ch02: { to: 'ch01', pos: [11.3, 34.5], radius: 2.8, entry: [0, -37], yaw: 0, label: 'Voltar à Selva Norte' },
+  ch02: { to: 'ch01', pos: [11.3, 34.5], radius: 2.8, entry: [0, -37], yaw: Math.PI, label: 'Voltar à Selva Norte' },
 });
 
 export function availableBacktrackPortal(save, x, z) {
