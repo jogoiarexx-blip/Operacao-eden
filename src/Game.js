@@ -250,7 +250,10 @@ export class Game {
     if (!inp.interactPressed) return false;
     this.combo.endChain('exit');
     this.syncSaveFromRuntime();
-    this.save = travelBacktrack(this.save, portal);
+    const survivors = this.liveAgents().map(a => ({
+      id: a.id, x: a.x, z: a.z, hp: a.hp, backtrack: !!a.backtrack,
+    }));
+    this.save = travelBacktrack(this.save, portal, survivors);
     this.stats = new RunStats(this.save.stats ?? {});
     this._startRun(false);
     this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
@@ -303,6 +306,18 @@ export class Game {
     const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
     agent.backtrack = !!def.backtrack;
     agent.sectorId = def.sectorId ?? this.save?.sectorId;
+    const prior = !agent.backtrack
+      ? this.save?.backtrack?.sectors?.[this.chapterId]?.enemies?.find(e => e.id === agent.id)
+      : null;
+    if (prior) {
+      agent.hp = Math.max(1, Math.min(agent.maxHp, prior.hp));
+      if (Number.isFinite(prior.x) && Number.isFinite(prior.z) &&
+        Math.hypot(prior.x - this.player.x, prior.z - this.player.z) >= 5 &&
+        !this.world.blockedAt(prior.x, prior.z, agent.radius) &&
+        !safeRoomAt(this.chapterDef.data, prior.x, prior.z, agent.radius)) {
+        agent.x = agent.px = prior.x; agent.z = agent.pz = prior.z;
+      }
+    }
     const outside = keepDinosaurOutside(this.chapterDef.data, this.world, agent.x, agent.z, agent.radius);
     if (outside.moved) { agent.x = agent.px = outside.x; agent.z = agent.pz = outside.z; }
     const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
