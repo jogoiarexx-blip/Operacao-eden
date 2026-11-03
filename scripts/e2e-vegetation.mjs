@@ -35,7 +35,14 @@ try {
       const collidersBefore = world.byId.size;
       const treeColliders = trees.every((_, i) => world.byId.get('tree_' + i)?.enabled);
 
+      // Comparação de carga geométrica no mesmo enquadramento (não é medição de FPS).
+      stream.update({ x: game.player.x, z: game.player.z });
+      game.renderer.render(game.scene, game.threeCam);
+      const nearTriangles = game.renderer.info.render.triangles;
+
       stream.update({ x: 2000, z: 2000 });
+      game.renderer.render(game.scene, game.threeCam);
+      const farTriangles = game.renderer.info.render.triangles;
       const far = stream.stats();
 
       stream.update({ x: game.player.x, z: game.player.z });
@@ -54,6 +61,7 @@ try {
 
       return {
         chapter: game.chapterId, original, far, near, low, high,
+        geometry: { nearTriangles, farTriangles, savedTriangles: nearTriangles - farTriangles },
         treeColliders, sameWorld: collidersBefore === world.byId.size,
         sameSave: JSON.stringify(game.save) === saveBefore,
         state: game.sm.state,
@@ -63,7 +71,8 @@ try {
         result.state !== 'PLAYING' || result.original.treesTotal === 0 ||
         result.far.treesVisible !== 0 || result.far.bushesVisible !== 0 ||
         result.near.treesVisible === 0 ||
-        result.low.bushesVisible >= result.high.bushesVisible) {
+        result.low.bushesVisible >= result.high.bushesVisible ||
+        result.geometry.savedTriangles < 0) {
       throw Error('Falha no streaming ' + id + ': ' + JSON.stringify(result));
     }
     await page.screenshot({ path: `${shotDir}/vegetation-${id}.png` });
