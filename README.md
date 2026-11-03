@@ -1,6 +1,13 @@
-# Projeto Extinção — Operação Éden (R0 + R1 + R2.2)
+# Projeto Extinção — Operação Éden (R0 + R1 + R2.3)
 
 Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) e o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados). Capítulos 03–10 seguem o roadmap do GDD v4.
+
+## R2.3 — Streaming setorial de árvores e arbustos
+- **Vegetação em células de 24m**: mantém até 190 árvores e 420 arbustos gerados pelo mesmo seed, mas compacta as matrizes por proximidade. Um setor entra a até 62m e sai depois de 76m, criando histerese contra aparecimentos súbitos.
+- **Renderização com quatro InstancedMeshes**: uma para troncos, duas para copas e uma para arbustos. O sistema não multiplica draw calls por setor; reduz a quantidade de instâncias desenhadas nos setores distantes.
+- **Colisões e saves intactos**: `tree_N` permanece registrado no CollisionWorld, mesmo com árvore oculta; não altera IA, posição, código de câmera, itens, armas ou save. Não é carregamento de modelos via rede nem descarte de memória; buffers permanecem alocados.
+- **Qualidade gráfica**: a porcentagem de folhagem continua ativa, usando seleção determinística e espacialmente distribuída. O controlador só reenvia matrizes quando muda a lista de instâncias.
+- **QA**: `tests/vegetation-sector-stream.test.js` (células, histerese, retorno, qualidade) e `scripts/e2e-vegetation.mjs` (Chromium nos dois capítulos, colisores intactos e comparação de triângulos). Incluído no workflow de GitHub Actions. Ganho real de FPS ainda depende de medição.
 
 ## R2.2 — Portais, performance e emboscada do rádio
 - **6 zonas curtas de câmera**: entrada pela brecha, porta do gerador, corredor administrativo, portão do pátio, arquivo e saída norte. A câmera continua por cima do ombro, aproxima e recua suavemente, com colisão.
@@ -32,13 +39,14 @@ Armas e itens (R2): **1** pistola · **2** escopeta · **roda do mouse** (ou dir
 `?debug=1` expõe `window.__eden`; qualquer uso marca a execução como "Livre" (fora do ranking). Atalhos extras: `finishChapter()`, `goto('ch02','pre_k1')`, `killBoss()`, `startChapter('ch02')`.
 
 ## Testes de fumaça (Playwright)
-Servir `dist` em :4177 (`npm run build && npx vite preview --port 4177 --strictPort`) e rodar:
+Servir `dist-single` em :4177 (`npm run build:single && npx vite preview --config vite.single.config.js --port 4177 --strictPort`) e rodar:
 - `scripts/e2e.mjs`, `scripts/e2e2.mjs` — Cap. 01 (fluxo geral, loja, save, benchmark).
 - `scripts/e2e-transition.mjs` — fim do Cap. 01 → resultados → Continuar → Cap. 02.
 - `scripts/smoke-ch02.mjs` — Cap. 02 inteiro por atalhos de depuração (gerador, rádio, defesa, K-1, morte/retry, resultados).
 - `scripts/e2e3.mjs` — fluxo R2 completo: novo jogo → Cap. 02 com Caio/escopeta → salvar/carregar slot 2 → K-1 → resultados.
 - `scripts/e2e-area-transitions.mjs` — entrada no Posto Norte com apresentação visual e R-4 sem duplicação.
 - `scripts/e2e-portals.mjs` — LOD de detalhes, câmera dos portais e emboscada do rádio (Chromium + screenshots).
+- `scripts/e2e-vegetation.mjs` — vegetação setorial, qualidade, colisões e triângulos renderizados nos dois capítulos.
 - `scripts/play-ch02.mjs` — partida do Cap. 02 com teclado/mouse reais (sem teleporte/god), relata até onde chegou.
 
 Jogo original, inspirado apenas em convenções do gênero.
