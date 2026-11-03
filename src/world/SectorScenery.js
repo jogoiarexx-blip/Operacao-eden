@@ -4,6 +4,7 @@ import { createVisualDetailCuller } from './VisualDetailCulling.js';
 import { createVegetationSectorStream } from './VegetationSectorStream.js';
 import { createBackdropImpostors } from './BackdropImpostors.js';
 import { createUnreachableTreeCards } from './TreeImpostors.js';
+import { createRegionalDetailStream } from './RegionalDetailStream.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -43,6 +44,9 @@ export function buildScenery({ world, data, quality }) {
   // Copas em imagens, 100% FORA das áreas alcançáveis: 2 InstancedMesh, 1 textura.
   const treeCards = createUnreachableTreeCards(data.bounds, data.chapter, quality);
   group.add(treeCards.group);
+  // Setores próximos criam geometria de detalhe sob demanda; ao afastar, liberam buffers.
+  const regionalDetails = createRegionalDetailStream({ data });
+  group.add(regionalDetails.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -217,7 +221,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
@@ -225,6 +229,7 @@ export function buildScenery({ world, data, quality }) {
       vegetationStream.setQuality(qc.foliage);
       backdrop.setQuality(qc);
       treeCards.setQuality(qc);
+      regionalDetails.setQuality(qc);
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = qc.shadows;
       if (qc.shadows) {
@@ -238,6 +243,7 @@ export function buildScenery({ world, data, quality }) {
       if (playerPos && (t - lastDetailUpdate >= 0.3 || Math.hypot(playerPos.x - lastPX, playerPos.z - lastPZ) > 7)) {
         visualDetailCuller.update(playerPos);
         vegetationStream.update(playerPos);
+        regionalDetails.update(playerPos);
         lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
       }
       treeCards.update(camPos, dt);
@@ -264,6 +270,7 @@ export function buildScenery({ world, data, quality }) {
     dispose() {
       backdrop.dispose();
       treeCards.dispose();
+      regionalDetails.dispose();
       group.userData.safeSignTexture?.dispose();
       group.traverse((o) => {
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
