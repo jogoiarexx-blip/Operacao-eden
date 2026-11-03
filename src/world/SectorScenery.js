@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng.js';
 import { getMaterial } from '../render/Materials.js';
+import { getTexture } from '../render/ProceduralTextures.js';
+import { QUALITY } from '../core/Settings.js';
+import { createPathMaskTexture, scatterVegetation, assignTreeVariants, buildTrees } from '../render/Vegetation.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -44,21 +47,46 @@ export function buildScenery({ world, data, quality }) {
     const n = rng.next(); tmp.copy(c1).lerp(n < 0.5 ? c2 : c3, rng.next()); col.set([tmp.r, tmp.g, tmp.b], i * 3);
   }
   gg.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const ground = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  // duas escalas de textura (terra em grande escala + lama em detalhe) e trilhas pintadas a partir de data.paths (máscara por capítulo)
+  const groundMask = createPathMaskTexture(data), gravel = getTexture('gravel', { seed: 2 }), detail = getTexture('mud', { seed: 3 });
+  const dirtTex = getTexture('dirt', { repeat: [gW / 9, gD / 9] });
+  const groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  const pathCol = new THREE.Color(COLORS.dirt);
+  groundMat.onBeforeCompile = (sh) => {
+    sh.uniforms.tPath = { value: groundMask }; sh.uniforms.tDetail = { value: detail }; sh.uniforms.tGravel = { value: gravel };
+    sh.uniforms.uPathCol = { value: pathCol }; sh.uniforms.uDetailRep = { value: new THREE.Vector2(gW / 3.2, gD / 3.2) };
+    sh.vertexShader = 'varying vec2 vGUv;' + String.fromCharCode(10) + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+vGUv = uv;`);
+    sh.fragmentShader = `varying vec2 vGUv;
+uniform sampler2D tPath;
+uniform sampler2D tDetail;
+uniform sampler2D tGravel;
+uniform vec3 uPathCol;
+uniform vec2 uDetailRep;
+` + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+#ifdef GROUND_DETAIL
+  vec3 gdet = texture2D(tDetail, vGUv * uDetailRep).rgb;
+  diffuseColor.rgb *= mix(0.78, 1.22, gdet.r);
+#endif
+  vec4 gpm = texture2D(tPath, vec2(vGUv.x, 1.0 - vGUv.y));
+  vec3 gpc = uPathCol * 1.2 * mix(1.0, 0.75, gpm.g);
+#ifdef GROUND_DETAIL
+  if (gpm.r > 0.01) gpc *= texture2D(tGravel, vGUv * uDetailRep * 0.7).rgb * 1.25;
+#endif
+  diffuseColor.rgb = mix(diffuseColor.rgb, gpc, gpm.r);`);
+  };
+  groundMat.customProgramCacheKey = () => 'eden-ground-paths';
+  // Baixo: só cor de vértice + máscara de trilhas (1 amostra/pixel, custo ≈ antes); Médio: + terra; Alto: + detalhe em 2ª escala e cascalho na trilha
+  const groundQ = (qk) => { groundMat.defines = qk === 'high' ? { GROUND_DETAIL: 1 } : {}; groundMat.map = qk === 'low' ? null : dirtTex; groundMat.needsUpdate = true; };
+  groundQ(quality in QUALITY ? quality : 'medium');
+  const ground = new THREE.Mesh(gg, groundMat);
   ground.receiveShadow = true; ground.position.set((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2); group.add(ground);
 
   const water = new THREE.Mesh(new THREE.PlaneGeometry(gW, 40).rotateX(-Math.PI / 2), mat(0x0f2a36, { transparent: true, opacity: 0.92 }));
   water.position.set(0, -0.35, bz1 + 17); group.add(water);
   updaters.push((t) => { water.position.y = -0.35 + Math.sin(t * 0.9) * 0.03; });
 
-  // ---------- trilhas de terra ----------
-  const dirtMat = mat(COLORS.dirt); dirtMat.polygonOffset = true; dirtMat.polygonOffsetFactor = -2;
-  for (const p of data.paths) for (let i = 0; i < p.pts.length - 1; i++) {
-    const [ax, az] = p.pts[i], [bx, bz] = p.pts[i + 1];
-    const len = Math.hypot(bx - ax, bz - az);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.03, len + p.w * 0.4), dirtMat);
-    m.position.set((ax + bx) / 2, 0.02, (az + bz) / 2); m.rotation.y = Math.atan2(bx - ax, bz - az); m.receiveShadow = true; group.add(m);
-  }
+  // trilhas: pintadas no chão (máscara acima); sem malhas extras
 
   // ---------- estruturas ----------
   const wood = mat(COLORS.wood), woodDark = mat(COLORS.woodDark), rockMat = mat(COLORS.rock), metal = mat(COLORS.metal);
@@ -117,21 +145,13 @@ export function buildScenery({ world, data, quality }) {
     if (trees.some((t) => Math.hypot(x - t.x, z - t.z) < 3.4)) continue;
     trees.push({ x, z, r: rng.range(0.32, 0.55), h: rng.range(7, 11), lean: rng.range(-0.05, 0.05), tone: rng.next() });
   }
-  const trunkGeo = new THREE.CylinderGeometry(0.7, 1, 1, 6), canopyGeo = new THREE.ConeGeometry(1, 1, 7);
-  const trunks = new THREE.InstancedMesh(trunkGeo, mat(0x3f2f22), trees.length);
-  const canopyA = new THREE.InstancedMesh(canopyGeo, mat(0x1d3d24), trees.length);
-  const canopyB = new THREE.InstancedMesh(canopyGeo, mat(0x264a2a), trees.length);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
-  trees.forEach((t, i) => {
-    e.set(t.lean, 0, t.lean * 0.6); q.setFromEuler(e);
-    ps.set(t.x, t.h / 2, t.z); sc.set(t.r, t.h, t.r); m4.compose(ps, q, sc); trunks.setMatrixAt(i, m4);
-    ps.set(t.x, t.h * 0.72, t.z); sc.set(2.6 + t.tone * 0.9, t.h * 0.55, 2.6 + t.tone * 0.9); m4.compose(ps, q, sc); canopyA.setMatrixAt(i, m4);
-    ps.set(t.x, t.h * 0.98, t.z); sc.set(1.9 + t.tone * 0.6, t.h * 0.42, 1.9 + t.tone * 0.6); m4.compose(ps, q, sc); canopyB.setMatrixAt(i, m4);
-    world.addCyl(`tree_${i}`, t.x, t.z, t.r * 0.85, t.h, 0, ['move', 'bullet', 'camera']);
-  });
-  for (const m of [trunks, canopyA, canopyB]) { m.castShadow = true; m.frustumCulled = false; group.add(m); }
+  assignTreeVariants(trees, data.treeSeed);          // rng próprio: não consome o rng que posicionou as árvores
+  trees.forEach((t, i) => world.addCyl(`tree_${i}`, t.x, t.z, t.r * 0.85, t.h, 0, ['move', 'bullet', 'camera']));
+  let qKeyNow = quality in QUALITY ? quality : 'medium';
+  const treeSet = buildTrees({ trees, quality: qKeyNow }); group.add(treeSet.group);
 
   // ---------- folhagem rasteira (reduzível por qualidade; sem colisão) ----------
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
   const bushCountMax = 420;
   const bushes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.7, 0), mat(0x2e5a2f), bushCountMax);
   let placed = 0;
@@ -142,6 +162,12 @@ export function buildScenery({ world, data, quality }) {
     ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc); bushes.setMatrixAt(placed++, m4);
   }
   bushes.count = placed; bushes.userData.max = placed; group.add(bushes);
+
+  // ---------- vegetação decorativa (capim, samambaias, pedras, troncos): rng próprio, sem colisão, reconstruída em setQuality ----------
+  let veg = null;
+  const buildVeg = (qk) => { veg = scatterVegetation({ data, quality: qk, rng: createRng(((data.treeSeed ?? 1) ^ 0x5eed5eed) >>> 0), trees }); group.add(veg.group); };
+  buildVeg(qKeyNow);
+  updaters.push((t) => veg?.update(t));
 
   // ---------- pistas ambientais ----------
   const clawMat = mat(0x2a1612);
@@ -169,12 +195,14 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, moon, lightBoost: 0,
+    group, meshes, fadeMats, trees, moon, lightBoost: 0, groundMask,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       bushes.count = Math.floor(bushes.userData.max * qc.foliage);
+      const qk = Object.keys(QUALITY).find((k) => QUALITY[k] === qc) ?? qKeyNow;
+      if (qk !== qKeyNow) { qKeyNow = qk; treeSet.setQuality(qk); groundQ(qk); group.remove(veg.group); veg.dispose(); buildVeg(qk); }   // vegetação é barata: reconstrói na troca de qualidade
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = !!qc.moonShadow;
       if (!qc.moonShadow && moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; }
@@ -209,6 +237,7 @@ export function buildScenery({ world, data, quality }) {
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { if (!m.userData.shared) m.dispose?.(); });
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
       });
+      veg?.dispose(); treeSet.dispose(); groundMask.dispose();   // máscara é por capítulo; texturas de getTexture são compartilhadas e não são tocadas
       rainGeo.dispose();
     },
   };

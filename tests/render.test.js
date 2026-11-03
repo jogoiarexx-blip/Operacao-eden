@@ -121,3 +121,96 @@ describe('relâmpago e sombra da lua', () => {
     }
   });
 });
+
+// ---------- Etapa 3: chão, árvores e vegetação ----------
+import { buildScenery } from '../src/world/SectorScenery.js';
+import { scatterVegetation, buildPathMask } from '../src/render/Vegetation.js';
+import treesBefore from './fixtures/trees-before.json';
+import ch01Data from '../src/data/chapter01.json';
+import ch02Data from '../src/data/chapter02.json';
+import { createRng } from '../src/core/rng.js';
+
+const fakeWorld = () => { const cyl = [], adds = []; return { cyl, adds, add: (c) => adds.push(c), addCyl: (id, x, z, r, h, y0, fl) => cyl.push([id, x, z, r, h, y0, fl]) }; };
+const distPoly = (x, z, pts) => { let b = Infinity; for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); b = Math.min(b, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return b; };
+const instPositions = (im) => { const out = [], m = new THREE.Matrix4(); for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); out.push([m.elements[12], m.elements[14]]); } return out; };
+
+describe('etapa 3: árvores com posições/colisores idênticos', () => {
+  afterEach(() => disposeRenderResources());
+  for (const [k, d] of [['ch01', ch01Data], ['ch02', ch02Data]]) {
+    it(`${k}: posições e colisores iguais aos de antes (qualquer qualidade)`, () => {
+      for (const q of ['low', 'medium', 'high']) {
+        const w = fakeWorld(), s = buildScenery({ world: w, data: d, quality: q });
+        const pick = (t) => ({ x: t.x, z: t.z, r: t.r, h: t.h, lean: t.lean, tone: t.tone });
+        expect(s.trees.map(pick)).toEqual(treesBefore[k].trees);
+        expect(w.cyl).toEqual(treesBefore[k].cyl);
+        s.dispose();
+      }
+    });
+    it(`${k}: vegetação decorativa não gera colisores`, () => {
+      const lo = fakeWorld(), hi = fakeWorld();
+      buildScenery({ world: lo, data: d, quality: 'low' }).dispose(); buildScenery({ world: hi, data: d, quality: 'high' }).dispose();
+      expect(hi.adds.length).toBe(lo.adds.length); expect(hi.cyl.length).toBe(lo.cyl.length);
+    });
+  }
+  it('variantes de árvore: as 3 aparecem e vêm de rng separado', () => {
+    const s = buildScenery({ world: fakeWorld(), data: ch01Data, quality: 'high' });
+    expect(new Set(s.trees.map((t) => t.variant))).toEqual(new Set(['pine', 'broadleaf', 'palm']));
+    s.dispose();
+  });
+  it('máscara de trilhas é por capítulo e é descartada no dispose; texturas compartilhadas não', () => {
+    const before = textureCacheSize();
+    const s = buildScenery({ world: fakeWorld(), data: ch01Data, quality: 'medium' });
+    let disposed = 0; s.groundMask.addEventListener('dispose', () => disposed++);
+    const cached = textureCacheSize(); expect(cached).toBeGreaterThan(before);
+    s.dispose(); expect(disposed).toBe(1); expect(textureCacheSize()).toBe(cached);
+  });
+  it('buildPathMask pinta a trilha e deixa o resto vazio', () => {
+    const { data, width, height } = buildPathMask(ch01Data, 128);
+    const [bx0, bz0, bx1, bz1] = ch01Data.bounds, gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20, px = (x, z) => { const u = Math.floor(((x - (bx0 + bx1) / 2 + gW / 2) / gW) * width), v = Math.floor(((z - (bz0 + bz1) / 2 + gD / 2) / gD) * height); return data[(v * width + u) * 4]; };
+    const [x, z] = ch01Data.paths[0].pts[1]; expect(px(x, z)).toBeGreaterThan(200); expect(px(bx0 + 1, bz0 + 1)).toBe(0);
+  });
+});
+
+describe('scatterVegetation', () => {
+  const run = (quality, d = ch01Data, seed = 5) => scatterVegetation({ data: d, quality, rng: createRng(seed) });
+  it('low: sem capim; demais camadas existem e são baratas', () => {
+    const v = run('low'); expect(v.grass).toBeNull();
+    expect(v.ferns.count + v.rocks.count + v.logs.count).toBeGreaterThan(0); expect(v.ferns.count).toBeLessThan(300);
+    v.dispose();
+  });
+  it('densidade escala com QUALITY.grass', () => {
+    const m = run('medium'), h = run('high');
+    expect(h.grass.count).toBeGreaterThan(m.grass.count); expect(m.grass.count / h.grass.count).toBeCloseTo(0.6, 1);
+    m.dispose(); h.dispose();
+  });
+  for (const [k, d] of [['ch01', ch01Data], ['ch02', ch02Data]]) it(`${k} high: nada a <1,2 m de trilha nem dentro de estruturas com colisão`, () => {
+    const v = run('high', d); let minPath = Infinity, inside = 0, n = 0;
+    for (const key of ['grass', 'ferns', 'rocks', 'logs']) for (const [x, z] of instPositions(v[key])) {
+      n++;
+      for (const p of d.paths) { minPath = Math.min(minPath, distPoly(x, z, p.pts)); for (const [px, pz] of p.pts) minPath = Math.min(minPath, Math.hypot(x - px, z - pz)); }
+      for (const s of d.structures) if (s.flags.length) {
+        if (s.kind === 'box' ? Math.abs(x - s.pos[0]) < s.size[0] / 2 && Math.abs(z - s.pos[1]) < s.size[2] / 2 : Math.hypot(x - s.pos[0], z - s.pos[1]) < s.r) inside++;
+      }
+    }
+    expect(n).toBeGreaterThan(1000); expect(minPath).toBeGreaterThanOrEqual(1.2); expect(inside).toBe(0);
+    v.dispose();
+  });
+  it('mesma seed → mesmas matrizes; seed diferente → outras', () => {
+    const a = run('high'), b = run('high'), c = run('high', ch01Data, 6);
+    expect(Array.from(a.grass.instanceMatrix.array)).toEqual(Array.from(b.grass.instanceMatrix.array));
+    expect(Array.from(a.rocks.instanceMatrix.array)).toEqual(Array.from(b.rocks.instanceMatrix.array));
+    expect(Array.from(a.grass.instanceMatrix.array)).not.toEqual(Array.from(c.grass.instanceMatrix.array));
+    a.dispose(); b.dispose(); c.dispose();
+  });
+  it('vento é por material próprio (clone), nunca no material compartilhado; sem sombra', () => {
+    const v = run('high'), shared = getMaterial('foliage', 'high', undefined);
+    expect(v.grass.material).not.toBe(shared); expect(shared.onBeforeCompile).toBe(THREE.Material.prototype.onBeforeCompile);
+    expect(v.grass.material.customProgramCacheKey()).toMatch(/veg/); expect(v.grass.castShadow).toBe(false);
+    expect(v.grass.material.userData.shared).toBeFalsy(); v.dispose();
+  });
+  it('dispose libera geometrias, clones e instâncias (materiais em cache ficam)', () => {
+    const v = run('high'); const ev = { geo: 0, clone: 0, shared: 0 };
+    for (const m of [v.grass, v.ferns, v.rocks, v.logs]) { m.geometry.addEventListener('dispose', () => ev.geo++); m.material.addEventListener('dispose', () => (m.material.userData.shared ? ev.shared++ : ev.clone++)); }
+    v.dispose(); expect(ev.geo).toBe(4); expect(ev.clone).toBe(2); expect(ev.shared).toBe(0);
+  });
+});
