@@ -10,7 +10,7 @@ describe('LOD visual (sem mexer em colisões ou saves)', () => {
       const selected = data.structures.filter((s) => isCullableSceneryDetail(s, data));
       expect(selected.length).toBeGreaterThan(0);
       const names = new Set(selected.map(s => s.id));
-      for (const important of ['archive_door_leaf', 'yard_gate_leaf', 'exit_gate', 'generator', 'radio_console', 'cover_a', 'shed_roof', 'gate_leaf', 'crates_shed']) {
+      for (const important of ['archive_door_leaf', 'yard_gate_leaf', 'exit_gate', 'generator', 'radio_console', 'cover_a', 'shed_roof', 'gate_leaf', 'crates_shed', 'tower_deck', 'lever_post_a', 'lever_post_b']) {
         expect(names.has(important), `${id}: ${important} não deve desaparecer`).toBe(false);
       }
     }
