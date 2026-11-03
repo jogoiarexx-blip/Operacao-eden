@@ -34,6 +34,72 @@
   },
   "cameraZones": [
     {
+      "id": "cz_portal_breach",
+      "rect": [
+        8.7,
+        25.5,
+        14.2,
+        30
+      ],
+      "exploreDistance": 1.95,
+      "aimDistance": 1.55
+    },
+    {
+      "id": "cz_portal_shed",
+      "rect": [
+        14.7,
+        9.7,
+        17.9,
+        14.5
+      ],
+      "exploreDistance": 1.85,
+      "aimDistance": 1.45
+    },
+    {
+      "id": "cz_portal_admin",
+      "rect": [
+        -14.3,
+        8.6,
+        -11.2,
+        13.7
+      ],
+      "exploreDistance": 1.85,
+      "aimDistance": 1.45
+    },
+    {
+      "id": "cz_portal_yard",
+      "rect": [
+        -3.1,
+        -7.2,
+        3.1,
+        -1.7
+      ],
+      "exploreDistance": 1.95,
+      "aimDistance": 1.5
+    },
+    {
+      "id": "cz_portal_archive",
+      "rect": [
+        8.2,
+        -32.2,
+        13.8,
+        -28.2
+      ],
+      "exploreDistance": 1.8,
+      "aimDistance": 1.4
+    },
+    {
+      "id": "cz_portal_exit",
+      "rect": [
+        20.1,
+        -31.3,
+        24.5,
+        -24.7
+      ],
+      "exploreDistance": 1.9,
+      "aimDistance": 1.45
+    },
+    {
       "id": "cz_admin",
       "zone": "admin_corridor",
       "rect": [
