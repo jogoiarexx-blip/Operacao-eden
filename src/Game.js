@@ -17,6 +17,7 @@ import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
 import { getChapter, CHAPTER_IDS } from './chapters/index.js';
 import { advanceToChapter, nextChapterId, exitCheckpoint } from './gameplay/ChapterTransition.js';
 import { availableBacktrackPortal, travelBacktrack, BACKTRACK_PORTALS } from './gameplay/Backtrack.js';
+import { safeRoomAt, keepDinosaurOutside } from './gameplay/SafeZones.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -253,12 +254,25 @@ export class Game {
     this.stats = new RunStats(this.save.stats ?? {});
     this._startRun(false);
     this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
+    this._showBacktrackVeil();
     this.input.clearEdges();
     this.hud.toast(`Retorno: ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`, 'good');
     const snap = structuredClone(this.save);
     this.saveManager.save(0, snap).catch(e => this.hud.toast('Falha no autosave: ' + e.message, 'warn'));
     return true;
   }
+  /** Transição curta sem recortar o fluxo de exploração nem repetir cenas narrativas. */
+  _showBacktrackVeil() {
+    this._travelVeil?.remove();
+    const veil = document.createElement('div');
+    veil.className = 'travel-veil';
+    veil.setAttribute('aria-hidden', 'true');
+    this.uiRoot.append(veil);
+    this._travelVeil = veil;
+    requestAnimationFrame(() => { if (veil.isConnected) veil.classList.add('fading'); });
+    setTimeout(() => { veil.remove(); if (this._travelVeil === veil) this._travelVeil = null; }, 850);
+  }
+
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
   _startRun(fresh) {
     const s = this.save;
@@ -289,6 +303,8 @@ export class Game {
     const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
     agent.backtrack = !!def.backtrack;
     agent.sectorId = def.sectorId ?? this.save?.sectorId;
+    const outside = keepDinosaurOutside(this.chapterDef.data, this.world, agent.x, agent.z, agent.radius);
+    if (outside.moved) { agent.x = agent.px = outside.x; agent.z = agent.pz = outside.z; }
     const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
@@ -478,9 +494,37 @@ export class Game {
     const evs = p.step(dt, this.simMs, inp, this.camera.yaw, activeInventory(this.save).consumables);
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
-    const nr = p.noiseRadius(); if (nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
+    const safeRoom = safeRoomAt(this.chapterDef.data, p.x, p.z);
+    const nr = p.noiseRadius();
+    if (!safeRoom && nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
     const ctx = this.aiCtx();
-    for (const a of this.agents) { if (!a.agent.dead) a.agent.update(dt, ctx); }
+    if (safeRoom) {
+      // Dentro do posto: cancelar ataques em andamento e silenciar a percepção de IA.
+      ctx.player = Object.assign(Object.create(p), { dead: true, invulnerable: true, takeDamage: () => 0 });
+      ctx.noises = [];
+      this.coordinator.clear();
+    }
+    for (const item of this.agents) {
+      const agent = item.agent;
+      if (agent.dead) continue;
+      if (safeRoom) {
+        agent.lastKnown = null; agent.noiseTarget = { x: agent.x, z: agent.z };
+        if (![AI.IDLE, AI.PATROL, AI.SEARCH].includes(agent.state)) {
+          agent.setState(AI.SEARCH, 2200);
+          agent.lunge = null; agent.chargeRun = null;
+        }
+      }
+      agent.update(dt, ctx);
+      // Resolver também investidas, empurrões e spawns dentro do perímetro do terminal.
+      const outside = keepDinosaurOutside(this.chapterDef.data, this.world, agent.x, agent.z, agent.radius);
+      if (outside.moved) {
+        agent.x = agent.px = outside.x; agent.z = agent.pz = outside.z;
+        agent.speedNow = 0;
+        agent.lunge = null; agent.chargeRun = null;
+        this.coordinator.release(agent);
+        if (agent.state !== AI.SEARCH) agent.setState(AI.SEARCH, 1800);
+      }
+    }
     this.chapter.step(dt, this.simMs, inp);
     if (this._stepBacktrack(inp)) return;
     this.combo.flush(tick, this.simMs);
