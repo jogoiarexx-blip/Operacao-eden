@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { revealArea } from './AreaTransitions.js';
+import { planRevisitPatrol } from './Backtrack.js';
 import bestiary from '../data/bestiary.json';
 import docs from '../data/documents.json';
 import secrets from '../data/secrets.json';
@@ -56,6 +57,13 @@ export class ChapterRuntime {
     }
     this.restoreBreakables();
     this.script.onLoad?.(this);
+    const extras = planRevisitPatrol(g.save, g.world, g.player, g.liveAgents?.() ?? []);
+    if (extras.length) {
+      const id = `backtrack:${g.save.chapterId}:${g.save.backtrack.visits[g.save.chapterId]}`;
+      g.combo.registerEncounter(id, extras.length, false);
+      extras.forEach((def) => g.spawnAgent(def, id));
+      g.hud.toast('Novos rastros de predadores foram encontrados no setor.', 'warn');
+    }
   }
   /** Barreiras: as já quebradas somem (colisor + mesh); as demais voltam (carregar save anterior no mesmo capítulo). */
   restoreBreakables() {

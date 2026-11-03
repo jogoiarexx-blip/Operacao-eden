@@ -52,7 +52,7 @@ export class ComboSystem {
     if (this.ledger.claimedRewardIds.has(rewardId)) return;           // inimigo já pago
     const k = this.chain.registerKill(ev, simMs);
     if (!k) return;
-    const paid = this.ledger.credit(rewardId, k.cc);
+    const paid = ev.backtrack ? this.ledger.creditRespawn(ev.sectorId ?? 'backtrack', rewardId, k.cc) : this.ledger.credit(rewardId, k.cc);
     this.sectorKillCC += paid; this.sectorKills++; this.stats.kills++;
     const enc = this.encounters[ev.encounterId];
     if (enc) { enc.dead++; }
@@ -72,6 +72,7 @@ export class ComboSystem {
   }
 
   counterHit(ev) {
+    if (ev.backtrack) return; // sem CC repetidos em contra-ataques às patrulhas
     const paid = this.ledger.credit(`${this.getRunId()}|counter|${ev.attackId}`, COUNTER_CC);   // uma vez por ação inimiga
     if (paid > 0) { this.stats.counters++; this.bus.emit('reward', { kind: 'counter', cc: paid, pe: 0, label: 'CONTRA-ATAQUE', encounterId: ev.encounterId }); }
   }

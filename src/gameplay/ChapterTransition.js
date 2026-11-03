@@ -1,5 +1,6 @@
 import { getChapter, CHAPTER_IDS } from '../chapters/index.js';
 import { getCharacter } from './Characters.js';
+import { recordChapterState } from './Backtrack.js';
 
 /** Capítulo seguinte na campanha (ou null quando não há mais capítulos jogáveis). */
 export function nextChapterId(id) {
@@ -22,6 +23,7 @@ export function exitCheckpoint(data) {
 export function advanceToChapter(save, chapterId) {
   const { data } = getChapter(chapterId);
   const s = structuredClone(save);
+  recordChapterState(s); // preserva progresso por capítulo para futuras revisitas
   s.chapterId = chapterId; s.sectorId = data.id; s.playerId = data.protagonist;
   s.checkpointId = 'start'; s.checkpoint = { pos: [...data.spawn.pos], yaw: data.spawn.yaw };
   s.stats = null; s.completedObjectives = [];

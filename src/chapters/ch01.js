@@ -213,7 +213,7 @@ export default {
   objectiveTarget(rt, id) { const pt = TARGETS[id]; return pt ? { x: pt[0], z: pt[1] } : null; },
   exitWhen(rt) {
     const p = rt.g.player;
-    return !!(rt.wf.chapter.ch01.gateOpen && STORY(rt.g.save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z));
+    return !!(!rt.g.save.chapterStats?.ch01 && rt.wf.chapter.ch01.gateOpen && STORY(rt.g.save, 'outpost_access') && inZone(data.zones.find((z) => z.id === 'exit_trigger'), p.x, p.z));
   },
   explorationVisited(save) {
     const z = new Set(save.persistentWorldFlags.zonesVisited);

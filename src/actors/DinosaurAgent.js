@@ -275,7 +275,7 @@ export class DinosaurAgent {
       const wasVulnerable = this.state === AI.STAGGER || this.vulnerable;
       this.dead = true; this.deadAt = sim; this.setState(AI.DEAD); coordinator.release(this);
       out.dead = true;
-      bus.emit('enemyNeutralized', { eventId: `kill:${this.id}`, runId: ctx.runId, encounterId: this.encounterId, enemyId: this.id, tick, creditedTo: 'player', baseCC: this.ccBase, vulnerable: wasVulnerable });
+      bus.emit('enemyNeutralized', { eventId: `kill:${this.id}`, runId: ctx.runId, encounterId: this.encounterId, enemyId: this.id, tick, creditedTo: 'player', baseCC: this.ccBase, vulnerable: wasVulnerable, backtrack: !!this.backtrack, sectorId: this.sectorId });
       return out;
     }
     // chefes: qualquer dano não interrompe; só o impacto pesado (`interrupt`, escopeta com bossMinPellets)
