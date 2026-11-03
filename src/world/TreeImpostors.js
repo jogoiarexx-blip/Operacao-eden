@@ -96,12 +96,15 @@ export function createUnreachableTreeCards(bounds, chapter = 1, quality = 1) {
     },
     update(camera, dt = 0.016) {
       if (!camera || !Number.isFinite(camera.x) || !Number.isFinite(camera.z)) return;
-      if (initialized && Math.hypot(camera.x - lastX, camera.z - lastZ) < 0.2) return;
+      // Concluir o billboard gradual até o ângulo final, mesmo com câmera parada.
+      // Interromper no meio do blend deixava o painel virado de lado após andar.
       lastX = camera.x; lastZ = camera.z;
       const k = initialized ? 1 - Math.exp(-Math.max(0.015, dt) * 5) : 1;
+      let changed = !initialized;
       trees.forEach((t, i) => {
         const target = Math.atan2(camera.x - t.x, camera.z - t.z);
         let delta = Math.atan2(Math.sin(target - orientations[i]), Math.cos(target - orientations[i]));
+        if (Math.abs(delta) > 0.005) changed = true;
         orientations[i] += delta * k;
         pos.set(t.x, t.height / 2, t.z);
         scale.set(t.width, t.height, 1);
@@ -111,7 +114,7 @@ export function createUnreachableTreeCards(bounds, chapter = 1, quality = 1) {
           mesh.setMatrixAt(i, matrix);
         });
       });
-      panels.forEach(mesh => { mesh.instanceMatrix.needsUpdate = true; });
+      if (changed) panels.forEach(mesh => { mesh.instanceMatrix.needsUpdate = true; });
       initialized = true;
     },
     stats() {
