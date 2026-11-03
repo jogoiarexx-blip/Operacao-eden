@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { revealArea } from './AreaTransitions.js';
 import bestiary from '../data/bestiary.json';
 import docs from '../data/documents.json';
 import secrets from '../data/secrets.json';
@@ -40,6 +41,7 @@ export class ChapterRuntime {
     this.dispose();
     this.group = new THREE.Group(); g.scene.add(this.group);
     this.holdMs = 0; this.lateAt = null; this.pickups = []; this.lastZones = new Set();
+    this.areaBeatsShown = new Set(); this.areaBeatUntil = -1;
     // pickups ainda não coletados
     for (const p of data.pickups) {
       if (this.wf.pickedUp.includes(p.id)) continue;
@@ -119,7 +121,11 @@ export class ChapterRuntime {
     const vz = this.wf.zonesVisited;
     if (!vz.includes(z.id)) vz.push(z.id);
     this.script.onZoneEnter?.(this, z);
+    this.revealArea(z.id);
   }
+
+  /** Portas e zonas podem dirigir uma breve passagem visual sem interromper movimento ou IA. */
+  revealArea(trigger) { return revealArea(this, trigger); }
 
   objectives() {
     const save = this.g.save, done = save.completedObjectives;
