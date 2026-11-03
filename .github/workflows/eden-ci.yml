@@ -52,6 +52,9 @@ jobs:
 
   publish_pages:
     name: Publicar build compilado e assets
+    concurrency:
+      group: eden-publish-pages
+      cancel-in-progress: false
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -83,5 +86,21 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "build: publicar Operacao Eden com Regina [skip ci]"
-            git push origin HEAD:main
+            # Não sobrescreva commits novos; outros fluxos podem publicar durante o playtest.
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if ! git rebase origin/main; then
+                git rebase --abort
+                echo "::warning::Build superado por uma publicacao concorrente; fluxo mais recente fará o deploy."
+                exit 0
+              fi
+              if git push origin HEAD:main; then
+                echo "Pages atualizado com a Regina."
+                exit 0
+              fi
+              echo "Tentativa $attempt rejeitada; repetindo sem force-push."
+              sleep 2
+            done
+            echo "::error::Falha apos 5 tentativas de publicacao."
+            exit 1
           fi
