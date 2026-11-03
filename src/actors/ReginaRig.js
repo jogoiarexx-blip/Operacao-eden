@@ -9,6 +9,12 @@ const CLIP_DURATIONS = {
   shoot: 0.28, reload: 1.1, use: 0.8, dodge: 0.34, hurt: 0.35, death: 0.95,
 };
 const ONESHOT = new Set(['shoot', 'reload', 'use', 'dodge', 'hurt', 'death']);
+// O corpo continua andando enquanto braços/peito executam recarga ou disparo.
+const GAIT_STATES = new Set(['walk','walkBack','run','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight']);
+const LOCOMOTION_STATES = new Set(['idle','aim', ...GAIT_STATES]);
+const UPPER_ACTIONS = new Set(['shoot','reload','use']);
+const FULL_BODY_ACTIONS = new Set(['dodge','hurt','death']);
+const LOWER_BONES = new Set(['Hips','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg','LeftFoot','RightFoot']);
 const step = (...values) => values;
 const q = (x = 0, y = 0, z = 0) => [x, y, z];
 
@@ -294,6 +300,9 @@ export class ReginaRig {
     this.active = false;
     this.model = null;
     this.actions = {};
+    this.lowerActions = {};
+    this.baseAction = null; this.baseState = null;
+    this.overlayAction = null; this.overlayState = null;
     this.state = null;
     this.flashT = 0;
     this.shotAnimT = 0;
@@ -339,6 +348,16 @@ export class ReginaRig {
       action.setLoop(ONESHOT.has(name) ? THREE.LoopOnce : THREE.LoopRepeat);
       action.clampWhenFinished = ONESHOT.has(name);
       this.actions[name] = action;
+      if (LOCOMOTION_STATES.has(name)) {
+        // Clip de pernas: não disputa transformações dos braços com a ação superior.
+        const tracks = clip.tracks.filter(t => LOWER_BONES.has(t.name.split('.')[0]));
+        if (tracks.length) {
+          const lowerClip = new THREE.AnimationClip('ReginaLower_' + name, clip.duration, tracks);
+          const lower = this.mixer.clipAction(lowerClip);
+          lower.enabled = true; lower.setLoop(THREE.LoopRepeat);
+          this.lowerActions[name] = lower;
+        }
+      }
     }
     this.sourceClipCount = gltf.animations.length;
     const socket = model.getObjectByName('RightHandWeaponSocket') || model.getObjectByName('RightHand');
@@ -368,13 +387,15 @@ export class ReginaRig {
     this.root.add(model);
     this.model = model;
     this.ready = true;
-    this.state = null;
+    this.state = null; this.baseAction = null; this.baseState = null;
+    this.overlayAction = null; this.overlayState = null;
     return true;
   }
 
   triggerShot() {
     this.shotAnimT = CLIP_DURATIONS.shoot;
-    if (this.state === 'shoot' && this.actions.shoot) this.actions.shoot.reset().play();
+    if (this.overlayState === 'shoot' && this.actions.shoot)
+      this.actions.shoot.reset().play();
   }
 
   setActive(active) {
@@ -385,32 +406,54 @@ export class ReginaRig {
   sync(player,dt,flashT,opacity) {
     if (!this.ready || !this.active) return;
     this.shotAnimT = Math.max(0, this.shotAnimT - Math.max(0, dt));
-    const wanted = stateForRegina(player,Math.max(flashT,this.shotAnimT));
-    if (wanted !== this.state) {
-      const prev = this.actions[this.state];
-      const next = this.actions[wanted];
-      const transition = wanted === 'shoot' || wanted === 'dodge' || wanted === 'hurt' ? 0.07 : 0.16;
-      if (prev && prev !== next) prev.fadeOut(transition);
-      const gaitStates = new Set(['walk','walkBack','run','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight']);
-      const phase = gaitStates.has(this.state) && gaitStates.has(wanted) && prev
-        ? (prev.time / prev.getClip().duration) % 1 : null;
-      next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(transition).play();
-      if (phase !== null) next.time = phase * next.getClip().duration;
-      this.state = wanted;
+    const wanted = stateForRegina(player, Math.max(flashT, this.shotAnimT));
+    const upper = UPPER_ACTIONS.has(wanted);
+    const full = FULL_BODY_ACTIONS.has(wanted);
+    // Em um disparo/recarga, a base continua andando (ou parada) sem
+    // animar ossos dos braços. O estado de combate fica numa camada separada.
+    const baseWanted = full ? null : upper
+      ? stateForRegina({ ...player, reloading: false, using: null, simShooting: false }, 0)
+      : wanted;
+    const nextBase = baseWanted
+      ? (upper ? this.lowerActions[baseWanted] : null) ?? this.actions[baseWanted]
+      : null;
+    const nextOverlay = (upper || full) ? this.actions[wanted] : null;
+    const transition = full || wanted === 'shoot' ? 0.08 : 0.16;
+
+    if (nextBase !== this.baseAction) {
+      const previous = this.baseAction;
+      const phase = previous && nextBase &&
+        GAIT_STATES.has(this.baseState) && GAIT_STATES.has(baseWanted)
+        ? (previous.time / previous.getClip().duration) % 1 : null;
+      previous?.fadeOut(transition);
+      if (nextBase) {
+        nextBase.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(transition).play();
+        if (phase !== null) nextBase.time = phase * nextBase.getClip().duration;
+      }
+      this.baseAction = nextBase; this.baseState = baseWanted;
     }
-    if (['walk','walkBack','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight'].includes(wanted))
-      this.actions[wanted].setEffectiveTimeScale(Math.max(0.55, Math.min(1.45, player.speed / (wanted.startsWith('aim') ? 2.0 : 3.1))));
-    if (wanted === 'run')
-      this.actions[wanted].setEffectiveTimeScale(Math.max(0.7, Math.min(1.4, player.speed / 5.4)));
-    if (wanted === 'reload') {
-      // Tempo visual acompanha o cronômetro real da arma, inclusive recarga por cartucho.
+    if (nextOverlay !== this.overlayAction) {
+      this.overlayAction?.fadeOut(transition);
+      if (nextOverlay) nextOverlay.reset().setEffectiveTimeScale(1)
+        .setEffectiveWeight(1).fadeIn(transition).play();
+      this.overlayAction = nextOverlay;
+      this.overlayState = nextOverlay ? wanted : null;
+    }
+    this.state = wanted;
+
+    if (nextBase && ['walk','walkBack','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight'].includes(baseWanted))
+      nextBase.setEffectiveTimeScale(Math.max(0.55, Math.min(1.45, player.speed / (baseWanted.startsWith('aim') ? 2.0 : 3.1))));
+    if (nextBase && baseWanted === 'run')
+      nextBase.setEffectiveTimeScale(Math.max(0.7, Math.min(1.4, player.speed / 5.4)));
+    if (wanted === 'reload' && nextOverlay) {
+      // Tempo visual acompanha o cronômetro real da arma (também por cartucho).
       const w = player.weapon;
       const seconds = w?.reloadMode === 'shell'
         ? ((w.reloadOpenMs ?? 0) + (w.reloadShellMs ?? 550) * Math.max(1, player.magSize - player.mag)) / 1000
         : (w?.reloadMs ?? 1100) / 1000;
-      this.actions.reload.setEffectiveTimeScale(CLIP_DURATIONS.reload / Math.max(0.25, seconds));
+      nextOverlay.setEffectiveTimeScale(CLIP_DURATIONS.reload / Math.max(0.25, seconds));
     }
-    this.mixer.update(Math.min(Math.max(dt,0), 0.05));
+    this.mixer.update(Math.min(Math.max(dt, 0), 0.05));
     if (this.weapon) {
       this.weapon.scale.z = player.weaponId === 'shotgun' ? 2.2 : 1;
       this.flash.visible = flashT > 0;
