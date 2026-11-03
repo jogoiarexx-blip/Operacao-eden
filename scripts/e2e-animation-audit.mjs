@@ -73,13 +73,20 @@ try {
   console.log('CORPSE_START',JSON.stringify(corpse));
   if(!corpse.id)throw Error('Não foi possível preparar o cadáver de teste');
   {
-    await page.waitForTimeout(5600);
-    const after=await page.evaluate((id)=>{
-      const g=window.__game;return {sim:g.simMs,remaining:g.agents.some(x=>x.agent.id===id),
-        meshInScene:g.scene.children.some(o=>o.userData?.agentId===id)};
-    },corpse.id);
-    console.log('CORPSE_AFTER',JSON.stringify(after));
-    if(after.remaining)throw Error('Cadáver não foi removido após cinco segundos');
+    // O Chromium headless com SwiftShader pode renderizar mais lento do que
+    // tempo real; o prazo é medido em simulação, não em relógio de parede.
+    const checks = await page.evaluate(({id,started}) => {
+      const g=window.__game;
+      g.simMs = started + 4950;
+      g.step(1/60);
+      const before = g.agents.some(x=>x.agent.id===id);
+      g.simMs = started + 5050;
+      g.step(1/60);
+      const after = g.agents.some(x=>x.agent.id===id);
+      return {before, after, elapsed:g.simMs-started};
+    },corpse);
+    console.log('CORPSE_SIM_TIME',JSON.stringify(checks));
+    if(!checks.before || checks.after)throw Error('Prazo de remoção incorreto: '+JSON.stringify(checks));
   }
   if(errors.length)throw Error('Erros de navegador: '+JSON.stringify(errors));
   console.log('ANIMATION_AND_CORPSE_AUDIT_PASS');
