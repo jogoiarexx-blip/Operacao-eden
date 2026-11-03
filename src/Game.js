@@ -123,6 +123,7 @@ export class Game {
     // Primeiro retirar o destino: evita que o único slot LRU seja expulso
     // enquanto guardamos o mapa ativo anterior.
     const cached = forceFresh ? null : this.sceneCache.take(id);
+    this._lastSceneCacheHit = !!cached;
     this.chapter?.dispose();
     if (this.scenery) {
       this.scene.remove(this.scenery.group);
@@ -132,6 +133,7 @@ export class Game {
         // Malhas regionais são descartáveis: manter a cena base, sem reservar
         // buffers de detalhes de uma região inativa na GPU.
         outgoing.scenery.regionalDetails?.dispose();
+        outgoing.scenery.neighborSector?.dispose();
         this.sceneCache.store(this.chapterId, outgoing);
       } else {
         outgoing.props?.dispose?.();
@@ -309,7 +311,7 @@ export class Game {
       this.camera.snapBehind(p.yaw);
     }
     this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
-    this._showBacktrackVeil();
+    this._showBacktrackVeil(this._lastSceneCacheHit);
     this.input.clearEdges();
     this.hud.toast(`Retorno: ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`, 'good');
     const snap = structuredClone(this.save);
@@ -317,15 +319,15 @@ export class Game {
     return true;
   }
   /** Transição curta sem recortar o fluxo de exploração nem repetir cenas narrativas. */
-  _showBacktrackVeil() {
+  _showBacktrackVeil(warm = false) {
     this._travelVeil?.remove();
     const veil = document.createElement('div');
-    veil.className = 'travel-veil';
+    veil.className = 'travel-veil' + (warm ? ' warm' : '');
     veil.setAttribute('aria-hidden', 'true');
     this.uiRoot.append(veil);
     this._travelVeil = veil;
     requestAnimationFrame(() => { if (veil.isConnected) veil.classList.add('fading'); });
-    setTimeout(() => { veil.remove(); if (this._travelVeil === veil) this._travelVeil = null; }, 850);
+    setTimeout(() => { veil.remove(); if (this._travelVeil === veil) this._travelVeil = null; }, warm ? 320 : 850);
   }
 
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
@@ -568,7 +570,9 @@ export class Game {
     const p = this.player, tick = this.loop.tick; this.simMs += dt * 1000;
     const inp = this.input.snapshot();
     this.noises.length = 0;
-    this.scenery.servicePassage?.setUnlocked(canUseServicePassage(this.save));
+    const passageAvailable = canUseServicePassage(this.save);
+    this.scenery.servicePassage?.setUnlocked(passageAvailable);
+    this.scenery.neighborSector?.setUnlocked(passageAvailable);
     const evs = p.step(dt, this.simMs, inp, this.camera.yaw, activeInventory(this.save).consumables);
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
