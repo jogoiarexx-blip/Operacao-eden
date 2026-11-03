@@ -35,5 +35,33 @@ try {
       !assets.some(x => x.status === 200) || problems.length) {
     throw Error('GLB Regina não comprovado em execução: ' + JSON.stringify({ report, assets, problems }));
   }
+  // Além do download, testa os clips realmente ligados aos ossos no navegador.
+  const motion = await page.evaluate(() => {
+    const rig = window.__game.playerView.regina;
+    const player = (overrides) => ({
+      dead: false, dodging: false, hurtT: 0, using: null,
+      reloading: false, aiming: false, simShooting: false,
+      sprinting: false, weaponId: 'pistol', speed: 2,
+      vx: 0, vz: -2, yaw: 0, ...overrides,
+    });
+    const cases = [
+      ['walkBack', { vx: 0, vz: 2 }],
+      ['aimBack', { vx: 0, vz: 2, aiming: true }],
+      ['aimStrafeLeft', { vx: -2, vz: 0, aiming: true }],
+      ['aimStrafeRight', { vx: 2, vz: 0, aiming: true }],
+    ];
+    const observed = [];
+    for (const [wanted, overrides] of cases) {
+      for (let i = 0; i < 7; i++) rig.sync(player(overrides), 1 / 60, 0, 1);
+      const action = rig.actions[wanted];
+      observed.push({ wanted, actual: rig.state, active: action?.isRunning(),
+        boneTracks: action?.getClip().tracks.filter(track => /LeftUpLeg|RightUpLeg|LeftFoot|Hips/.test(track.name)).length ?? 0 });
+    }
+    return { observed, loadedBones: ['Hips','LeftUpLeg','RightUpLeg','LeftFoot','RightFoot'].every(b => !!rig.model.getObjectByName(b)) };
+  });
+  console.log('REGINA_MOTION', JSON.stringify(motion));
+  if (!motion.loadedBones || motion.observed.some(x => x.actual !== x.wanted || !x.active || x.boneTracks < 2))
+    throw Error('Clips direcionais da Regina não animaram os ossos: ' + JSON.stringify(motion));
+  console.log('REGINA_MOTION_PASS');
   console.log('REGINA_CHROMIUM_PASS');
 } finally { await browser.close(); }
