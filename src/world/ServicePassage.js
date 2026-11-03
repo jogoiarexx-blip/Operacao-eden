@@ -94,7 +94,7 @@ export function createServicePassage({ data, world }) {
     p.x, 2.55, p.centerZ + p.outbound * 0.05);
   const laneLine = add(new THREE.BoxGeometry(0.09, 0.018, 1.15), stripeMat,
     p.x, 0.067, p.centerZ);
-  laneLine.visible = true; gateSign.name = 'service_wayfinding';
+  laneLine.visible = false; gateSign.name = 'service_wayfinding';
   let unlocked = false;
   return {
     group, config: p,
