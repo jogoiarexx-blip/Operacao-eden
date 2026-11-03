@@ -16,6 +16,7 @@ import { Dialogue } from './gameplay/Dialogue.js';
 import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
 import { getChapter, CHAPTER_IDS } from './chapters/index.js';
 import { advanceToChapter, nextChapterId, exitCheckpoint } from './gameplay/ChapterTransition.js';
+import { availableBacktrackPortal, travelBacktrack } from './gameplay/Backtrack.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -133,7 +134,16 @@ export class Game {
       if (e.bleeding && !this._bleedToldAt) { this._bleedToldAt = this.simMs; this.hud.toast('Você está sangrando — use um hemostático.', 'warn'); }
     });
     b.on('enemyNeutralized', (e) => {
-      const wf = this.save.persistentWorldFlags; if (!wf.defeatedEnemies.includes(e.enemyId)) wf.defeatedEnemies.push(e.enemyId);
+      if (e.backtrack) {
+        const killed = this.save.backtrack?.patrolDeaths;
+        if (killed && !killed.includes(e.enemyId)) {
+          killed.push(e.enemyId);
+          if (killed.length > 64) killed.splice(0, killed.length - 64);
+        }
+      } else {
+        const wf = this.save.persistentWorldFlags;
+        if (!wf.defeatedEnemies.includes(e.enemyId)) wf.defeatedEnemies.push(e.enemyId);
+      }
       const a = this.agents.find((x) => x.agent.id === e.enemyId); this.audio.play('death', a?.agent.x, a?.agent.z);
     });
     b.on('creatureCue', (e) => { if (e.cue === 'spotted') this.audio.play('spotted', e.x, e.z); if (e.cue === 'roar') this.audio.play('roar', e.x, e.z); });
@@ -230,6 +240,25 @@ export class Game {
     try { this.syncSaveFromRuntime(); await this.saveManager.save(0, this.save); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.startCutscene('intro');
   }
+  /** Entrada e saída pelos portais de retorno, sem resetar história, inventário ou chefe. */
+  _stepBacktrack(inp) {
+    if (!this.sm.is(S.PLAYING) || this.player.dead || this.player.dodging) return false;
+    const portal = availableBacktrackPortal(this.save, this.player.x, this.player.z);
+    if (!portal || this.chapter.promptTarget) return false;
+    this.hud.setPrompt(`<kbd>F</kbd> ${portal.label}`);
+    if (!inp.interactPressed) return false;
+    this.combo.endChain('exit');
+    this.syncSaveFromRuntime();
+    this.save = travelBacktrack(this.save, portal);
+    this.stats = new RunStats(this.save.stats ?? {});
+    this._startRun(false);
+    this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
+    this.input.clearEdges();
+    this.hud.toast(`Retorno: ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`, 'good');
+    const snap = structuredClone(this.save);
+    this.saveManager.save(0, snap).catch(e => this.hud.toast('Falha no autosave: ' + e.message, 'warn'));
+    return true;
+  }
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
   _startRun(fresh) {
     const s = this.save;
@@ -258,6 +287,8 @@ export class Game {
     const species = bestiary.species[def.type];
     const Agent = species.boss ? K1Agent : DinosaurAgent;
     const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
+    agent.backtrack = !!def.backtrack;
+    agent.sectorId = def.sectorId ?? this.save?.sectorId;
     const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
@@ -450,6 +481,7 @@ export class Game {
     const ctx = this.aiCtx();
     for (const a of this.agents) { if (!a.agent.dead) a.agent.update(dt, ctx); }
     this.chapter.step(dt, this.simMs, inp);
+    if (this._stepBacktrack(inp)) return;
     this.combo.flush(tick, this.simMs);
     this.dialogue.update(dt);
     this.fx.update(dt);
