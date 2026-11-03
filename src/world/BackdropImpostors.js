@@ -15,7 +15,7 @@ const THEMES = {
   1: {
     sky: '#233538', haze: '#435d5b', ridge: '#415d5a',
     distant: '#2e4b48', silhouette: '#17332f', trunks: '#243a34',
-    glint: '#a7b5a2', mid: '#33534b', canopy: '#24433b',
+    glint: '#617d70', mid: '#36584f', canopy: '#29473e',
   },
   2: {
     sky: '#25363f', haze: '#56676b', ridge: '#4a626b',
@@ -33,7 +33,7 @@ const randomFrom = (seed) => () => {
 export function panoramicRidgeY(x, width, baseline, amplitude) {
   const a = x / width * Math.PI * 2;
   const broad = Math.cos(2 * a) * .41 + Math.cos(5 * a) * .22;
-  const crags = Math.cos(9 * a) * .12 + Math.cos(16 * a) * .055;
+  const crags = Math.cos(9 * a) * .12 + Math.cos(16 * a) * .055 + Math.cos(23 * a) * .032 + Math.cos(31 * a) * .017;
   // Assimetria interna que converge suavemente a zero na costura.
   const asymmetry = Math.sin(3 * a) * (1 - Math.cos(a)) * .13;
   return baseline - (broad + crags + asymmetry) * amplitude;
@@ -94,7 +94,7 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
   }
   // Em primeiro plano predominam árvores tropicais de copa larga, mescladas
   // com palmeiras e coníferas distantes; nenhuma árvore extra na GPU.
-  const amount = near ? 70 : 126;
+  const amount = near ? 70 : 113;
   for (let i = 0; i < amount; i++) {
     const x = random() * w;
     const base = (near ? 235 : 217) + random() * (near ? 33 : 28);
@@ -125,8 +125,8 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
         }
       } else {
         drawCanopy(ctx, px, base - height * .76, radius, color, random);
-        ctx.globalAlpha = treeAlpha * .77;
-        drawCanopy(ctx, px + radius * .22, base - height * .87, radius * .57, colors.glint, random);
+        ctx.globalAlpha = treeAlpha * .24;
+        drawCanopy(ctx, px + radius * .12, base - height * .79, radius * .42, colors.glint, random);
       }
     });
     ctx.globalAlpha = 1;
@@ -311,8 +311,9 @@ export function backdropLayout(bounds, layer = 'far') {
   const radius = Math.hypot((x1 - x0) / 2, (z1 - z0) / 2) + offset;
   return {
     id: layer, x, z, radius,
-    y: layer === 'near' ? 4.8 : 12.4,
-    height: layer === 'near' ? 14 : 30,
+    // Ergue o relevo distante sobre muros/copas sem elevar a base do cilindro.
+    y: layer === 'near' ? 4.8 : 18.8,
+    height: layer === 'near' ? 14 : 42,
     radialSegments: 48,
   };
 }
