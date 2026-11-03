@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createRng } from '../core/rng.js';
 import { createVisualDetailCuller } from './VisualDetailCulling.js';
 import { createVegetationSectorStream } from './VegetationSectorStream.js';
+import { createBackdropImpostors } from './BackdropImpostors.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -35,6 +36,9 @@ export function buildScenery({ world, data, quality }) {
   const [bx0, bz0, bx1, bz1] = data.bounds;
   const rng = createRng(data.treeSeed);
   const treeMaxZ = data.treeMaxZ ?? 33;   // limite sul da vegetação (a margem do rio fica livre)
+  // Imagens estáticas pré-pintadas em CanvasTexture: fora dos limites do mapa.
+  const backdrop = createBackdropImpostors({ bounds: data.bounds, chapter: data.chapter, quality });
+  group.add(backdrop.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -178,12 +182,13 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       vegetationStream.setQuality(qc.foliage);
+      backdrop.setQuality(qc);
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = qc.shadows;
       if (qc.shadows) {
@@ -219,6 +224,7 @@ export function buildScenery({ world, data, quality }) {
     },
     setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
     dispose() {
+      backdrop.dispose();
       group.traverse((o) => {
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
