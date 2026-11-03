@@ -88,6 +88,16 @@ function buildProps({ scene, world, data: d, scenery }) {
   return {
     group, beaconLamp, gateMesh, coroRings, planks, coroPattern,
     startCollapse() { if (collapse.t < 0) collapse.t = 0; },
+    /** Reverte tábuas após retry ou save anterior; necessário com cenário em cache. */
+    restoreBridge(collapsed) {
+      collapse.t = collapsed ? 1 : -1;
+      for (let i = 4; i < 8; i++) {
+        const p = planks[i], k = collapsed ? 1 : 0;
+        p.position.y = 0.02 - k * 0.45 * (1 + (i % 2) * 0.4);
+        p.rotation.z = (i % 2 ? 1 : -1) * k * 0.35;
+        p.rotation.x = k * 0.2;
+      }
+    },
     setBeaconPowered(on) { if (beaconLamp) beaconLamp.material.color.setHex(on ? 0x38e07a : 0xd92d2d); },
     setGateOpen(open, instant) { if (gateMesh) { gateMesh.userData.target = open ? 3.8 : 0; if (instant) gateMesh.position.y = 1.8 + gateMesh.userData.target; } },
     update(dt, t = 0) {
@@ -160,7 +170,8 @@ export default {
     const sz = data.zones.find((q) => q.id === 'suspicious_west'); rt.suspiciousCenter = { x: sz.pos[0] + 3.5, z: sz.pos[1] - 2.5, r: sz.r };
     g.props.setBeaconPowered(STORY(save, 'beacon_repaired'));
     g.props.setGateOpen(wf.chapter.ch01.gateOpen, true); g.world.setEnabled('gate_leaf', !wf.chapter.ch01.gateOpen);
-    if (wf.bridgeCollapsed) g.props.startCollapse();
+    if (g.props.restoreBridge) g.props.restoreBridge(!!wf.bridgeCollapsed);
+    else if (wf.bridgeCollapsed) g.props.startCollapse();
     g.props.coroPattern.active = false;
   },
   step(rt, dt, simMs) {
