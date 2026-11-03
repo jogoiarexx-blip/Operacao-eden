@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { createRng } from '../core/rng.js';
 import { getMaterial } from './Materials.js';
 import { QUALITY } from '../core/Settings.js';
+import { getEnvCube } from './ProceduralTextures.js';
 
 /**
  * Detalhe VISUAL das estruturas (degraus/chanfros, pilastres, chapas, janelas, cabos, manchas) e poças.
@@ -131,8 +132,9 @@ export function buildPuddles({ data, quality }) {
   }
   const geo = mergeGeometries(parts); parts.forEach((p) => p.dispose());
   const pbr = !!QUALITY[qk].pbr;
-  const base = { color: 0x0b1518, transparent: true, opacity: pbr ? 0.9 : 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
-  const mat = pbr ? new THREE.MeshStandardMaterial({ ...base, roughness: 0.06, metalness: 0.1 }) : new THREE.MeshLambertMaterial(base);
+  const base = { color: pbr ? 0x2a3f48 : 0x16262c, transparent: true, opacity: pbr ? 0.82 : 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
+  // Médio/Alto: brilho molhado com cubo de ambiente falso (só neste material; scene.environment fica intacto). Baixo: decalque Lambert azulado barato.
+  const mat = pbr ? new THREE.MeshStandardMaterial({ ...base, roughness: 0.05, metalness: 0.0, envMap: getEnvCube(), envMapIntensity: 1.6 }) : new THREE.MeshLambertMaterial(base);
   const mesh = new THREE.Mesh(geo, mat); mesh.renderOrder = 1; group.add(mesh);
   return { group, dispose() { geo.dispose(); mat.dispose(); } };
 }

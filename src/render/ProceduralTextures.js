@@ -49,5 +49,24 @@ export function getTexture(kind, { seed = 1, size = 256, repeat, accent, base } 
   }
   return t;
 }
-export function disposeTextures() { for (const t of cache.values()) t.dispose(); cache.clear(); }
+let envCube = null;
+/** Cubo de ambiente falso (céu noturno + lua), gerado uma vez e compartilhado: só para reflexos (poças). Nunca vira scene.environment. */
+export function getEnvCube() {
+  if (envCube) return envCube;
+  const N = 16, faces = [];
+  for (let f = 0; f < 6; f++) {
+    const data = new Uint8Array(N * N * 4);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const v = f === 2 ? 1 : f === 3 ? 0 : 1 - y / (N - 1);              // +y topo, -y chão, laterais: horizonte (y=N-1) mais claro
+      let r = 14 + 40 * (f === 2 ? 0.4 : (1 - v)), g = 26 + 54 * (f === 2 ? 0.4 : (1 - v)), b = 34 + 64 * (f === 2 ? 0.4 : (1 - v));
+      if (f === 3) { r = 8; g = 14; b = 16; }
+      if (f === 2) { const d = Math.hypot(x - 5, y - 6); if (d < 3) { const k = 1 - d / 3; r += 190 * k; g += 200 * k; b += 215 * k; } }
+      const o = (y * N + x) * 4; data[o] = Math.min(255, r); data[o + 1] = Math.min(255, g); data[o + 2] = Math.min(255, b); data[o + 3] = 255;
+    }
+    const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat); t.needsUpdate = true; faces.push(t);
+  }
+  envCube = new THREE.CubeTexture(faces); envCube.colorSpace = THREE.SRGBColorSpace; envCube.generateMipmaps = true; envCube.minFilter = THREE.LinearMipmapLinearFilter; envCube.needsUpdate = true;
+  return envCube;
+}
+export function disposeTextures() { for (const t of cache.values()) t.dispose(); cache.clear(); if (envCube) { envCube.image.forEach((t) => t.dispose?.()); envCube.dispose(); envCube = null; } }
 export const textureCacheSize = () => cache.size;
