@@ -43,3 +43,12 @@
 3. `scripts/e2e-backdrops.mjs` — captura do jogo e das quatro texturas produzidas em Chromium.
 
 **Publicação:** alteração de código-fonte feita diretamente na branch `main`; o HTML monolítico de GitHub Pages é compilado e atualizado pelo workflow somente quando os testes/Playwright terminarem com sucesso. Não afirmar versão publicada sem esse resultado.
+
+## Rechecagem visual com artefato real (segunda passada)
+
+- O workflow [41670309594](https://github.com/jogoiarexx-blip/Operacao-eden/actions/runs/41670309594) concluiu com **unitários, build, Chromium e publicação aprovados** para a primeira pintura R2.6.
+- O artefato incluiu **quatro PNGs reais das CanvasTextures** (far/near de cada fase) e as duas capturas in-game. A imagem da floresta ficou com reflexos de copa claros demais, gerando pontos quase esbranquiçados; ajustados para uma luz mais discreta.
+- A comparação objetiva das capturas de spawn R2.5→R2.6 apontou diferença visual pequena (**0,19% dos pixels com diferença máxima de canal >20 em ch01, 0,32% em ch02**, cada imagem 1280×720). Isso **não** comprova ganho artístico perceptível no jogo: indica que árvores e paredes 3D bloqueiam o campo de visão.
+- Por isso a segunda passada elevou a linha de relevo do panorama distante mudando **altura do cilindro de 30 para 42** e **centro vertical de 12,4 para 18,8**, preservando o fundo abaixo do chão (**base -2,2**) e a mesma quantidade de textura, triângulos e draw calls por camada.
+- A curva passou a ter nervuras altas adicionais, sem quebrar continuidade na junção de 360°. O teste agora garante que o cilindro distante mantém a base abaixo do solo.
+- **Evidência pendente:** avaliar a próxima captura WebGL após a segunda passada para confirmar que o relevo elevado aparece acima das paredes. A melhora efetiva na tela de jogo e o FPS ainda não estão certificados para essa passagem.
