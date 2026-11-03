@@ -307,6 +307,9 @@ export class ReginaRig {
     this.flashT = 0;
     this.shotAnimT = 0;
     this.loadPromise = null;
+    this.footAnchor = null;
+    this.footOffset = 0;
+    this.weaponSupport = { active: false, before: null, after: null };
   }
 
   async load() {
@@ -385,6 +388,20 @@ export class ReginaRig {
     }
     model.visible = this.active;
     this.root.add(model);
+    // A altura de referência dos tornozelos é medida no bind do GLB; não
+    // assumimos que o osso Foot seja exatamente a sola da bota.
+    const feet = ['LeftFoot','RightFoot'].map(n=>model.getObjectByName(n)).filter(Boolean);
+    model.updateMatrixWorld(true);
+    this.root.updateMatrixWorld(true);
+    this.footAnchor = feet.length === 2
+      ? Math.min(...feet.map(b => this.root.worldToLocal(b.getWorldPosition(new THREE.Vector3())).y))
+      : null;
+    this.footBones = feet;
+    this.footOffset = 0;
+    this.baseModelY = model.position.y;
+    this.leftForearm = model.getObjectByName('LeftForeArm');
+    this.leftHand = model.getObjectByName('LeftHand');
+
     this.model = model;
     this.ready = true;
     this.state = null; this.baseAction = null; this.baseState = null;
@@ -401,6 +418,49 @@ export class ReginaRig {
   setActive(active) {
     this.active = !!active;
     if (this.model) this.model.visible = this.active;
+  }
+
+  // Corrige pequenas variações verticais do contato dos pés sem mover o
+  // collider nem tentar reposicionar artificialmente cada osso do esqueleto.
+  _stabilizeFeet(state, dt) {
+    const moving = GAIT_STATES.has(state);
+    if (this.footAnchor == null || this.footBones?.length !== 2) return;
+    this.model.updateMatrixWorld(true);
+    const current = Math.min(...this.footBones.map(b =>
+      this.root.worldToLocal(b.getWorldPosition(new THREE.Vector3())).y));
+    const shift = moving ? THREE.MathUtils.clamp(this.footAnchor - current, -0.035, 0.07) : 0;
+    // Filtragem temporal impede os solavancos da correção a cada fotograma.
+    this.footOffset = THREE.MathUtils.damp(this.footOffset, this.footOffset + shift, 12, Math.max(0,dt));
+    this.footOffset = THREE.MathUtils.clamp(this.footOffset,-0.035,0.07);
+    if (!moving) this.footOffset = THREE.MathUtils.damp(this.footOffset,0,14,Math.max(0,dt));
+    this.model.position.y = this.baseModelY + this.footOffset;
+  }
+
+  // Apoio leve da mão esquerda na arma: verifica a posição real dos ossos
+  // após o mixer e testa somente pequenas correções locais de antebraço.
+  // Não interfere na recarga, quando a mão precisa ficar livre.
+  _supportWeapon(state) {
+    this.weaponSupport = {active:false,before:null,after:null};
+    if (!['aim','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight','shoot'].includes(state)
+        || !this.weapon || !this.leftForearm || !this.leftHand) return;
+    const arm = this.leftForearm;
+    const start = arm.quaternion.clone();
+    const target = this.weapon.localToWorld(new THREE.Vector3(-0.09,0,0.15));
+    const distance = () => {
+      this.model.updateMatrixWorld(true);
+      return this.leftHand.getWorldPosition(new THREE.Vector3()).distanceTo(target);
+    };
+    const before = distance();
+    let best = before, bestQ = start;
+    for (const [axis,angle] of [[0,-0.12],[0,0.12],[2,-0.12],[2,0.12]]) {
+      const e = new THREE.Euler(axis===0?angle:0,0,axis===2?angle:0);
+      arm.quaternion.copy(start).multiply(new THREE.Quaternion().setFromEuler(e));
+      const d = distance();
+      if (d < best) { best=d; bestQ=arm.quaternion.clone(); }
+    }
+    arm.quaternion.copy(start).slerp(bestQ,0.7);
+    this.model.updateMatrixWorld(true);
+    this.weaponSupport = {active:true,before,after:distance()};
   }
 
   sync(player,dt,flashT,opacity) {
@@ -454,6 +514,8 @@ export class ReginaRig {
       nextOverlay.setEffectiveTimeScale(CLIP_DURATIONS.reload / Math.max(0.25, seconds));
     }
     this.mixer.update(Math.min(Math.max(dt, 0), 0.05));
+    this._stabilizeFeet(baseWanted ?? wanted, dt);
+    this._supportWeapon(wanted);
     if (this.weapon) {
       this.weapon.scale.z = player.weaponId === 'shotgun' ? 2.2 : 1;
       this.flash.visible = flashT > 0;
