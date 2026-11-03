@@ -70,6 +70,52 @@ try {
       muzzleForward, hasWeapon:!!weapon, hasGun:!!muzzle, legKeys};
   });
   console.log('ANIMATION_AUDIT',JSON.stringify(animation));
+  // Recarregar/atirar andando: a perna continua oscilando enquanto a parte
+  // superior executa a ação, sem voltar à pose T ou congelar os joelhos.
+  const layers = await page.evaluate(() => {
+    const g = window.__game, rig = g.playerView.regina;
+    const p = (o = {}) => ({
+      dead:false, dodging:false, hurtT:0, using:null, reloading:false,
+      aiming:false, simShooting:false, sprinting:false, speed:3.1,
+      vx:0,vz:-3.1,yaw:0, weaponId:'pistol',
+      weapon:{reloadMs:1100}, mag:8,magSize:12,...o,
+    });
+    for(let i=0;i<12;i++)rig.sync(p(),1/60,0,1);
+    const before = rig.baseAction?.time ?? 0;
+    const leg = rig.model.getObjectByName('LeftUpLeg');
+    const legAngles=[];
+    for(let i=0;i<24;i++){
+      rig.sync(p({reloading:true}),1/60,0,1);
+      if(i%4===0)legAngles.push(leg?.quaternion.x ?? null);
+    }
+    const reload={state:rig.state,base:rig.baseState,overlay:rig.overlayState,
+      lowerClip:rig.baseAction?.getClip().name ?? null,
+      baseRunning:rig.baseAction?.isRunning() ?? false,
+      overlayRunning:rig.overlayAction?.isRunning() ?? false,
+      legAngles,after:rig.baseAction?.time ?? null,before};
+    rig.triggerShot();
+    for(let i=0;i<6;i++)rig.sync(p({aiming:true,speed:2,vz:-2,reloading:false}),1/60,0,1);
+    const shot={state:rig.state,base:rig.baseState,overlay:rig.overlayState,
+      lowerClip:rig.baseAction?.getClip().name ?? null,
+      baseRunning:rig.baseAction?.isRunning() ?? false};
+    for(let i=0;i<12;i++)rig.sync(p(),1/60,0,1);
+    const exit={state:rig.state,base:rig.baseState,overlay:rig.overlayState,
+      clip:rig.baseAction?.getClip().name ?? null};
+    return {reload,shot,exit};
+  });
+  console.log('ANIMATION_LAYERS',JSON.stringify(layers));
+  const legValues=layers.reload.legAngles.filter(n=>typeof n==='number');
+  if(layers.reload.state!=='reload' || layers.reload.base!=='walk' ||
+     layers.reload.overlay!=='reload' || !layers.reload.baseRunning ||
+     !layers.reload.overlayRunning || !/ReginaLower_walk$/.test(layers.reload.lowerClip) ||
+     legValues.length<3 || Math.max(...legValues)-Math.min(...legValues)<0.015 ||
+     layers.shot.state!=='shoot' || layers.shot.overlay!=='shoot' ||
+     layers.shot.base!=='aimWalk' || !layers.shot.baseRunning ||
+     !/ReginaLower_aimWalk$/.test(layers.shot.lowerClip) ||
+     layers.exit.overlay!==null || layers.exit.state!=='walk' ||
+     layers.exit.clip!=='Regina_walk')
+    throw Error('Ação superior interrompeu a passada: '+JSON.stringify(layers));
+
   if(!animation.ready || errors.length)throw Error('Falha no Chromium: '+JSON.stringify(errors));
   if(animation.states.some(s=>s.actual!==s.name || !s.tracks))throw Error('Estados não executados');
   if(!animation.hasWeapon || !animation.hasGun || animation.muzzleForward < 0.98 || animation.legKeys < 60)
