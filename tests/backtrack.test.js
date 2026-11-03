@@ -48,6 +48,17 @@ describe('Portais e backtracking entre cenários', () => {
     expect(caio.backtrack.visits.ch02).toBe(2);
     expect(validateSave(caio)).toEqual({ ok: true, errors: [] });
   });
+  it('guarda HP e posição dos inimigos da missão sem acumular patrulhas de revisita', () => {
+    const original = inChapterTwo();
+    const next = travelBacktrack(original, BACKTRACK_PORTALS.ch02, [
+      { id: 'r4_court', x: 3, z: 17, hp: 21, backtrack: false },
+      { id: 'bt_ch02_v2_0', x: 5, z: 11, hp: 13, backtrack: true },
+    ]);
+    expect(next.backtrack.sectors.ch02.enemies).toEqual([{ id: 'r4_court', x: 3, z: 17, hp: 21 }]);
+    const again = travelBacktrack(next, BACKTRACK_PORTALS.ch01, []);
+    expect(again.backtrack.sectors.ch02.enemies).toEqual([{ id: 'r4_court', x: 3, z: 17, hp: 21 }]);
+    expect(original.backtrack?.sectors.ch02.enemies).toBeUndefined();
+  });
   it('revisitas trazem patrulhas seguras e não revivem inimigos narrativos', () => {
     const s = inChapterTwo();
     const world = { blockedAt: (x, z) => x === -3 && z === 21 };
