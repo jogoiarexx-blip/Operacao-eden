@@ -1,4 +1,4 @@
-// R2.4 — imagens panorâmicas fora do mapa nos capítulos de Lia e Caio.
+// R2.5 — panorama 360 sem cantos, nas duas fases de Lia e Caio.
 // Execute com URL='http://127.0.0.1:4177/?debug=1' node scripts/e2e-backdrops.mjs
 import { chromium } from 'playwright';
 
@@ -37,19 +37,32 @@ try {
         m.position.z < b[1] || m.position.z > b[3]);
       const allTexturesReady = bg.textures.every(t => t.isTexture && t.image?.width === 1024 && t.image?.height === 256 && t.version > 0);
       const unlit = meshes.every(m => !m.castShadow && !m.receiveShadow && m.material.depthWrite === false && m.material.fog === false);
+      const cylinders = meshes.every(m => m.geometry.type === 'CylinderGeometry' &&
+        m.geometry.parameters.openEnded === true &&
+        m.geometry.parameters.radialSegments === 48 && m.material.side === 1);
+      const cornersRadius = Math.hypot((b[2] - b[0]) / 2, (b[3] - b[1]) / 2);
+      const beyondCorners = bg.stats().radii.every(r => r > cornersRadius + 10);
+      const lowFog = bg.setQuality({ foliage: .45, fogFar: 62 });
+      const nearLow = bg.stats().opacity;
+      bg.setQuality({ foliage: .8, fogFar: 92 });
+      const nearHigh = bg.stats().opacity;
+      bg.setQuality(g.scenery.group.userData.q ?? { foliage: .8, fogFar: 78 });
+      const fogResponsive = nearHigh[0] > nearLow[0] && nearHigh[1] > nearLow[1];
       return {
         chapter: g.chapterId, state: g.sm.state,
         original, low, high, inaccessible, allTexturesReady, unlit,
         sameSave: JSON.stringify(g.save) === save,
         sameColliders: g.world.byId.size === colliders,
         sameFog: g.scene.fog.far === fogFar && g.scene.fog.near === fogNear,
+        cylinders, beyondCorners, fogResponsive,
         rendererCalls: g.renderer.info.render.calls,
       };
     });
     if (report.chapter !== chapterId || report.state !== 'PLAYING' ||
-      report.original.planes !== 8 || report.original.textures !== 2 ||
-      report.low.visiblePlanes !== 4 || report.high.visiblePlanes !== 8 ||
+      report.original.planes !== 2 || report.original.textures !== 2 ||
+      report.low.visiblePlanes !== 1 || report.high.visiblePlanes !== 2 ||
       !report.inaccessible || !report.allTexturesReady || !report.unlit ||
+      !report.cylinders || !report.beyondCorners || !report.fogResponsive ||
       !report.sameSave || !report.sameColliders || !report.sameFog) {
       throw Error('BACKDROP_FAIL ' + JSON.stringify(report));
     }
