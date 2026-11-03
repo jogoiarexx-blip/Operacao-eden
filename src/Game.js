@@ -728,6 +728,10 @@ export class Game {
           this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint()); await this.retry(false);
         }
       },
+      /** Linha de base gráfica: troca o preset de qualidade (low|medium|high) e reaplica. */
+      setQuality: (id) => { this.settings.quality = id; this.applySettings(); },
+      /** Posiciona jogador e câmera para uma captura fixa (x, z, yaw, pitch). */
+      cameraShot: (x, z, yaw = 0, pitch = 0.1) => { mark(); this.player.teleport(x, z, yaw); this.camera.snapBehind(yaw, pitch); },
       /** Derruba o chefe vivo (K-1). */
       killBoss: () => { mark(); const ctx = this.aiCtx(); for (const a of this.liveAgents()) if (a.species?.boss) a.takeDamage(99999, 'torso', ctx); },
     };
