@@ -65,14 +65,14 @@ try {
   const corpse = await page.evaluate(() => {
     const g=window.__game;
     if(!g.agents.length) {
-      const defs=g.chapterDef?.data?.encounters?.flatMap(e=>e.enemies??[])??[];
-      return { count:0, defs:defs.length };
+      g.spawnAgent({id:'qa_dead_dinosaur',type:'forest_runner',pos:[g.player.x+7,g.player.z+7]},'qa');
     }
     const x=g.agents[0]; x.agent.dead=true; x.agent.deadAt=g.simMs;
     return {id:x.agent.id,count:g.agents.length,started:g.simMs};
   });
   console.log('CORPSE_START',JSON.stringify(corpse));
-  if(corpse.id) {
+  if(!corpse.id)throw Error('Não foi possível preparar o cadáver de teste');
+  {
     await page.waitForTimeout(5600);
     const after=await page.evaluate((id)=>{
       const g=window.__game;return {sim:g.simMs,remaining:g.agents.some(x=>x.agent.id===id),
