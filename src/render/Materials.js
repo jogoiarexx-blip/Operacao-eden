@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { QUALITY } from '../core/Settings.js';
-import { getTexture } from './ProceduralTextures.js';
+import { getTexture, disposeTextures } from './ProceduralTextures.js';
 
 /** Materiais por papel: Lambert no Baixo, Standard (PBR) em Médio/Alto. flatShading mantém o visual low-poly. */
 const ROLES = {
@@ -17,10 +17,12 @@ export function getMaterial(role, quality = 'medium', opts) {
   const R = ROLES[role]; if (!R) throw new Error(`papel de material desconhecido: ${role}`);
   const key = `${role}:${quality}:${hashOpts(opts)}`; let m = cache.get(key); if (m) return m;
   const pbr = !!QUALITY[quality]?.pbr, p = { color: opts?.color ?? R.color, flatShading: true };
-  if (R.tex) p.map = getTexture(R.tex, { repeat: R.rep });
+  if (R.tex) p.map = getTexture(R.tex, { repeat: R.rep, accent: role === 'scales' ? opts?.accent : undefined });
   if (R.emissive != null) { p.emissive = opts?.emissive ?? R.emissive; p.emissiveIntensity = R.ei; }
   if (pbr) { p.roughness = R.r; p.metalness = R.m; }
   m = pbr ? new THREE.MeshStandardMaterial(p) : new THREE.MeshLambertMaterial(p);
   cache.set(key, m); return m;
 }
 export function disposeMaterials() { for (const m of cache.values()) m.dispose(); cache.clear(); }
+/** Libera tudo de uma vez (troca de capítulo/dispose): materiais primeiro (referenciam texturas), depois texturas. */
+export function disposeRenderResources() { disposeMaterials(); disposeTextures(); }

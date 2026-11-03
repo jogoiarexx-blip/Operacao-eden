@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { QUALITY } from '../src/core/Settings.js';
 import { generatePixels, getTexture, disposeTextures, textureCacheSize } from '../src/render/ProceduralTextures.js';
-import { getMaterial, disposeMaterials } from '../src/render/Materials.js';
+import { getMaterial, disposeMaterials, disposeRenderResources } from '../src/render/Materials.js';
 
 describe('presets gráficos', () => {
   it('QUALITY tem as chaves novas nos 3 níveis', () => {
@@ -31,6 +31,30 @@ describe('texturas procedurais', () => {
     expect(textureCacheSize()).toBe(1);
     disposeTextures();
     expect(textureCacheSize()).toBe(0);
+  });
+});
+describe('correções de revisão', () => {
+  afterEach(() => disposeRenderResources());
+  it('repeat diferente → textura própria', () => {
+    const a = getTexture('dirt', { size: 16, repeat: 2 }), b = getTexture('dirt', { size: 16, repeat: 5 });
+    expect(a).not.toBe(b); expect(a.repeat.x).toBe(2); expect(b.repeat.x).toBe(5);
+    expect(getTexture('dirt', { size: 16, repeat: 2 })).toBe(a);
+  });
+  it('disposeRenderResources esvazia os dois caches', () => {
+    getMaterial('bark', 'high'); expect(textureCacheSize()).toBeGreaterThan(0);
+    disposeRenderResources(); expect(textureCacheSize()).toBe(0);
+    expect(getMaterial('bark', 'high').map).toBeTruthy();
+  });
+  it('texturas são quase neutras (cor do papel é o tint)', () => {
+    for (const k of ['dirt', 'mud', 'gravel', 'bark', 'scales', 'cloth', 'concrete', 'metal', 'foliage']) {
+      const p = generatePixels(k, 3, 32); let r = 0, g = 0, b = 0; for (let i = 0; i < p.length; i += 4) { r += p[i]; g += p[i + 1]; b += p[i + 2]; }
+      const n = p.length / 4; expect(Math.abs(r - g) / n).toBeLessThan(10); expect(Math.abs(g - b) / n).toBeLessThan(10); expect(r / n).toBeGreaterThan(180);
+    }
+  });
+  it('accent muda a textura de scales (e só dela)', () => {
+    expect(Array.from(generatePixels('scales', 1, 32, { accent: 0xff0000 }))).not.toEqual(Array.from(generatePixels('scales', 1, 32)));
+    expect(Array.from(generatePixels('dirt', 1, 16, { accent: 0xff0000 }))).toEqual(Array.from(generatePixels('dirt', 1, 16)));
+    expect(getMaterial('scales', 'high', { accent: 0xff0000 }).map).not.toBe(getMaterial('scales', 'high').map);
   });
 });
 describe('materiais', () => {
