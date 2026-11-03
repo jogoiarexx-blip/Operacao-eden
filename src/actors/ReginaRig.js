@@ -136,6 +136,71 @@ POSES.idle.Spine2 = step(q(0.008), q(0.022), q(0.008));
 POSES.idle.LeftShoulder = step(q(0), q(0, 0, 0.025), q(0));
 POSES.idle.RightShoulder = step(q(0), q(0, 0, -0.025), q(0));
 
+
+// Marcha contínua: amostragem senoidal com fase de apoio, flexão do joelho,
+// compensação do tornozelo e contrarrotação de quadril/ombros.
+// Mantém a translação e as colisões exclusivamente em Player.step().
+function gaitPose({ stride = 0.42, knee = 0.52, lean = 0.04, armed = false, back = false, strafe = 0 }) {
+  const count = 33;
+  const samples = (fn) => Array.from({ length: count }, (_, i) => fn(i * Math.PI * 2 / (count - 1)));
+  const sign = back ? -1 : 1;
+  const leg = (phase, side) => {
+    const wave = Math.sin(phase + (side === 0 ? 0 : Math.PI));
+    return q(sign * stride * wave * (strafe ? 0.48 : 1), 0,
+      strafe * stride * wave * 0.62);
+  };
+  const shin = (phase, side) => {
+    const wave = Math.sin(phase + (side === 0 ? 0 : Math.PI));
+    // A perna em avanço dobra mais; em apoio fica quase estendida.
+    return q(Math.max(0, wave) * knee + 0.045);
+  };
+  const foot = (phase, side) => {
+    const wave = Math.sin(phase + (side === 0 ? 0 : Math.PI));
+    return q(-sign * stride * wave * 0.28 - Math.max(0, wave) * knee * 0.37);
+  };
+  const arm = (phase, side) => {
+    const wave = Math.sin(phase + (side === 0 ? Math.PI : 0));
+    if (armed) return side === 0
+      ? q(1.0 + 0.025 * wave, 0, -0.18)
+      : q(1.22 + 0.025 * wave);
+    return q(-sign * stride * wave * 0.75 + (lean * 0.35), 0,
+      (side === 0 ? -1 : 1) * 0.035);
+  };
+  return {
+    Hips: samples(t => q(lean * 0.35, 0.024 * Math.sin(t), 0.025 * Math.sin(t))),
+    Spine: samples(t => q(-lean * 0.4, 0.025 * Math.sin(t + Math.PI), -0.018 * Math.sin(t))),
+    Chest: samples(t => q(lean, -0.045 * Math.sin(t), 0.022 * Math.sin(t))),
+    LeftUpLeg: samples(t => leg(t, 0)),
+    RightUpLeg: samples(t => leg(t, 1)),
+    LeftLeg: samples(t => shin(t, 0)),
+    RightLeg: samples(t => shin(t, 1)),
+    LeftFoot: samples(t => foot(t, 0)),
+    RightFoot: samples(t => foot(t, 1)),
+    LeftArm: samples(t => arm(t, 0)),
+    RightArm: samples(t => arm(t, 1)),
+    ...(armed ? {
+      LeftForeArm: samples(() => q(0.5)),
+      RightForeArm: samples(() => q(0.18)),
+    } : {}),
+  };
+}
+POSES.walk = gaitPose({});
+POSES.walkBack = gaitPose({ stride: 0.31, knee: 0.38, back: true });
+POSES.run = gaitPose({ stride: 0.78, knee: 0.94, lean: 0.15 });
+POSES.aimWalk = gaitPose({ stride: 0.27, knee: 0.34, armed: true });
+POSES.aimBack = gaitPose({ stride: 0.23, knee: 0.31, armed: true, back: true });
+POSES.aimStrafeLeft = gaitPose({ stride: 0.28, knee: 0.36, armed: true, strafe: -1 });
+POSES.aimStrafeRight = gaitPose({ stride: 0.28, knee: 0.36, armed: true, strafe: 1 });
+
+// A ação de mirar respira e estabiliza ombro/cotovelo sem congelar o tronco.
+POSES.aim = {
+  ...POSES.aim,
+  Hips: [q(), q(0, 0, 0.007), q()],
+  Spine: [q(), q(0.009), q()],
+  RightArm: [q(1.16), q(1.22), q(1.16)],
+  LeftArm: [q(0.95, 0, -0.18), q(1.01, 0, -0.18), q(0.95, 0, -0.18)],
+};
+
 function createAnimations(scene) {
   const bones = {};
   scene.traverse((node) => { if (node.isBone) bones[node.name] = node; });
@@ -157,9 +222,10 @@ function createAnimations(scene) {
     // Passos, sem root motion para não desalinhar as colisões.
     if (bones.Hips && (['walk', 'walkBack', 'run', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight', 'idle', 'dodge'].includes(state))) {
       const base = bones.Hips.position;
-      const offsets = state === 'run' ? [0, 0.037, 0, 0.037, 0] :
-        ['walk', 'walkBack', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight'].includes(state) ? [0, 0.014, 0, 0.014, 0] :
-        state === 'dodge' ? [0, -0.14, -0.28, -0.14, 0] : [0, 0.012, 0];
+      const walking = ['walk', 'walkBack', 'run', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight'].includes(state);
+      const offsets = walking
+        ? Array.from({ length: 33 }, (_, i) => (state === 'run' ? 0.032 : 0.012) * (1 - Math.cos(i * Math.PI * 4 / 32)) * 0.5)
+        : state === 'dodge' ? [0, -0.14, -0.28, -0.14, 0] : [0, 0.012, 0];
       const times = offsets.map((_, idx) => idx * duration / (offsets.length - 1));
       tracks.push(new THREE.VectorKeyframeTrack('Hips.position',times,offsets.flatMap(y=>[base.x,base.y+y,base.z])));
     }
@@ -289,6 +355,14 @@ export class ReginaRig {
       this.actions[wanted].setEffectiveTimeScale(Math.max(0.65, Math.min(1.5, player.speed / 3.7)));
     if (wanted === 'run')
       this.actions[wanted].setEffectiveTimeScale(Math.max(0.75, Math.min(1.45, player.speed / 5.6)));
+    if (wanted === 'reload') {
+      // Tempo visual acompanha o cronômetro real da arma, inclusive recarga por cartucho.
+      const w = player.weapon;
+      const seconds = w?.reloadMode === 'shell'
+        ? ((w.reloadOpenMs ?? 0) + (w.reloadShellMs ?? 550) * Math.max(1, player.magSize - player.mag)) / 1000
+        : (w?.reloadMs ?? 1100) / 1000;
+      this.actions.reload.setEffectiveTimeScale(CLIP_DURATIONS.reload / Math.max(0.25, seconds));
+    }
     this.mixer.update(Math.min(Math.max(dt,0), 0.05));
     if (this.weapon) {
       this.weapon.scale.z = player.weaponId === 'shotgun' ? 2.2 : 1;
