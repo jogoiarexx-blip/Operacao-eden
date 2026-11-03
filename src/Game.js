@@ -23,6 +23,7 @@ import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
 import { CollisionWorld } from './world/CollisionWorld.js';
 import { buildScenery } from './world/SectorScenery.js';
+import { ChapterSceneCache } from './world/ChapterSceneCache.js';
 import { FX } from './world/FX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
@@ -62,6 +63,9 @@ export class Game {
     this.txCounter = 0; this.hasSave = false; this.mapOpen = false; this.cine = null; this.bench = null;
     this.debugUsed = false; this.deathAt = null; this.checkpointSnap = null; this.rng = createRng(1234);
     this.tAnim = 0;
+    // Um mapa inativo reutilizável por campanha; não guarda NPCs nem pickups.
+    this.sceneCache = new ChapterSceneCache({ capacity: 1 });
+    this._cacheRunId = null;
   }
 
   // ---------------------------------------------------------------- inicialização
@@ -109,17 +113,43 @@ export class Game {
   /** Número do capítulo carregado (loja: itens liberados por capítulo). */
   get chapterNumber() { return this.chapterDef?.data.chapter ?? 1; }
 
-  /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
-  loadChapter(id) {
-    if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
+  /**
+   * Liga um capítulo. No backtracking reutiliza o cenário 3D estático já
+   * preparado; só o runtime dinâmico (pickups/NPCs/missões) é reconstruído.
+   * `forceFresh` invalida a cena antiga em campanhas novas.
+   */
+  loadChapter(id, { forceFresh = false } = {}) {
+    // Primeiro retirar o destino: evita que o único slot LRU seja expulso
+    // enquanto guardamos o mapa ativo anterior.
+    const cached = forceFresh ? null : this.sceneCache.take(id);
     this.chapter?.dispose();
+    if (this.scenery) {
+      this.scene.remove(this.scenery.group);
+      const outgoing = { world: this.world, scenery: this.scenery, props: this.props };
+      const sameRun = !!this.save?.runId && this._cacheRunId === this.save.runId;
+      if (!forceFresh && sameRun && this.chapterId !== id) {
+        this.sceneCache.store(this.chapterId, outgoing);
+      } else {
+        outgoing.props?.dispose?.();
+        outgoing.scenery?.dispose?.();
+      }
+    }
     this.terminal = null; this.chapterId = id; this.chapterDef = getChapter(id);
     const data = this.chapterDef.data, script = this.chapterDef.script;
-    this.world = new CollisionWorld(data.bounds);
-    this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
+    if (cached) {
+      this.world = cached.world;
+      this.scenery = cached.scenery;
+      this.props = cached.props;
+    } else {
+      this.world = new CollisionWorld(data.bounds);
+      this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
+      this.props = script.buildProps?.({
+        scene: this.scene, world: this.world, data,
+        quality: this.settings.quality, scenery: this.scenery,
+      }) ?? { update() {}, dispose() {} };
+    }
     this.scene.add(this.scenery.group);
     this.scenery.onLightning = () => this.audio?.play('thunder');
-    this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
     if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
     if (this.player) this.player.world = this.world;
@@ -219,7 +249,7 @@ export class Game {
     const slotId = 1;
     this.save = createNewSave({ slot: slotId, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });
     this.save.cameraSettings.preferredShoulder = this.settings.shoulder;
-    if (this.save.chapterId !== this.chapterId) this.loadChapter(this.save.chapterId);
+    // _startRun reinicializa o cenário em campanhas novas, sem reutilizar cache antigo.
     this.camera.preferredSide = this.settings.shoulder; this.camera.sideCur = this.settings.shoulder === 'right' ? 1 : -1;
     this.stats = new RunStats({ objectivesTotal: this.chapterDef.data.objectives.length });
     this._startRun(true);
@@ -279,7 +309,14 @@ export class Game {
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
   _startRun(fresh) {
     const s = this.save;
-    if (s.chapterId !== this.chapterId) this.loadChapter(s.chapterId);
+    const newSession = this._cacheRunId !== s.runId;
+    if (newSession) {
+      this.sceneCache.clear();
+      this._cacheRunId = s.runId;
+    }
+    if (newSession || s.chapterId !== this.chapterId) {
+      this.loadChapter(s.chapterId, { forceFresh: newSession });
+    }
     this.diffPreset = { id: s.difficulty.current, ...difficulty.get(s.difficulty.current) };
     this.coordinator.setMax(this.diffPreset.maxContactAttackers); this.coordinator.clear();
     this.ledger = new EconomyLedger(s.economyLedger);
@@ -397,6 +434,7 @@ export class Game {
     drawMap(cv, { backtrackPortal: portal, regionsSeen: Object.keys(this.save.backtrack?.regions ?? {}), activeRegion: this.chapter.regional?.activeId ?? null, data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
+    this.sceneCache.clear(); this._cacheRunId = null;
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
     this.terminalUI.close(); this.mapOpen = false; this.input.setEnabled(false); this.input.unlock(); this.audio.resume(); this.save = null;
     if (!this.sm.go(S.MAIN_MENU)) this.sm.state = S.MAIN_MENU;
