@@ -32,6 +32,63 @@
    65
   ]
  },
+ "cameraZones": [
+   {
+     "id": "cz_pier",
+     "rect": [
+       -5,
+       28,
+       5,
+       42
+     ],
+     "exploreDistance": 2.8,
+     "aimDistance": 1.95
+   },
+   {
+     "id": "cz_tower",
+     "rect": [
+       -19,
+       12,
+       -7,
+       23
+     ],
+     "exploreDistance": 2.5,
+     "aimDistance": 1.8
+   },
+   {
+     "id": "cz_ravine",
+     "rect": [
+       3,
+       -15,
+       13,
+       -5
+     ],
+     "exploreDistance": 2.05,
+     "aimDistance": 1.55
+   },
+   {
+     "id": "cz_camp",
+     "rect": [
+       -14,
+       -34,
+       4,
+       -21
+     ],
+     "exploreDistance": 2.55,
+     "aimDistance": 1.8
+   },
+   {
+     "id": "cz_gate",
+     "rect": [
+       -6,
+       -44,
+       8,
+       -34
+     ],
+     "exploreDistance": 2.15,
+     "aimDistance": 1.55
+   }
+ ],
  "paths": [
   {
    "id": "main",
