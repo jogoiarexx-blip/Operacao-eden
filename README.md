@@ -3,7 +3,7 @@
 Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) e o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados). Capítulos 03–10 seguem o roadmap do GDD v4.
 
 ## R2.3 — Streaming setorial de árvores e arbustos
-- **Vegetação em células de 24m**: mantém até 190 árvores e 420 arbustos gerados pelo mesmo seed, mas compacta as matrizes por proximidade. Um setor entra a até 62m e sai depois de 76m, criando histerese contra aparecimentos súbitos.
+- **Vegetação em células de 24m**: mantém até 190 árvores e 420 arbustos gerados pelo mesmo seed, mas compacta as matrizes por proximidade. Um setor entra a até 70m e sai depois de 84m (névoa plena a 80m), criando histerese contra aparecimentos súbitos.
 - **Renderização com quatro InstancedMeshes**: uma para troncos, duas para copas e uma para arbustos. O sistema não multiplica draw calls por setor; reduz a quantidade de instâncias desenhadas nos setores distantes.
 - **Colisões e saves intactos**: `tree_N` permanece registrado no CollisionWorld, mesmo com árvore oculta; não altera IA, posição, código de câmera, itens, armas ou save. Não é carregamento de modelos via rede nem descarte de memória; buffers permanecem alocados.
 - **Qualidade gráfica**: a porcentagem de folhagem continua ativa, usando seleção determinística e espacialmente distribuída. O controlador só reenvia matrizes quando muda a lista de instâncias.
