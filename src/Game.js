@@ -293,9 +293,21 @@ export class Game {
     const survivors = this.liveAgents().map(a => ({
       id: a.id, x: a.x, z: a.z, hp: a.hp, backtrack: !!a.backtrack,
     }));
+    // Caminhar pelo corredor mantém orientação e velocidade na entrada do
+    // próximo setor. O atalho F continua chegando ao checkpoint parado.
+    const movement = walkedThrough && this.player.speed > 0.4 ? {
+      vx: this.player.vx, vz: this.player.vz, yaw: this.player.yaw,
+    } : null;
     this.save = travelBacktrack(this.save, portal, survivors);
     this.stats = new RunStats(this.save.stats ?? {});
     this._startRun(false);
+    if (movement) {
+      const p = this.player;
+      p.vx = movement.vx; p.vz = movement.vz;
+      p.speed = Math.hypot(p.vx, p.vz); p.moving = p.speed > 0.4;
+      p.yaw = p.pYaw = movement.yaw;
+      this.camera.snapBehind(p.yaw);
+    }
     this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
     this._showBacktrackVeil();
     this.input.clearEdges();
