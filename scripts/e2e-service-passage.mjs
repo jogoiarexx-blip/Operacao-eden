@@ -51,7 +51,14 @@ try {
     g.player.teleport(11.3,34.5);
     const keypress=g._stepBacktrack({interactPressed:true});
     const third={keypress,chapter:g.chapterId,who:g.save.playerId,stat:g.save.chapterStats.ch01};
-    return {initial,immediate,nearEntrance,first,innerSafe,second,third};
+    // Caso-limite: o jogador cruza fora do círculo do atalho F, mas
+    // ainda está dentro da faixa física e deve viajar normalmente.
+    g.player.teleport(0,-43.05);
+    const fourth=g._stepBacktrack({interactPressed:false});
+    g.player.teleport(12.45,37.5);
+    const edgeReturn=g._stepBacktrack({interactPressed:false});
+    const edge={fourth,edgeReturn,chapter:g.chapterId,who:g.save.playerId};
+    return {initial,immediate,nearEntrance,first,innerSafe,second,third,edge};
   });
   console.log('WALKABLE_SERVICE_PASSAGE',JSON.stringify({report,errors}));
   if(report.immediate || !report.nearEntrance || !report.initial.walkwayClear ||
@@ -62,7 +69,8 @@ try {
      !report.second.sameScene || !report.second.objective || report.second.hp!==47 ||
      report.second.cache.hits<1 ||
      !report.third.keypress || report.third.chapter!=='ch01' ||
-     !report.third.stat || errors.length) {
+     !report.third.stat || !report.edge.fourth || !report.edge.edgeReturn ||
+     report.edge.chapter!=='ch01' || errors.length) {
       throw Error('Falha na travessia: '+JSON.stringify({report,errors}));
   }
   await page.screenshot({path:(process.env.SHOT_DIR||'.')+'/service-passage.png'});
