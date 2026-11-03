@@ -24,6 +24,7 @@ import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraCont
 import { CollisionWorld } from './world/CollisionWorld.js';
 import { buildScenery } from './world/SectorScenery.js';
 import { ChapterSceneCache } from './world/ChapterSceneCache.js';
+import { canUseServicePassage, crossedServicePassage } from './world/ServicePassage.js';
 import { FX } from './world/FX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
@@ -278,9 +279,12 @@ export class Game {
   _stepBacktrack(inp) {
     if (!this.sm.is(S.PLAYING) || this.player.dead || this.player.dodging) return false;
     const portal = availableBacktrackPortal(this.save, this.player.x, this.player.z);
-    if (!portal || this.chapter.promptTarget) return false;
-    this.hud.setPrompt(`<kbd>F</kbd> ${portal.label}`);
-    if (!inp.interactPressed) return false;
+    const walkedThrough = crossedServicePassage(this.save, this.player.x, this.player.z);
+    if ((!portal && !walkedThrough) || (this.chapter.promptTarget && !walkedThrough)) return false;
+    // O atalho F permanece disponível; chegar ao fim da passagem também
+    // aciona a viagem, sem teleporte prematuro perto da entrada.
+    if (portal) this.hud.setPrompt(`<kbd>F</kbd> ${portal.label} · ou siga pela passagem`);
+    if (!inp.interactPressed && !walkedThrough) return false;
     this.combo.endChain('exit');
     this.syncSaveFromRuntime();
     const survivors = this.liveAgents().map(a => ({
@@ -549,6 +553,7 @@ export class Game {
     const p = this.player, tick = this.loop.tick; this.simMs += dt * 1000;
     const inp = this.input.snapshot();
     this.noises.length = 0;
+    this.scenery.servicePassage?.setUnlocked(canUseServicePassage(this.save));
     const evs = p.step(dt, this.simMs, inp, this.camera.yaw, activeInventory(this.save).consumables);
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
