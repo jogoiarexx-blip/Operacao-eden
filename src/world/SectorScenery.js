@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng.js';
+import { createVisualDetailCuller } from './VisualDetailCulling.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -104,6 +105,9 @@ export function buildScenery({ world, data, quality }) {
       for (const sz of [-1, 1]) { const lip = new THREE.Mesh(new THREE.BoxGeometry(s.size[0], 0.3, 0.55), rockMat); lip.position.set(0, 0.12, sz * (s.size[2] / 2 - 0.1)); mesh.add(lip); }
     }
   }
+  const visualDetailCuller = createVisualDetailCuller(data, meshes);
+  let lastDetailUpdate = -Infinity, lastPX = Infinity, lastPZ = Infinity;
+
   // ---------- árvores (InstancedMesh + colisores) ----------
   const trees = [];
   const nearStruct = (x, z) => data.structures.some((s) => s.kind === 'box' && Math.abs(x - s.pos[0]) < s.size[0] / 2 + 2 && Math.abs(z - s.pos[1]) < s.size[2] / 2 + 2);
@@ -168,7 +172,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees,
+    group, meshes, fadeMats, trees, visualDetailCuller,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
@@ -183,6 +187,11 @@ export function buildScenery({ world, data, quality }) {
       group.userData.q = qc;
     },
     update(t, dt, camPos, camDir, playerPos) {
+      // Reavaliar a cada 0,3 s, ou imediatamente após deslocamentos longos/teleporte.
+      if (playerPos && (t - lastDetailUpdate >= 0.3 || Math.hypot(playerPos.x - lastPX, playerPos.z - lastPZ) > 7)) {
+        visualDetailCuller.update(playerPos);
+        lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
+      }
       for (const u of updaters) u(t, dt);
       // chuva segue a câmera
       if (rain.visible) {
