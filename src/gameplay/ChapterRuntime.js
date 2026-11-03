@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { revealArea } from './AreaTransitions.js';
 import bestiary from '../data/bestiary.json';
 import docs from '../data/documents.json';
 import secrets from '../data/secrets.json';
@@ -41,7 +40,6 @@ export class ChapterRuntime {
     this.dispose();
     this.group = new THREE.Group(); g.scene.add(this.group);
     this.holdMs = 0; this.lateAt = null; this.pickups = []; this.lastZones = new Set();
-    this.areaBeatsShown = new Set(); this.areaBeatUntil = -1;
     // pickups ainda não coletados
     for (const p of data.pickups) {
       if (this.wf.pickedUp.includes(p.id)) continue;
@@ -121,11 +119,7 @@ export class ChapterRuntime {
     const vz = this.wf.zonesVisited;
     if (!vz.includes(z.id)) vz.push(z.id);
     this.script.onZoneEnter?.(this, z);
-    this.revealArea(z.id);
   }
-
-  /** Portas e zonas podem dirigir uma breve passagem visual sem interromper movimento ou IA. */
-  revealArea(trigger) { return revealArea(this, trigger); }
 
   objectives() {
     const save = this.g.save, done = save.completedObjectives;
@@ -200,8 +194,18 @@ export class ChapterRuntime {
     const capCons = (c) => { inv.consumables[c] = Math.min(5, inv.consumables[c] ?? 0); };
     if (p.kind === 'supplies') {
       const parts = [];
-      for (const [w, n] of Object.entries(p.ammo ?? {})) { const v = ammoScale(n); inv.ammoReserve[w] = (inv.ammoReserve[w] ?? 0) + v; capAmmo(w); parts.push(`+${v} munição`); }
-      for (const [c, n] of Object.entries(p.consumable ?? {})) { inv.consumables[c] = (inv.consumables[c] ?? 0) + n; capCons(c); parts.push(`+${n} ${c === 'medkit' ? 'kit médico' : 'hemostático'}`); }
+      for (const [w, n] of Object.entries(p.ammo ?? {})) {
+        const before = inv.ammoReserve[w] ?? 0;
+        const cap = WEAPONS[w]?.reserveCap ?? 999;
+        const gained = Math.min(Math.max(0, cap - before), ammoScale(n));
+        if (gained > 0) { inv.ammoReserve[w] = before + gained; parts.push(`+${gained} munição`); }
+      }
+      for (const [c, n] of Object.entries(p.consumable ?? {})) {
+        const before = inv.consumables[c] ?? 0;
+        const gained = Math.min(Math.max(0, 5 - before), n);
+        if (gained > 0) { inv.consumables[c] = before + gained; parts.push(`+${gained} ${c === 'medkit' ? 'kit médico' : 'hemostático'}`); }
+      }
+      if (!parts.length) { g.hud.toast('Inventário cheio. Suprimento preservado.', 'warn'); return; }
       msg = parts.join(' · ');
     } else if (p.kind === 'document') { if (!save.documents.includes(p.doc)) save.documents.push(p.doc); msg = `Documento: ${docs.documents[p.doc].title}`; }
     else if (p.kind === 'dossier') {

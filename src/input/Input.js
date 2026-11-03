@@ -22,6 +22,7 @@ export class Input {
     this.down = new Set(); this.simEdges = new Set(); this.frameEdges = new Set();
     this.look = { x: 0, y: 0 }; this.locked = false; this.enabled = false; this.padPrev = {}; this.padLook = { x: 0, y: 0 };
     this.rebinding = null; this.lastDevice = 'kbm';
+    this.touchMove = { x: 0, y: 0 }; this.touchHeld = {}; this.touchActive = false;
     this._bind();
   }
   _actionsFor(code) { return Object.entries(this.settings.bindings).filter(([, c]) => c === code).map(([a]) => a); }
@@ -56,14 +57,34 @@ export class Input {
   }
   lock() { try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* sem pointer lock */ } }
   unlock() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignora */ } }
-  setEnabled(v) { this.enabled = v; if (!v) { this.down.clear(); this.simEdges.clear(); this.look.x = this.look.y = 0; } }
+  setEnabled(v) {
+    this.enabled = !!v;
+    if (!v) {
+      this.down.clear(); this.simEdges.clear(); this.frameEdges.clear();
+      this.padEdges = {}; this.navEdges = [];
+      this.touchHeld = {}; this.touchMove.x = this.touchMove.y = 0;
+      this.look.x = this.look.y = 0;
+      this.onReset?.();
+    }
+  }
+  /** Botoes de toque usam o mesmo buffer de bordas do teclado e do controle. */
+  touchAction(action, pressed) {
+    if (!this.enabled) return;
+    const was = !!this.touchHeld[action];
+    if (pressed && !was) {
+      if (SIM_EDGE.includes(action)) this.simEdges.add(action);
+      if (FRAME_EDGE.includes(action)) this.frameEdges.add(action);
+      this.lastDevice = 'touch';
+    }
+    this.touchHeld[action] = !!pressed;
+  }
   held(action) {
     const code = this.settings.bindings[action];
     if (this.down.has(code)) return true;
-    return !!this.padState?.[action];
+    return !!this.padState?.[action] || !!this.touchHeld[action];
   }
   /** Bordas de UI consumidas no render. */
-  consumeFrame(action) { const had = this.frameEdges.delete(action) || !!this.padEdges?.[action]; if (this.padEdges) this.padEdges[action] = false; return had; }
+  consumeFrame(action) { const had = this.enabled && (this.frameEdges.delete(action) || !!this.padEdges?.[action]); if (this.padEdges) this.padEdges[action] = false; return had; }
 
   /** Radianos de olhar acumulados desde a última chamada (mouse imediato + analógico direito × dt). */
   takeLook(dt) {
@@ -77,7 +98,7 @@ export class Input {
   pollGamepad() {
     const pads = navigator.getGamepads?.() ?? [];
     const gp = selectGamepad(pads);
-    if (!gp) { this.padState = null; this.padActive = false; this.padAxes = null; this.padLook.x = this.padLook.y = 0; return; }
+    if (!gp) { this.padState = null; this.padActive = false; this.padAxes = null; this.padPrev = {}; this.padEdges = {}; this.navPrev = {}; this.navEdges = []; this.padLook.x = this.padLook.y = 0; return; }
     const dz = this.settings.deadzone;
     if (this.padIndex !== gp.index) { this.padIndex = gp.index; this.padActive = false; }
     // um pad recém-conectado/ocioso não sequestra teclado e mouse até produzir uma entrada deliberada
@@ -102,6 +123,7 @@ export class Input {
     const h = (a) => this.held(a);
     let mx = (h('right') ? 1 : 0) - (h('left') ? 1 : 0), my = (h('forward') ? 1 : 0) - (h('back') ? 1 : 0);
     if (this.padAxes && (this.padAxes.x || this.padAxes.y)) { mx = this.padAxes.x; my = -this.padAxes.y; }
+    else if (this.touchMove.x || this.touchMove.y) { mx = this.touchMove.x; my = this.touchMove.y; }
     const e = (a) => this.simEdges.delete(a);
     return {
       moveX: mx, moveY: my, run: h('run'), aim: h('aim'), fireHeld: h('fire'),
@@ -110,5 +132,5 @@ export class Input {
       medkitPressed: e('medkit'), hemoPressed: e('hemo'), interactPressed: e('interact'), interactHeld: h('interact'),
     };
   }
-  clearEdges() { this.simEdges.clear(); this.frameEdges.clear(); }
+  clearEdges() { this.simEdges.clear(); this.frameEdges.clear(); this.padEdges = {}; }
 }
