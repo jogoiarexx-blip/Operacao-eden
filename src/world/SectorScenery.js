@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng.js';
 import { createVisualDetailCuller } from './VisualDetailCulling.js';
+import { createVegetationSectorStream } from './VegetationSectorStream.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -136,15 +137,20 @@ export function buildScenery({ world, data, quality }) {
 
   // ---------- folhagem rasteira (reduzível por qualidade; sem colisão) ----------
   const bushCountMax = 420;
+  const bushPoints = [];
   const bushes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.7, 0), mat(0x2e5a2f), bushCountMax);
   let placed = 0;
   for (let a = 0; a < 3000 && placed < bushCountMax; a++) {
     const x = rng.range(bx0 + 1, bx1 - 1), z = rng.range(bz0 + 1, bz1 - 1);
     if (z > treeMaxZ || data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 0.4) || nearStruct(x, z)) continue;
     const s = rng.range(0.5, 1.3);
-    ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc); bushes.setMatrixAt(placed++, m4);
+    ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc);
+    bushPoints.push({ x, z }); bushes.setMatrixAt(placed++, m4);
   }
   bushes.count = placed; bushes.userData.max = placed; group.add(bushes);
+  // Preserva quatro draw calls (troncos, duas copas, arbustos). Compacta apenas
+  // suas matrizes por setor; todos os colisores de árvore continuam no world.
+  const vegetationStream = createVegetationSectorStream({ trees, bushes: bushPoints, treeMeshes: [trunks, canopyA, canopyB], bushMesh: bushes });
 
   // ---------- pistas ambientais ----------
   const clawMat = mat(0x2a1612);
@@ -172,12 +178,12 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
-      bushes.count = Math.floor(bushes.userData.max * qc.foliage);
+      vegetationStream.setQuality(qc.foliage);
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = qc.shadows;
       if (qc.shadows) {
@@ -190,6 +196,7 @@ export function buildScenery({ world, data, quality }) {
       // Reavaliar a cada 0,3 s, ou imediatamente após deslocamentos longos/teleporte.
       if (playerPos && (t - lastDetailUpdate >= 0.3 || Math.hypot(playerPos.x - lastPX, playerPos.z - lastPZ) > 7)) {
         visualDetailCuller.update(playerPos);
+        vegetationStream.update(playerPos);
         lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
       }
       for (const u of updaters) u(t, dt);
