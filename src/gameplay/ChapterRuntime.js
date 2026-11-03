@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { revealArea } from './AreaTransitions.js';
 import { planRevisitPatrol } from './Backtrack.js';
+import { RegionalSectorDirector } from './RegionalSectors.js';
 import bestiary from '../data/bestiary.json';
 import docs from '../data/documents.json';
 import secrets from '../data/secrets.json';
@@ -57,6 +58,7 @@ export class ChapterRuntime {
     }
     this.restoreBreakables();
     this.script.onLoad?.(this);
+    this.regional = new RegionalSectorDirector(g);
     const extras = planRevisitPatrol(g.save, g.world, g.player, g.liveAgents?.() ?? []);
     if (extras.length) {
       const id = `backtrack:${g.save.chapterId}:${g.save.backtrack.visits[g.save.chapterId]}`;
@@ -118,6 +120,8 @@ export class ChapterRuntime {
       if (!inside) this.lastZones.delete(z.id);
     }
     this.script.step?.(this, dt, simMs, inp);
+    // Continuidade local: visitar e revisitar regiões SEM descarregar o capítulo.
+    this.regional?.step();
     this.interactions(dt, simMs, inp);
     this.objectives();
     if (!this.exiting && this.script.exitWhen?.(this)) { this.exiting = true; this.g.finishChapter(); }
