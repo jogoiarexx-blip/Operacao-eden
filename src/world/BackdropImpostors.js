@@ -31,12 +31,13 @@ function mountainPath(ctx, y, amplitude, random, width, height, color) {
   ctx.beginPath();
   ctx.moveTo(0, height);
   ctx.lineTo(0, y);
-  for (let x = 0; x <= width + 12; x += 12) {
+  for (let x = 0; x < width; x += 12) {
     // Ondas periódicas: borda esquerda e direita do panorama coincidem exatamente.
     const angle = x / width * Math.PI * 2;
     const wave = (Math.sin(angle * 3) * .7 + Math.cos(angle * 7) * .3 + Math.sin(angle * 13) * .14) * amplitude;
     ctx.lineTo(x, y - wave);
   }
+  ctx.lineTo(width, y - amplitude * .3); // mesmo perfil da coluna x=0
   ctx.lineTo(width, height);
   ctx.closePath();
   ctx.fillStyle = color;
@@ -254,7 +255,7 @@ export function createBackdropImpostors({ bounds, chapter = 1, quality = 'medium
     mesh.position.set(layout.x, layout.y, layout.z);
     mesh.castShadow = false; mesh.receiveShadow = false;
     mesh.frustumCulled = true;
-    mesh.renderOrder = -10;
+    mesh.renderOrder = layer === 'far' ? -11 : -10;
     target.add(mesh); planeCount++;
   }
   const api = {
