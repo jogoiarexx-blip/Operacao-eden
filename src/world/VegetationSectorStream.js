@@ -7,8 +7,8 @@ import * as THREE from 'three';
  */
 
 export const VEGETATION_CELL_SIZE = 24;
-export const VEGETATION_SHOW_DISTANCE = 62;
-export const VEGETATION_HIDE_DISTANCE = 76;
+export const VEGETATION_SHOW_DISTANCE = 70;
+export const VEGETATION_HIDE_DISTANCE = 84;
 
 const clamp = (v, low, high) => Math.max(low, Math.min(high, v));
 
