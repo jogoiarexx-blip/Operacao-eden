@@ -22,6 +22,7 @@ import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraCont
 import { CollisionWorld } from './world/CollisionWorld.js';
 import { buildScenery } from './world/SectorScenery.js';
 import { FX } from './world/FX.js';
+import { PostFX } from './render/PostFX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
 import { resolveDifficultyOffer } from './gameplay/DifficultyOffer.js';
@@ -71,8 +72,10 @@ export class Game {
       throw e;
     }
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.Fog(0x0a1719, 8, 80);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
+    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.FogExp2(0x0a1719, 0.02); this._fogBase = 0.02;
     this.threeCam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 150);
+    this.postfx = new PostFX(this.renderer, this.scene, this.threeCam);
     this.loadChapter(CHAPTER_IDS[0]);
     this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
     this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
@@ -107,6 +110,16 @@ export class Game {
   /** Número do capítulo carregado (loja: itens liberados por capítulo). */
   get chapterNumber() { return this.chapterDef?.data.chapter ?? 1; }
 
+  /** Exposição, névoa e gradação de cor do capítulo (`data.render`). */
+  _applyChapterRender(r = {}) {
+    this.renderer.toneMappingExposure = r.exposure ?? 1.0;
+    const col = r.fogColor ?? 0x0a1719;
+    this.scene.background.set(col); this.scene.fog.color.set(col);
+    this._fogBase = r.fogDensity ?? 0.02; this._fogQuality();
+    this.postfx?.setGrade(r.grade ?? {});
+  }
+  _fogQuality() { const q = QUALITY[this.settings?.quality] ?? QUALITY.medium; this.scene.fog.density = this._fogBase * (80 / q.fogFar); }
+
   /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
   loadChapter(id) {
     if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
@@ -117,6 +130,7 @@ export class Game {
     this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
     this.scene.add(this.scenery.group);
     this.scenery.onLightning = () => this.audio?.play('thunder');
+    this._applyChapterRender(data.render);
     this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
     if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
@@ -129,7 +143,7 @@ export class Game {
     const b = this.bus;
     b.on('reward', (r) => { this.hud.feed(r, this.settings.hideStyleFeed); if (r.cc) this.audio.play('ui'); });
     b.on('playerDamaged', (e) => {
-      this.hud.damageFlash(); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
+      this.hud.damageFlash(); this.postfx?.pulseDamage(Math.min(1, (e.amount ?? 10) / 30)); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
       if (e.bleeding && !this._bleedToldAt) { this._bleedToldAt = this.simMs; this.hud.toast('Você está sangrando — use um hemostático.', 'warn'); }
     });
     b.on('enemyNeutralized', (e) => {
@@ -153,13 +167,14 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this.scene.fog.far = q.fogFar; this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.scenery.setQuality(q); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
   onResize() {
     if (!this.renderer) return;
     this.renderer.setSize(innerWidth, innerHeight, false); this.threeCam.aspect = innerWidth / innerHeight; this.camera.aspect = this.threeCam.aspect; this.threeCam.updateProjectionMatrix();
+    this.postfx?.setSize(innerWidth, innerHeight, this.renderer.getPixelRatio());
     if (this.bench?.collector && this.bench.collector.t0 != null) this.bench.collector.invalidate('janela redimensionada durante a coleta');
   }
   onVisibility() {
@@ -552,7 +567,7 @@ export class Game {
     else if (st === S.CUTSCENE) { this._updateCutscene(frameDt); this.scenery.update(this.tAnim, frameDt, this.threeCam.position, { x: 0, y: 0, z: -1 }, this.player); this.agents.forEach((a) => a.view.sync(1, frameDt)); }
     else if (st === S.BENCHMARK) this.renderBench(frameDt, t0);
     else this.renderIdle(frameDt);
-    if (st !== S.BENCHMARK) this.renderer.render(this.scene, this.threeCam);
+    if (st !== S.BENCHMARK) { this.postfx.render(frameDt); }
     this.menuNav();
   }
   renderIdle(frameDt) {
@@ -667,7 +682,7 @@ export class Game {
     this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
     B.view.sync(1, frameDt, B.cam.playerOpacity); B.agents.forEach((a) => a.view.sync(1, frameDt));
     const updateMs = performance.now() - u0;
-    const r0 = performance.now(); this.renderer.render(this.scene, this.threeCam); const renderMs = performance.now() - r0;
+    const r0 = performance.now(); this.postfx.render(frameDt); const renderMs = performance.now() - r0;
     const inf = this.renderer.info;
     col.frame(ts, { updateMs, renderMs, camMs, info: { calls: inf.render.calls, triangles: inf.render.triangles, geometries: inf.memory.geometries, textures: inf.memory.textures } });
     const e = col.elapsed, ph = col.phase;

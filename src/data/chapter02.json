@@ -6,6 +6,7 @@
  "mapTitle": "Posto Avançado Norte",
  "protagonist": "caio",
  "bounds": [-40, -40, 40, 40],
+ "render": {"exposure": 1.8, "fogColor": 661273, "fogDensity": 0.01, "grade": {"vignette": 0.4, "grain": 0.014, "tint": {"shadow": [0.92, 0.98, 1.06], "light": [1.06, 1.0, 0.92]}}},
  "treeSeed": 2207,
  "treeMaxZ": 33,
  "spawn": {"id": "south_breach", "pos": [11.3, 33.5], "yaw": 0},

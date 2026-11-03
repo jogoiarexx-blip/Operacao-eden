@@ -11,6 +11,7 @@
   40,
   44
  ],
+ "render": {"exposure": 1.9, "fogColor": 661273, "fogDensity": 0.011, "grade": {"vignette": 0.35, "grain": 0.012, "tint": {"shadow": [0.9, 1.0, 1.06], "light": [1.04, 1.0, 0.94]}}},
  "treeSeed": 1042,
  "exitCheckpoint": {"pos": [0, -38], "yaw": 0},
  "spawn": {
