@@ -28,7 +28,7 @@ try {
   if (first.before < 3 || first.hidden !== first.before) throw Error('LOD não selecionou detalhes: ' + JSON.stringify(first));
   await page.screenshot({ path: SHOT + '/portal-breach.png' });
 
-  await page.evaluate(() => { window.__eden.teleport(16.8, 12); });
+  await page.evaluate(() => { window.__eden.teleport(17.3, 12); });
   await page.waitForFunction(() => window.__game.camera.activeZone?.id === 'cz_portal_shed');
 
   // Reproduz o estado 'rádio ligado' para entrar na zona da emboscada com controle ativo.
