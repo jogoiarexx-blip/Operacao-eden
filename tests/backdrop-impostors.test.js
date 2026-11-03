@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getChapter } from '../src/chapters/index.js';
 import {
   BACKDROP_OFFSETS, BACKDROP_TEXTURE_SIZE,
-  backdropLayout, backdropOpacity, createBackdropImpostors,
+  backdropLayout, backdropOpacity, panoramicRidgeY, createBackdropImpostors,
 } from '../src/world/BackdropImpostors.js';
 
 const fakeContext = () => ({
@@ -26,6 +26,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Panoramas 360 graus dos dois capítulos', () => {
+  it('montanhas fecham exatamente a costura horizontal da textura', () => {
+    for (const baseline of [155, 163, 191, 192]) {
+      for (const amplitude of [9, 18, 22, 29]) {
+        const y0 = panoramicRidgeY(0, 1024, baseline, amplitude);
+        const y1 = panoramicRidgeY(1024, 1024, baseline, amplitude);
+        expect(y0).toBeCloseTo(y1, 9);
+        const left = panoramicRidgeY(1, 1024, baseline, amplitude);
+        const right = panoramicRidgeY(1023, 1024, baseline, amplitude);
+        expect(Math.abs(left - right)).toBeLessThan(1);
+      }
+    }
+  });
+
   it.each(['ch01', 'ch02'])('%s mantém o cilindro inteiro fora dos cantos jogáveis', id => {
     const bounds = getChapter(id).data.bounds;
     const diagonal = Math.hypot((bounds[2] - bounds[0]) / 2, (bounds[3] - bounds[1]) / 2);
