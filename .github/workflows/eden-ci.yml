@@ -47,6 +47,7 @@ jobs:
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-regina.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-backtrack.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-service-passage.mjs
+          URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-neighbor-stream.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-chapter-cache.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e3.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-area-transitions.mjs
