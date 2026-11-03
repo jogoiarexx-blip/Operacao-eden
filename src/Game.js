@@ -171,7 +171,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); for (const ag of this.agents) ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.bench?.agents.forEach((ag) => ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium')); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
@@ -276,7 +276,7 @@ export class Game {
     const species = bestiary.species[def.type];
     const Agent = species.boss ? K1Agent : DinosaurAgent;
     const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
-    const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
+    const view = new CreatureView(agent, this.settings.quality in QUALITY ? this.settings.quality : 'medium'); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
   }
@@ -656,7 +656,7 @@ export class Game {
     const agents = [0, 1, 2].map((i) => {
       const sp = bestiary.species.forest_runner;
       const a = new DinosaurAgent({ id: `bench_${i}`, encounterId: 'bench', species: sp, pos: [route[(i * 3) % route.length][0] + 5, route[(i * 3) % route.length][1] - 6], patrol: route.map(([x, z]) => [x + (i - 1) * 4, z - 5 - i * 2]) });
-      a.scripted = { t: i * 1.7 }; const v = new CreatureView(a); this.scene.add(v.mesh); return { agent: a, view: v };
+      a.scripted = { t: i * 1.7 }; const v = new CreatureView(a, this.settings.quality in QUALITY ? this.settings.quality : 'medium'); this.scene.add(v.mesh); return { agent: a, view: v };
     });
     this.bench = { mode, collector: new BenchCollector({ mode }), cam, player, view, agents, route, rng, t: 0, seg: 0, lastShot: 0, swapAt: 12, preset: this.settings.quality, camMs: 0 };
     this.sm.go(S.BENCHMARK); this.appEl.classList.remove('playing');

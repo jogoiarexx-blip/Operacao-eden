@@ -1,101 +1,82 @@
-import * as THREE from 'three';
 import { AI } from './DinosaurAgent.js';
 import { K1 } from './K1Agent.js';
-import { clamp } from '../core/math.js';
+import { clamp, wrapAngle } from '../core/math.js';
+import { DinoRig, LEG } from './DinoRig.js';
 
-/** Malha low-poly procedural para R-4 / R-4J / K-1 (chefe: corpo mais pesado e crista óssea) + animação por estado (telegráfico legível: agacha, cabeça baixa, olhos vermelhos). */
-export function buildCreature(species) {
-  const root = new THREE.Group();
-  const s = species.scale;
-  const body = new THREE.MeshLambertMaterial({ color: species.color, flatShading: true });
-  const belly = new THREE.MeshLambertMaterial({ color: 0x8b7b55, flatShading: true });
-  const accent = new THREE.MeshLambertMaterial({ color: species.accent, flatShading: true });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffb02e });
-  const mats = [body, belly, accent];
+const AIM_STATES = new Set([AI.CHASE, AI.STALK, AI.ATTACK_WINDUP, AI.ATTACK, K1.CHARGE_WINDUP, K1.CHARGE, K1.TAIL_WINDUP]);
+const NECK0 = 0.75;                                   // pitch de repouso do pescoço (positivo = levanta a cabeça)
+const damp = (cur, tgt, f) => cur + (tgt - cur) * f;
 
-  const rig = new THREE.Group(); root.add(rig);                    // inclinação geral (agachar/estender)
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.34 * s, 0.75 * s, 4, 8), body); torso.rotation.x = Math.PI / 2; torso.position.set(0, 0.88 * s, 0); rig.add(torso);
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.36 * s, 8, 6), belly); chest.scale.set(0.9, 0.7, 1); chest.position.set(0, 0.78 * s, -0.18 * s); rig.add(chest);
-  const neck = new THREE.Group(); neck.position.set(0, 1.0 * s, -0.58 * s); rig.add(neck);
-  const neckM = new THREE.Mesh(new THREE.CapsuleGeometry(0.15 * s, 0.4 * s, 3, 6), body); neckM.rotation.x = -0.5; neckM.position.set(0, 0.2 * s, -0.12 * s); neck.add(neckM);
-  const head = new THREE.Group(); head.position.set(0, 0.42 * s, -0.3 * s); neck.add(head);
-  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.3 * s, 0.26 * s, 0.34 * s), body); head.add(skull);
-  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.22 * s, 0.17 * s, 0.34 * s), body); snout.position.set(0, -0.03 * s, -0.3 * s); head.add(snout);
-  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.2 * s, 0.07 * s, 0.34 * s), belly); jaw.position.set(0, -0.14 * s, -0.28 * s); head.add(jaw);
-  for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04 * s, 5, 4), eyeMat); eye.position.set(sx * 0.14 * s, 0.05 * s, -0.12 * s); head.add(eye); }
-  const crest = new THREE.Mesh(new THREE.BoxGeometry(0.06 * s, 0.1 * s, 0.34 * s), accent); crest.position.set(0, 0.17 * s, 0); head.add(crest);
-  for (let i = 0; i < 4; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.05 * s, 0.14 * s, 0.12 * s), accent); st.position.set(0, 1.2 * s, (-0.35 + i * 0.28) * s); rig.add(st); }   // faixas dorsais
-  const tail = new THREE.Group(); tail.position.set(0, 0.92 * s, 0.55 * s); rig.add(tail);
-  const tailM = new THREE.Mesh(new THREE.ConeGeometry(0.24 * s, 1.5 * s, 6), body); tailM.rotation.x = -Math.PI / 2; tailM.position.z = 0.75 * s; tail.add(tailM);
-  const arms = [];
-  for (const sx of [-1, 1]) {
-    const a = new THREE.Mesh(new THREE.BoxGeometry(0.06 * s, 0.3 * s, 0.06 * s), body); a.position.set(sx * 0.24 * s, 0.7 * s, -0.5 * s); a.rotation.x = 0.7; rig.add(a); arms.push(a);
-  }
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(sx * 0.26 * s, 0.78 * s, 0.1 * s); root.add(hip);
-    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.13 * s, 0.38 * s, 3, 6), body); thigh.position.y = -0.2 * s; hip.add(thigh);
-    const shin = new THREE.Mesh(new THREE.BoxGeometry(0.1 * s, 0.4 * s, 0.1 * s), accent); shin.position.set(0, -0.58 * s, 0.05 * s); hip.add(shin);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.14 * s, 0.05 * s, 0.3 * s), body); foot.position.set(0, -0.78 * s, -0.06 * s); hip.add(foot);
-    legs.push(hip);
-  }
-  if (species.boss) {                                                    // K-1: tronco largo, pescoço grosso, crista/placas ósseas
-    torso.scale.set(1.35, 1.05, 1.3); chest.scale.set(1.2, 0.9, 1.25); neckM.scale.set(1.5, 1, 1.5); skull.scale.set(1.2, 1.1, 1.05);
-    crest.scale.set(1.6, 2.6, 1.3); crest.position.y = 0.24 * s;
-    for (const sx of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06 * s, 0.26 * s, 5), accent); horn.position.set(sx * 0.13 * s, 0.2 * s, 0.1 * s); horn.rotation.x = 0.9; horn.rotation.z = -sx * 0.4; head.add(horn); }
-    for (let i = 0; i < 6; i++) { const pl = new THREE.Mesh(new THREE.BoxGeometry(0.08 * s, (0.26 - i * 0.025) * s, 0.16 * s), accent); pl.position.set(0, (1.32 - i * 0.02) * s, (-0.5 + i * 0.22) * s); rig.add(pl); }
-    tailM.scale.set(1.35, 1, 1.35);
-  }
-  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  root.userData = { rig, neck, head, jaw, tail, legs, arms, mats, eyeMat, body, s };
-  return root;
-}
-
+/**
+ * Visual de R-4 / R-4J / K-1 (DinoRig) com animação dirigida pelo estado do agente: cauda em onda (5 segmentos), pescoço mirando o alvo,
+ * agachamento do telegráfico (cabeça baixa, olhos vermelhos), mordida (mandíbula), investida baixa do K-1, atordoado (cabeça pendendo) e queda
+ * ao morrer. Só lê o agente: nada é escrito de volta; hitboxes/tempos/IA ficam no agente. Sem alocação por quadro.
+ */
 export class CreatureView {
-  constructor(agent) {
-    this.agent = agent; this.mesh = buildCreature(agent.species); this.t = Math.random() * 10; this.deadT = 0;
-    this.base = this.mesh.userData.mats.map((m) => m.color.getHex());
+  constructor(agent, quality = 'medium') {
+    this.agent = agent; this.rig = new DinoRig(agent.species, quality); this.mesh = this.rig.root;
+    this.head = this.rig.head; this.jaw = this.rig.jaw; this.tail = this.rig.tail; this.neck = this.rig.neck;
+    this.t = Math.random() * 10; this.deadT = 0; this.first = true;
+    this.k = { crouch: 0, stretch: 0, jaw: 0, neck: 0, tail: 0, aim: 0 };
   }
+  setQuality(q) { this.rig.setQuality(q); }
   sync(alpha, dt) {
-    const a = this.agent, m = this.mesh, u = m.userData;
+    const a = this.agent, m = this.mesh, R = this.rig, k = this.k, st = a.state;
     this.t += dt;
     m.position.set(a.px + (a.x - a.px) * alpha, 0, a.pz + (a.z - a.pz) * alpha);
-    let dy = a.yaw - a.pYaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
-    m.rotation.y = a.pYaw + dy * alpha;
-    // marcha
-    const sw = Math.sin(a.walkPhase * 3) * clamp(a.speedNow / 3, 0, 1) * 0.9;
-    u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
-    u.tail.rotation.y = Math.sin(this.t * 2.2) * 0.15 + Math.sin(a.walkPhase * 3) * 0.1 * clamp(a.speedNow / 3, 0, 1);
-    u.neck.rotation.x = Math.sin(this.t * 1.4) * 0.04 + (a.speedNow > 3 ? 0.18 : 0);
-    u.tail.rotation.x *= 0.9;
-    let crouch = 0, stretch = 0, jaw = 0, eye = 0xffb02e;
-    if (a.state === AI.ATTACK_WINDUP) { const p = a.windupProgress; crouch = clamp(p * 3, 0, 1); jaw = 0.3 + Math.sin(this.t * 40) * 0.1 * p; eye = 0xff2a1a; m.position.x += Math.sin(this.t * 60) * 0.015 * p; u.neck.rotation.x = 0.35 * crouch; u.tail.rotation.x = -0.3 * crouch; }
-    else if (a.state === AI.ATTACK) { stretch = 1; jaw = 0.7; eye = 0xff2a1a; }
-    else if (a.state === AI.STALK) { crouch = 0.45; eye = 0xff8a1a; }
-    else if (a.state === AI.STAGGER) { m.rotation.z = Math.sin(this.t * 30) * 0.08; eye = 0xffffff; }
-    else if (a.state === K1.CHARGE_WINDUP) {          // agacha, cabeça baixa e raspa o chão com a pata
-      const p = a.windupProgress; crouch = clamp(p * 2.5, 0, 1); eye = 0xff2a1a; u.neck.rotation.x = 0.45 * crouch; u.tail.rotation.x = -0.25 * crouch;
-      u.legs[0].rotation.x = -0.25 + Math.sin(this.t * 16) * 0.55; u.legs[1].rotation.x = 0.15; m.position.x += Math.sin(this.t * 50) * 0.02 * p;
+    m.rotation.y = a.pYaw + wrapAngle(a.yaw - a.pYaw) * alpha;
+    const f = this.first ? 1 : 1 - Math.exp(-dt * 12); this.first = false;
+    const spd = clamp(a.speedNow / 3, 0, 1), ph = a.walkPhase * 3, t = this.t;
+    // alvos de pose (por estado)
+    let crouch = 0, stretch = 0, jaw = 0, neck = 0, tail = 0, tailYaw = 0, eye = 0xffb02e, roll = 0, headRoll = 0, headYaw = 0, scratch = false, twist = 0;
+    if (st === AI.ATTACK_WINDUP) { const p = a.windupProgress; crouch = clamp(p * 3, 0, 1); jaw = 0.3 + Math.sin(t * 40) * 0.1 * p; eye = 0xff2a1a; neck = -0.5 * crouch; tail = -0.3 * crouch; m.position.x += Math.sin(t * 60) * 0.015 * p; }
+    else if (st === AI.ATTACK) { stretch = 1; jaw = 0.75; eye = 0xff2a1a; neck = -0.45; tail = -0.25; }
+    else if (st === AI.STALK) { crouch = 0.45; eye = 0xff8a1a; neck = -0.25; }
+    else if (st === AI.STAGGER) { roll = Math.sin(t * 30) * 0.08; eye = 0xffffff; neck = 0.25; jaw = 0.3; headRoll = Math.sin(t * 22) * 0.15; }
+    else if (st === K1.CHARGE_WINDUP) { const p = a.windupProgress; crouch = clamp(p * 2.5, 0, 1); eye = 0xff2a1a; neck = -0.65 * crouch; tail = -0.25 * crouch; scratch = true; m.position.x += Math.sin(t * 50) * 0.02 * p; }
+    else if (st === K1.CHARGE) { stretch = 0.55; jaw = 0.35; eye = 0xff2a1a; neck = -0.6; tail = -0.15; }
+    else if (st === K1.DAZED) { crouch = 0.7; jaw = 0.45; eye = 0x8a8a8a; neck = -1.25; headRoll = Math.sin(t * 4) * 0.25; roll = Math.sin(t * 3) * 0.06; }
+    else if (st === K1.TAIL_WINDUP) { const p = a.windupProgress; eye = 0xff2a1a; crouch = 0.3 * p; tailYaw = -0.9 * p + Math.sin(t * 30) * 0.05 * p; tail = 0.25 * p; twist = 0.3 * p; }
+    else if (st === AI.RECOVER) { headYaw = Math.sin(t * 14) * 0.4; }
+    if (spd > 0.99) neck -= 0.25;                      // corrida: pescoço projetado para frente
+    // mira: o pescoço acompanha o último ponto conhecido do alvo
+    let aim = 0;
+    if (a.lastKnown && !a.dead && AIM_STATES.has(st) && st !== K1.DAZED) aim = clamp(wrapAngle(Math.atan2(-(a.lastKnown.x - a.x), -(a.lastKnown.z - a.z)) - a.yaw), -0.7, 0.7);
+    k.crouch = damp(k.crouch, crouch, f); k.stretch = damp(k.stretch, stretch, f); k.jaw = damp(k.jaw, jaw, f); k.neck = damp(k.neck, neck, f); k.tail = damp(k.tail, tail, f); k.aim = damp(k.aim, aim, f);
+    const c = k.crouch, s = k.stretch, br = Math.sin(t * 1.6);
+    // tronco
+    R.rig.position.y = -0.22 * c + Math.abs(Math.sin(ph)) * 0.025 * spd; R.rig.rotation.set(-0.1 * c - 0.3 * s, twist, roll);
+    R.torso.scale.y = 1 + 0.015 * br;
+    // pernas
+    R.legsG.position.y = -0.06 * c;
+    for (let i = 0; i < 2; i++) {
+      const sw = Math.sin(ph + i * Math.PI) * 0.7 * spd, lift = Math.max(0, Math.cos(ph + i * Math.PI)) * 0.9 * spd;
+      let hip = LEG.a0 + 0.25 * c + 0.15 * s + sw, kn = LEG.k0 - 0.5 * c - lift;
+      if (scratch && i === 0) { hip = LEG.a0 - 0.2 + Math.sin(t * 16) * 0.55; kn = LEG.k0 - Math.max(0, Math.sin(t * 16)) * 0.5; } else if (scratch) { hip = LEG.a0 + 0.55; kn = LEG.k0 - 0.4; }
+      R.legs[i].rotation.x = hip; R.knees[i].rotation.x = kn; R.ankles[i].rotation.x = -(hip + kn);
     }
-    else if (a.state === K1.CHARGE) { stretch = 0.55; jaw = 0.35; eye = 0xff2a1a; u.neck.rotation.x = 0.4; u.tail.rotation.x = -0.15; }
-    else if (a.state === K1.DAZED) {                  // atordoado: cabeça no chão, balança, olhos apagados
-      crouch = 0.7; jaw = 0.45; eye = 0x8a8a8a; u.neck.rotation.x = 0.95; u.head.rotation.z = Math.sin(this.t * 4) * 0.25; m.rotation.z = Math.sin(this.t * 3) * 0.06;
+    // pescoço e cabeça
+    R.neck.rotation.set(NECK0 + 0.03 * br + k.neck, k.aim * 0.6, 0); R.neck.position.y = 1.08 - 0.12 * c;
+    R.head.rotation.set(-(NECK0 + k.neck) * 0.85 + 0.15 - 0.3 * c + 0.1 * Math.sin(ph * 2) * spd, k.aim * 0.4 + headYaw, headRoll);
+    R.jaw.rotation.x = -k.jaw;
+    // cauda em onda (5 segmentos encadeados)
+    for (let i = 0; i < 5; i++) {
+      const seg = R.tail[i];
+      seg.rotation.y = Math.sin(t * 2.2 - i * 0.9) * (0.07 + 0.015 * i) + Math.sin(ph - i * 0.7) * 0.07 * spd + tailYaw / 5;
+      seg.rotation.x = 0.04 + (i === 0 ? 0.6 : 0.1) * k.tail + (i === 0 ? 0 : Math.sin(t * 1.3 - i * 0.6) * 0.012);
     }
-    else if (a.state === K1.TAIL_WINDUP) { const p = a.windupProgress; eye = 0xff2a1a; crouch = 0.3 * p; u.tail.rotation.y = -0.9 * p + Math.sin(this.t * 30) * 0.05 * p; u.tail.rotation.x = 0.25 * p; }
-    else if (a.state === AI.RECOVER) { u.head.rotation.y = Math.sin(this.t * 14) * 0.4; }
-    else { u.head.rotation.y *= 0.9; m.rotation.z *= 0.8; }
-    if (a.state !== K1.DAZED) u.head.rotation.z *= 0.85;
-    u.rig.position.y = -0.22 * u.s * crouch; u.rig.rotation.x = 0.18 * crouch - 0.38 * stretch;
-    u.jaw.rotation.x = jaw; u.eyeMat.color.setHex(eye);
-    // acerto: pisca
-    const flash = a.hurtT > 0 ? 1 : 0;
-    u.mats.forEach((mt, i) => mt.color.setHex(flash ? 0xaa5555 : this.base[i]));
-    // morte
+    // olhos: emissivo fraco
+    R.setEye(eye, 0.9);
+    // acerto: tinge
+    R.setTint(a.hurtT > 0);
+    // morte: cai de lado, cabeça e cauda moles
     if (a.dead) {
-      this.deadT = Math.min(1, this.deadT + dt * 2.2);
-      m.rotation.z = this.deadT * (Math.PI / 2 - 0.15); m.position.y = -0.05 * this.deadT;
-      u.legs.forEach((l, i) => { l.rotation.x = 0.5 * (i ? 1 : -1) * this.deadT; }); u.eyeMat.color.setHex(0x222222);
+      this.deadT = Math.min(1, this.deadT + dt * 2.2); const d = this.deadT;
+      m.rotation.z = d * (Math.PI / 2 - 0.15); m.position.y = -0.05 * d;
+      R.legs.forEach((l, i) => { l.rotation.x += (0.5 * (i ? 1 : -1) - l.rotation.x) * d * 0.6; });
+      R.neck.rotation.x = NECK0 - 1.1 * d; R.jaw.rotation.x = -0.4 * d; R.tail.forEach((sg, i) => { sg.rotation.y = 0.25 * d * (i + 1) / 5; });
+      R.setEye(0x222222, 0);
     }
   }
-  dispose() { this.mesh.traverse((o) => { o.geometry?.dispose?.(); }); }
+  dispose() { this.rig.dispose(); }
 }
