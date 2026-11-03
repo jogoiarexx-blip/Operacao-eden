@@ -6,6 +6,7 @@ import { createBackdropImpostors } from './BackdropImpostors.js';
 import { createUnreachableTreeCards } from './TreeImpostors.js';
 import { createRegionalDetailStream } from './RegionalDetailStream.js';
 import { createSafeDoorFrames } from './SafeRoomDoors.js';
+import { createServicePassage } from './ServicePassage.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -50,6 +51,9 @@ export function buildScenery({ world, data, quality }) {
   group.add(regionalDetails.group);
   const safeDoors = createSafeDoorFrames({data,world});
   group.add(safeDoors.group);
+  // Mesma estrada de serviço nas duas pontas da ligação entre capítulos.
+  const servicePassage = createServicePassage({ data, world });
+  group.add(servicePassage.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -224,7 +228,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails, safeDoors,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails, safeDoors, servicePassage,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
