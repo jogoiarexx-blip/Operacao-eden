@@ -172,6 +172,8 @@ export class Game {
     document.body.dataset.subs = s.subtitleSize; document.body.classList.toggle('hc', !!s.highContrastThreat);
     const q = QUALITY[s.quality] ?? QUALITY.medium;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
+    const stype = s.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;   // PCF simples no Médio (menos amostras por fragmento)
+    if (this.renderer.shadowMap.type !== stype) { this.renderer.shadowMap.type = stype; this._lastShadows = null; }
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
     this.fx?.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); for (const ag of this.agents) ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.bench?.agents.forEach((ag) => ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium')); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();

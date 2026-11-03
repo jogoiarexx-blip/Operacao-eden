@@ -66,20 +66,21 @@ describe('FX', () => {
     expect(fx.particles.capacity).toBe(QUALITY.high.particles); expect(fx.decals.capacity).toBe(QUALITY.high.decals);
     const n = scene.children.length;
     fx.setQuality('low'); expect(fx.particles.capacity).toBe(QUALITY.low.particles); expect(fx.decals.capacity).toBe(QUALITY.low.decals);
-    fx.setQuality('medium'); fx.reset();
+    fx.setQuality('high'); fx.reset();
     expect(scene.children.length).toBe(n);
   });
-  it('uma única PointLight, nunca criada/removida por tiro; decai em 60 ms', () => {
-    const { scene, fx } = mk();
+  it('uma única PointLight (Alto), nunca criada/removida por tiro; decai em 60 ms', () => {
+    const { scene, fx } = mk('high');
     const lights = () => scene.children.filter((c) => c.isLight).length;
     expect(lights()).toBe(1); expect(fx.light.intensity).toBe(0);
     fx.muzzle({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }, 'pistol'); expect(fx.light.intensity).toBeGreaterThan(0); expect(lights()).toBe(1);
     fx.update(0.03); expect(fx.light.intensity).toBeGreaterThan(0);
     fx.update(0.04); expect(fx.light.intensity).toBe(0); expect(lights()).toBe(1);
   });
-  it('Baixo não tem PointLight (custo por fragmento); medium/alto têm exatamente uma, trocada só com o preset', () => {
+  it('Baixo e Médio não têm PointLight (custo por fragmento); só o Alto tem exatamente uma, trocada só com o preset', () => {
     const { scene, fx } = mk('low');
     expect(scene.children.filter((c) => c.isLight).length).toBe(0);
+    fx.setQuality('medium'); expect(scene.children.filter((c) => c.isLight).length).toBe(0); fx.muzzle({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }); fx.update(0.1);
     fx.muzzle({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: -1 }); fx.update(0.1);
     fx.setQuality('high'); expect(scene.children.filter((c) => c.isLight).length).toBe(1);
     fx.setQuality('low'); expect(scene.children.filter((c) => c.isLight).length).toBe(0);

@@ -95,7 +95,8 @@ describe('atmosfera', () => {
   });
   it('Médio cria cone e névoa; dispose remove o grupo', () => {
     const { scene, atmo } = mk('medium'); expect(atmo.group.children.length).toBeGreaterThan(0); expect(scene.children).toContain(atmo.group); upd(atmo);
-    const fog = atmo.group.children.filter((c) => c.name === 'fogQuad'); expect(fog.length).toBeGreaterThanOrEqual(6); expect(fog.length).toBeLessThanOrEqual(10);
+    const fog = atmo.group.children.filter((c) => c.name === 'fogQuad'); expect(fog.length).toBe(4);
+    expect(mk('high').atmo.group.children.filter((c) => c.name === 'fogQuad').length).toBe(8);
     expect(atmo.group.getObjectByName('flashlightCone')).toBeTruthy();
     atmo.group.traverse((o) => { if (o.isMesh || o.isPoints) { expect(o.material.depthWrite).toBe(false); const hit = []; o.raycast(new THREE.Raycaster(), hit); expect(hit.length).toBe(0); } });
     atmo.dispose(); expect(scene.children.includes(atmo.group)).toBe(false); expect(atmo.group.children.length).toBe(0);
@@ -103,7 +104,7 @@ describe('atmosfera', () => {
   it('setQuality alterna sem acumular filhos', () => {
     const { scene, atmo } = mk('medium'); const n = atmo.group.children.length;
     atmo.setQuality('low'); expect(atmo.group.children.length).toBe(0);
-    atmo.setQuality('high'); expect(atmo.group.children.length).toBe(n);
+    atmo.setQuality('medium'); expect(atmo.group.children.length).toBe(n);
     for (let i = 0; i < 5; i++) { atmo.setQuality('medium'); atmo.setQuality('low'); }
     atmo.setQuality('medium'); expect(atmo.group.children.length).toBe(n); expect(scene.children.length).toBe(1); atmo.dispose();
   });

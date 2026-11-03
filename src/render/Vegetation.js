@@ -221,7 +221,7 @@ export function assignTreeVariants(trees, treeSeed) {
   return trees;
 }
 function blobGeo() {
-  const parts = [[0, 0, 0, 1], [0.7, -0.25, 0.2, 0.75], [-0.6, -0.2, -0.4, 0.8], [0.1, 0.45, -0.1, 0.7]].map(([x, y, z, s]) => new THREE.IcosahedronGeometry(s, 0).translate(x, y, z));
+  const parts = [[0, 0, 0, 1], [0.7, -0.25, 0.2, 0.75], [-0.6, -0.2, -0.4, 0.8]].map(([x, y, z, s]) => new THREE.IcosahedronGeometry(s, 0).translate(x, y, z));
   const g = mergeGeometries(parts); parts.forEach((p) => p.dispose()); return g;
 }
 function frondGeo() {
@@ -242,7 +242,7 @@ function frondGeo() {
 export function buildTrees({ trees, quality = 'medium' }) {
   const group = new THREE.Group(); group.name = 'arvores';
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), col = new THREE.Color();
-  const geos = { trunk: new THREE.CylinderGeometry(0.7, 1, 1, 6), cone: new THREE.ConeGeometry(1, 1, 7), blob: blobGeo(), frond: frondGeo() };
+  const geos = { trunk: new THREE.CylinderGeometry(0.7, 1, 1, 6, 1, true),   /* sem tampas: topo fica sob a copa e a base no chão (-12 tris/árvore) */ cone: new THREE.ConeGeometry(1, 1, 7), blob: blobGeo(), frond: frondGeo() };
   const parts = [];   // { mesh, role, opts, textured }
   const owned = new Set();
   /** Baixo: Lambert só cor (como antes, custo zero). Médio: Lambert, tronco com textura de casca. Alto: PBR de getMaterial (compartilhado; clone só se precisar de dois lados). */

@@ -10,7 +10,7 @@ import { createRng } from '../core/rng.js';
 const NO_RAY = () => {};
 /** Contraste da sombra da lua: baseline suave, 1 durante o relâmpago (a intensidade da luz já sobe em SectorScenery). */
 export const MOON_SHADOW_BASE = 0.75;
-const CONE_LEN = 15, CONE_R = 3.2, DUST = 36, FOG_N = 8, FOG_SPAN = 56;
+const CONE_LEN = 15, CONE_R = 3.2, DUST = 36, FOG_N = 8, FOG_MED = 4, FOG_SPAN = 56;
 
 const CONE_VS = `varying vec3 vP; varying vec3 vN; varying vec3 vV;
 void main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
@@ -65,7 +65,8 @@ export function createAtmosphere({ scene, quality = 'medium', data }) {
     const fm = track(new THREE.MeshBasicMaterial({ map: tex, color: fcol, transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide }));
     const fg = track(new THREE.PlaneGeometry(16, 16)); fg.rotateX(-Math.PI / 2);
     const fr = createRng(1313); fogQuads = [];
-    for (let i = 0; i < FOG_N; i++) {
+    const fogN = q === 'high' ? FOG_N : FOG_MED;   // quads translúcidos grandes são caros em fill-rate: metade no Médio
+    for (let i = 0; i < fogN; i++) {
       const m = new THREE.Mesh(fg, fm); m.name = 'fogQuad'; m.raycast = NO_RAY; m.frustumCulled = false;
       m.userData = { bx: fr.range(-FOG_SPAN / 2, FOG_SPAN / 2), bz: fr.range(-FOG_SPAN / 2, FOG_SPAN / 2), y: 0.35 + fr.next() * 0.9, ph: fr.next() * 6.28, sp: 0.15 + fr.next() * 0.25, sc: 0.9 + fr.next() * 0.9 };
       m.rotation.y = fr.next() * 6.28; m.scale.setScalar(m.userData.sc); fogQuads.push(m); group.add(m);

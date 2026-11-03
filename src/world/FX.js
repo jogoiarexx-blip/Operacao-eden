@@ -52,8 +52,8 @@ export class FX {
     const q = QUALITY[qk] ?? QUALITY.medium, key = QUALITY[qk] ? qk : 'medium';
     if (this.quality === key && this.particles && this.particles.capacity === q.particles && this.decals.capacity === q.decals) return;
     this.quality = key; this._build(q);
-    // Baixo: sem PointLight (cada luz extra custa por fragmento em todos os materiais: +7-9 % medido); a luz só entra/sai na troca de preset, nunca por tiro
-    const want = key !== 'low';
+    // Baixo/Médio: sem PointLight (só Alto; cada luz extra custa por fragmento em todos os materiais: +7-9 % medido); a luz só entra/sai na troca de preset, nunca por tiro
+    const want = key === 'high';
     if (want && !this.light.parent) this.scene.add(this.light); else if (!want && this.light.parent) { this.scene.remove(this.light); this.light.intensity = 0; this._flashT = 0; }
   }
   _build(q) {
