@@ -13,6 +13,7 @@ export function isCullableSceneryDetail(structure, data) {
   if (Math.max(w, d) > 5.5 || h > 2.7 || structure.fade || structure.gate || structure.pit) return false;
   // Não ocultar barreiras de tiro/câmera (cobertura), painéis interativos ou itens destrutíveis.
   if (structure.flags?.includes('camera') || structure.flags?.includes('bullet')) return false;
+  if (/_deck$|lever_post|_platform$/.test(structure.id)) return false;
   if ((data.interactables ?? []).some(it => (it.colliderId ?? it.id) === structure.id)) return false;
   return true;
 }
