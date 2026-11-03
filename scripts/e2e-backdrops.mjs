@@ -1,9 +1,11 @@
 // R2.5 — panorama 360 sem cantos, nas duas fases de Lia e Caio.
 // Execute com URL='http://127.0.0.1:4177/?debug=1' node scripts/e2e-backdrops.mjs
 import { chromium } from 'playwright';
+import { writeFileSync, mkdirSync } from 'node:fs';
 
 const url = process.env.URL || 'http://127.0.0.1:4177/?debug=1';
 const screenshots = process.env.SHOT_DIR || '.';
+mkdirSync(screenshots, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
@@ -69,7 +71,20 @@ try {
       throw Error('BACKDROP_FAIL ' + JSON.stringify(report));
     }
     await page.screenshot({ path: `${screenshots}/backdrop-${chapterId}.png` });
-    console.log('BACKDROP_PASS ' + JSON.stringify(report));
+    // Captura exatamente o Canvas do navegador, não uma simulação do desenho.
+    // Essas quatro imagens revelam detalhes escondidos por muros e árvores na
+    // captura do spawn, e permitem comparar textura, névoa e costura horizontal.
+    const paintings = await page.evaluate(() =>
+      window.__game.scenery.backdrop.textures.map(texture =>
+        texture.image.toDataURL('image/png').split(',')[1]));
+    if (paintings.length !== 2 || paintings.some(p => !p)) {
+      throw Error('BACKDROP_CANVAS_CAPTURE_FAIL ' + chapterId);
+    }
+    for (const [index, layer] of ['far', 'near'].entries()) {
+      writeFileSync(`${screenshots}/painting-${chapterId}-${layer}.png`,
+        Buffer.from(paintings[index], 'base64'));
+    }
+    console.log('BACKDROP_PASS ' + JSON.stringify({ ...report, canvasPaintings: 2 }));
   }
   if (errors.length) throw Error('Erros de execução JS: ' + errors.join(' | '));
 } finally {
