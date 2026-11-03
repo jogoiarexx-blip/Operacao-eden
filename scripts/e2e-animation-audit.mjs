@@ -50,7 +50,9 @@ try {
       states.push({ name, actual:rig.state, tracks: action?.getClip().tracks.length,
         left:pos(hand('Left')), right:pos(hand('Right')),
         leftArm:pos(rig.model.getObjectByName('LeftArm')),
-        rightArm:pos(rig.model.getObjectByName('RightArm')) });
+        rightArm:pos(rig.model.getObjectByName('RightArm')),
+        footOffset:rig.footOffset,
+        support:{...rig.weaponSupport} });
     }
     const armSignTrials = {};
     for(const side of ['Left','Right']) {
@@ -118,6 +120,14 @@ try {
 
   if(!animation.ready || errors.length)throw Error('Falha no Chromium: '+JSON.stringify(errors));
   if(animation.states.some(s=>s.actual!==s.name || !s.tracks))throw Error('Estados não executados');
+  for(const state of animation.states) {
+    if(!Number.isFinite(state.footOffset) || Math.abs(state.footOffset)>0.071)
+      throw Error('Correção vertical instável: '+JSON.stringify(state));
+    if(['aim','aimWalk'].includes(state.name) &&
+      (!state.support.active || !Number.isFinite(state.support.before) ||
+       state.support.after > state.support.before + 0.001))
+      throw Error('Mão esquerda perdeu apoio da arma: '+JSON.stringify(state));
+  }
   if(!animation.hasWeapon || !animation.hasGun || animation.muzzleForward < 0.98 || animation.legKeys < 60)
     throw Error('Cano invertido ou ciclo de marcha incompleto: '+JSON.stringify({
       hasWeapon:animation.hasWeapon,hasGun:animation.hasGun,
