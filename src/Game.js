@@ -21,6 +21,7 @@ import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
 import { CollisionWorld } from './world/CollisionWorld.js';
 import { buildScenery } from './world/SectorScenery.js';
+import { createAtmosphere } from './render/Atmosphere.js';
 import { FX } from './world/FX.js';
 import { PostFX } from './render/PostFX.js';
 import { Player } from './actors/Player.js';
@@ -118,11 +119,13 @@ export class Game {
     this._fogBase = r.fogDensity ?? 0.02; this._fogQuality();
     this.postfx?.setGrade(r.grade ?? {});
   }
+  /** Atmosfera (cone da lanterna, névoa rasteira): acompanha a câmera/jogador, usa o relâmpago do cenário. */
+  _atmo(dt, pos, dir, player) { this.atmosphere?.update(dt, { player, flashlight: !!this.scenery.flashlightOn, camera: { pos, dir }, lightning: this.scenery.lightBoost, moon: this.scenery.moon }); }
   _fogQuality() { const q = QUALITY[this.settings?.quality] ?? QUALITY.medium; this.scene.fog.density = this._fogBase * (80 / q.fogFar); }
 
   /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
   loadChapter(id) {
-    if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
+    if (this.scenery) { this.atmosphere?.dispose(); this.atmosphere = null; this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
     this.chapter?.dispose();
     this.terminal = null; this.chapterId = id; this.chapterDef = getChapter(id);
     const data = this.chapterDef.data, script = this.chapterDef.script;
@@ -130,6 +133,7 @@ export class Game {
     this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
     this.scene.add(this.scenery.group);
     this.scenery.onLightning = () => this.audio?.play('thunder');
+    this.atmosphere = createAtmosphere({ scene: this.scene, quality: this.settings.quality, data });
     this._applyChapterRender(data.render);
     this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
@@ -167,7 +171,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.scenery.setQuality(q); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
@@ -575,10 +579,10 @@ export class Game {
     if (menuLike || !this.save) {
       const a = this.tAnim * 0.07, c = this.threeCam;
       c.position.set(Math.sin(a) * 9 + 2, 2.6 + Math.sin(this.tAnim * 0.2) * 0.3, 30 + Math.cos(a) * 7); c.lookAt(0, 1.6, 33); c.fov = 62; c.updateProjectionMatrix();
-      this.scenery.update(this.tAnim, frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 });
+      this.scenery.update(this.tAnim, frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 }); this._atmo(frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 });
     } else {
       this.camera.writeTo(this.threeCam);
-      this.scenery.update(this.tAnim, frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player);
+      this.scenery.update(this.tAnim, frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player); this._atmo(frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player);
       this.playerView.sync(1, 0, this.camera.playerOpacity); this.agents.forEach((a) => a.view.sync(1, 0));
     }
   }
@@ -594,7 +598,7 @@ export class Game {
     cam.update(frameDt, { lookX: p.dead ? 0 : look.x, lookY: p.dead ? 0 : look.y, aim }, { x: lerp(p.px, p.x, alpha), y: 0, z: lerp(p.pz, p.z, alpha) });
     cam.writeTo(this.threeCam);
     const dir = forwardVec(cam.yaw, cam.pitchEff);
-    this.scenery.update(this.tAnim, frameDt, cam.pos, dir, p);
+    this.scenery.update(this.tAnim, frameDt, cam.pos, dir, p); this._atmo(frameDt, cam.pos, dir, p);
     this.audio.setListener(cam.pos.x, cam.pos.z, cam.yaw);
     // oclusão localizada: só os objetos que bloqueiam a vista
     const occ = new Set(this.world.occluders(cam.pos.x, cam.pos.y, cam.pos.z, cam.pivot.x, cam.pivot.y, cam.pivot.z).map((c) => c.id));
@@ -679,7 +683,7 @@ export class Game {
     if (B.t - B.lastShot > 0.6) { B.lastShot = B.t; const mz = p.muzzle(B.cam.yaw); const r = resolveShot({ world: this.world, enemies: B.agents.map((q) => q.agent), camera: B.cam, muzzle: mz, weapon: WEAPONS.pistol, spreadDeg: 1, rng: B.rng }); this.fx.tracer(r.tracerFrom, r.point); this.fx.burst(r.point, 0xffd98a, 4, 2.4, 0.2); this.audio.play('shot', x, z); }
     this.fx.update(frameDt);
     B.cam.writeTo(this.threeCam);
-    this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
+    this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p); this._atmo(frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
     B.view.sync(1, frameDt, B.cam.playerOpacity); B.agents.forEach((a) => a.view.sync(1, frameDt));
     const updateMs = performance.now() - u0;
     const r0 = performance.now(); this.postfx.render(frameDt); const renderMs = performance.now() - r0;

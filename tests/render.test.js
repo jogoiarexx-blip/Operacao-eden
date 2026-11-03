@@ -1,4 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import * as THREE from 'three';
+import { createAtmosphere } from '../src/render/Atmosphere.js';
 import { QUALITY } from '../src/core/Settings.js';
 import { generatePixels, getTexture, disposeTextures, textureCacheSize } from '../src/render/ProceduralTextures.js';
 import { getMaterial, disposeMaterials, disposeRenderResources } from '../src/render/Materials.js';
@@ -83,5 +85,30 @@ describe('materiais', () => {
   it('todos os papéis existem; lâmpada emissiva', () => {
     for (const r of ['ground', 'bark', 'foliage', 'skin', 'cloth', 'clothDark', 'scales', 'metal', 'concrete', 'wood', 'emissiveLamp']) expect(getMaterial(r, 'medium').flatShading).toBe(true);
     expect(getMaterial('emissiveLamp', 'high', { emissive: 0xffeeaa }).emissiveIntensity).toBeGreaterThan(1);
+  });
+});
+describe('atmosfera', () => {
+  const mk = (quality) => { const scene = new THREE.Scene(); const atmo = createAtmosphere({ scene, quality, data: { bounds: [-40, -40, 40, 40] } }); return { scene, atmo }; };
+  const upd = (atmo) => atmo.update(0.016, { player: { x: 1, z: 2 }, flashlight: true, camera: { pos: { x: 0, y: 1.6, z: 0 }, dir: { x: 0, y: 0, z: -1 } }, lightning: 0 });
+  it('Baixo não cria cone nem névoa', () => {
+    const { scene, atmo } = mk('low'); expect(atmo.group.children.length).toBe(0); upd(atmo); expect(atmo.group.children.length).toBe(0); atmo.dispose(); expect(scene.children.includes(atmo.group)).toBe(false);
+  });
+  it('Médio cria cone e névoa; dispose remove o grupo', () => {
+    const { scene, atmo } = mk('medium'); expect(atmo.group.children.length).toBeGreaterThan(0); expect(scene.children).toContain(atmo.group); upd(atmo);
+    const fog = atmo.group.children.filter((c) => c.name === 'fogQuad'); expect(fog.length).toBeGreaterThanOrEqual(6); expect(fog.length).toBeLessThanOrEqual(10);
+    expect(atmo.group.getObjectByName('flashlightCone')).toBeTruthy();
+    atmo.group.traverse((o) => { if (o.isMesh || o.isPoints) { expect(o.material.depthWrite).toBe(false); const hit = []; o.raycast(new THREE.Raycaster(), hit); expect(hit.length).toBe(0); } });
+    atmo.dispose(); expect(scene.children.includes(atmo.group)).toBe(false); expect(atmo.group.children.length).toBe(0);
+  });
+  it('setQuality alterna sem acumular filhos', () => {
+    const { scene, atmo } = mk('medium'); const n = atmo.group.children.length;
+    atmo.setQuality('low'); expect(atmo.group.children.length).toBe(0);
+    atmo.setQuality('high'); expect(atmo.group.children.length).toBe(n);
+    for (let i = 0; i < 5; i++) { atmo.setQuality('medium'); atmo.setQuality('low'); }
+    atmo.setQuality('medium'); expect(atmo.group.children.length).toBe(n); expect(scene.children.length).toBe(1); atmo.dispose();
+  });
+  it('lanterna desligada esconde o cone', () => {
+    const { atmo } = mk('medium'); atmo.update(0.016, { player: { x: 0, z: 0 }, flashlight: false, camera: { pos: { x: 0, y: 1.6, z: 0 }, dir: { x: 0, y: 0, z: -1 } }, lightning: 0 });
+    expect(atmo.group.getObjectByName('flashlightCone').visible).toBe(false); atmo.dispose();
   });
 });

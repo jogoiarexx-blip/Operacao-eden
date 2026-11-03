@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng.js';
+import { getMaterial } from '../render/Materials.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -61,7 +62,7 @@ export function buildScenery({ world, data, quality }) {
 
   // ---------- estruturas ----------
   const wood = mat(COLORS.wood), woodDark = mat(COLORS.woodDark), rockMat = mat(COLORS.rock), metal = mat(COLORS.metal);
-  const glowCyan = new THREE.MeshBasicMaterial({ color: 0x57e6e0 });
+  const glowCyan = getMaterial('emissiveLamp', quality, { color: 0x57e6e0, emissive: 0x57e6e0 });
       const matFor = (v) => ({
     wood, metal, rock: rockMat, concrete: mat(COLORS.concrete), shelter: mat(COLORS.shelter), shelter_roof: mat(0x3a3f35),
     tent: mat(COLORS.tent), crate: mat(COLORS.crate), terminal: mat(COLORS.terminal), ravine: mat(COLORS.ravine), gate: mat(COLORS.gate), radio: mat(0x3d4440), coro: mat(0x5c666b),
@@ -168,7 +169,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees,
+    group, meshes, fadeMats, trees, moon, lightBoost: 0,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
@@ -196,7 +197,7 @@ export function buildScenery({ world, data, quality }) {
       if (light.next <= 0) { light.flashT = 0; light.next = vrng.range(16, 34); }
       let boost = 0;
       if (light.flashT >= 0) { light.flashT += dt; const f = light.flashT; boost = (f < 0.08 ? 1 : f < 0.16 ? 0.15 : f < 0.26 ? 0.8 : 0) * (light.reduceFlash ? 0.25 : 1); if (f > 0.4) light.flashT = -1; if (f < 0.02 && api.onLightning) api.onLightning(); }
-      hemi.intensity = light.hemiBase + boost * 1.5; moon.intensity = 0.85 + boost * 1.4;
+      api.lightBoost = boost; hemi.intensity = light.hemiBase + boost * 1.5; moon.intensity = 0.85 + boost * 1.4;
       // lanterna e lua seguem o jogador
       moon.position.set(playerPos.x - 20, 40, playerPos.z + 14); moon.target.position.set(playerPos.x, 0, playerPos.z);
       flash.position.set(camPos.x, camPos.y, camPos.z); flash.target.position.set(camPos.x + camDir.x * 10, camPos.y + camDir.y * 10, camPos.z + camDir.z * 10);
@@ -205,7 +206,7 @@ export function buildScenery({ world, data, quality }) {
     setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
     dispose() {
       group.traverse((o) => {
-        o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
+        o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { if (!m.userData.shared) m.dispose?.(); });
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
       });
       rainGeo.dispose();

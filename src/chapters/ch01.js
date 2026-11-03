@@ -1,3 +1,4 @@
+import { getMaterial } from '../render/Materials.js';
 import * as THREE from 'three';
 import data from '../data/chapter01.json';
 import docs from '../data/documents.json';
@@ -40,7 +41,8 @@ function repairBeacon(rt) {
 // ---------- props do cenário (baliza, portão, passarela, torre CORO, placa) ----------
 const lm = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
-function buildProps({ scene, world, data: d, scenery }) {
+function buildProps({ scene, world, data: d, scenery, quality = 'medium' }) {
+  const lampMat = (hex) => getMaterial('emissiveLamp', quality, { color: hex, emissive: hex });
   const group = new THREE.Group(); (scenery?.group ?? scene).add(group);
   const wood = lm(0x5a4430), woodDark = lm(0x3b2c20);
   const updaters = [];
@@ -50,7 +52,7 @@ function buildProps({ scene, world, data: d, scenery }) {
   // lâmpada da baliza
   let beaconLamp = null;
   const bm = meshOf('beacon_mast'), bd = sDef('beacon_mast');
-  if (bm && bd) { beaconLamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd92d2d })); beaconLamp.position.set(0, bd.h / 2 + 0.2, 0); bm.add(beaconLamp); }
+  if (bm && bd) { beaconLamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), lampMat(0xd92d2d)); beaconLamp.position.set(0, bd.h / 2 + 0.2, 0); bm.add(beaconLamp); }
 
   // folha do portão (listras de aviso)
   const gateMesh = meshOf('gate_leaf');
@@ -59,7 +61,7 @@ function buildProps({ scene, world, data: d, scenery }) {
   // anéis da torre CORO
   const coroRings = [];
   const cm = meshOf('coro_tower'), cd = sDef('coro_tower');
-  if (cm && cd) for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(cd.r * 1.25, 0.12, 6, 14), new THREE.MeshBasicMaterial({ color: 0x57e6e0 })); ring.rotation.x = Math.PI / 2; ring.position.y = -cd.h / 2 + 4 + i * 3.4; cm.add(ring); coroRings.push(ring); }
+  if (cm && cd) for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(cd.r * 1.25, 0.12, 6, 14), (() => { const m = lampMat(0x57e6e0).clone(); m.userData.shared = false; return m; })()); ring.rotation.x = Math.PI / 2; ring.position.y = -cd.h / 2 + 4 + i * 3.4; cm.add(ring); coroRings.push(ring); }
 
   // corrimãos da passarela (visuais)
   for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
@@ -88,7 +90,7 @@ function buildProps({ scene, world, data: d, scenery }) {
   return {
     group, beaconLamp, gateMesh, coroRings, planks, coroPattern,
     startCollapse() { if (collapse.t < 0) collapse.t = 0; },
-    setBeaconPowered(on) { if (beaconLamp) beaconLamp.material.color.setHex(on ? 0x38e07a : 0xd92d2d); },
+    setBeaconPowered(on) { if (beaconLamp) beaconLamp.material = lampMat(on ? 0x38e07a : 0xd92d2d); },
     setGateOpen(open, instant) { if (gateMesh) { gateMesh.userData.target = open ? 3.8 : 0; if (instant) gateMesh.position.y = 1.8 + gateMesh.userData.target; } },
     update(dt, t = 0) {
       for (const u of updaters) u(t, dt);
@@ -100,9 +102,9 @@ function buildProps({ scene, world, data: d, scenery }) {
         const pulse = (cycle < 1.5 && Math.floor(cycle / 0.5) % 2 === 0) || (cycle > 2.1 && cycle < 3.6 && Math.floor((cycle - 2.1) / 0.5) % 2 === 0);
         on = pulse ? 1 : 0.1;
       }
-      for (const r of coroRings) r.material.color.setRGB(0.2 * on + 0.1, 0.9 * on, 0.88 * on);
+      for (const r of coroRings) { r.material.color.setRGB(0.2 * on + 0.1, 0.9 * on, 0.88 * on); r.material.emissive.copy(r.material.color); }
     },
-    dispose() { scenery?.group.remove(group); group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
+    dispose() { scenery?.group.remove(group); group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { if (!m.userData.shared) m.dispose?.(); }); }); },
   };
 }
 

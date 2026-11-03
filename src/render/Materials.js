@@ -23,7 +23,7 @@ export function getMaterial(role, quality = 'medium', opts) {
   if (R.emissive != null) { p.emissive = opts?.emissive ?? R.emissive; p.emissiveIntensity = R.ei; }
   if (pbr) { p.roughness = R.r; p.metalness = R.m; }
   m = pbr ? new THREE.MeshStandardMaterial(p) : new THREE.MeshLambertMaterial(p);
-  cache.set(key, m); return m;
+  m.userData.shared = true; cache.set(key, m); return m;
 }
 export function disposeMaterials() { for (const m of cache.values()) m.dispose(); cache.clear(); }
 /** Libera tudo de uma vez (troca de capítulo/dispose): materiais primeiro (referenciam texturas), depois texturas. */
