@@ -1,0 +1,88 @@
+import * as THREE from 'three';
+import { describe, it, expect } from 'vitest';
+import {
+  vegetationCells, distanceToVegetationCell, selectVegetationIndices,
+  createVegetationSectorStream,
+} from '../src/world/VegetationSectorStream.js';
+
+function fakeInstance(points) {
+  const mesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial(),
+    points.length,
+  );
+  const matrix = new THREE.Matrix4();
+  points.forEach((p, i) => {
+    matrix.makeTranslation(p.x, 0, p.z);
+    mesh.setMatrixAt(i, matrix);
+  });
+  return mesh;
+}
+
+describe('Streaming setorial: árvore, arbusto, buffer e câmera', () => {
+  it('constrói células determinísticas com origem negativa', () => {
+    const points = [{ x: -25, z: -1 }, { x: -2, z: -1 }, { x: 0, z: 0 }, { x: 23.9, z: 0 }];
+    const c = vegetationCells(points, 24);
+    expect(c.map(s => s.key)).toEqual(['-2:-1', '-1:-1', '0:0']);
+    expect(c[2].indices).toEqual([2, 3]);
+    expect(distanceToVegetationCell(0, 0, c[2])).toBe(0);
+    expect(distanceToVegetationCell(300, 0, c[2])).toBeGreaterThan(250);
+    expect(() => vegetationCells(points, 0)).toThrow();
+  });
+
+  it('mantém histerese entre ativação e descarte', () => {
+    const cell = vegetationCells([{ x: 0, z: 0 }], 24);
+    const near = selectVegetationIndices(cell, new Set(), { x: 0, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    expect(near.indices).toEqual([0]);
+    const between = selectVegetationIndices(cell, near.active, { x: 52, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    expect(between.indices).toEqual([0]); // distância até borda = 28
+    const far = selectVegetationIndices(cell, between.active, { x: 53, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    expect(far.indices).toEqual([]);
+    const noPop = selectVegetationIndices(cell, far.active, { x: 52, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    expect(noPop.indices).toEqual([]);
+    expect(() => selectVegetationIndices(cell, new Set(), { x: 0, z: 0 }, { showDistance: 32, hideDistance: 20 })).toThrow();
+  });
+
+  it('compacta instâncias preservando todas as matrizes originais ao retornar', () => {
+    const trees = [{ x: -52, z: 0 }, { x: -20, z: 0 }, { x: 24, z: 0 }, { x: 104, z: 0 }];
+    const bushes = Array.from({ length: 20 }, (_, i) => ({ x: i * 8 - 70, z: i % 3 }));
+    const treeMeshes = [fakeInstance(trees), fakeInstance(trees), fakeInstance(trees)];
+    const bushMesh = fakeInstance(bushes);
+    const stream = createVegetationSectorStream({ trees, bushes, treeMeshes, bushMesh, cellSize: 16 });
+    const initial = treeMeshes[0].getMatrixAt(3, new THREE.Matrix4()).elements[12];
+    expect(initial).toBe(104);
+    expect(stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 })).toBe(true);
+    expect(treeMeshes[0].count).toBe(2);
+    expect(treeMeshes[1].count).toBe(2);
+    expect(bushMesh.count).toBeLessThan(20);
+    expect(stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 })).toBe(false);
+    stream.update({ x: 104, z: 0 }, { showDistance: 22, hideDistance: 34 });
+    expect(treeMeshes[0].count).toBe(1);
+    expect(treeMeshes[0].getMatrixAt(0, new THREE.Matrix4()).elements[12]).toBe(104);
+    stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 });
+    expect(treeMeshes[0].getMatrixAt(0, new THREE.Matrix4()).elements[12]).toBe(-52);
+    expect(stream.stats().treesTotal).toBe(4);
+    expect(stream.stats().treesVisible).toBe(2);
+  });
+
+  it('regulagem de folhagem respeita o orçamento sem afetar árvores', () => {
+    const trees = [{ x: 0, z: 0 }];
+    const bushes = Array.from({ length: 32 }, (_, i) => ({ x: i % 8, z: Math.floor(i / 8) }));
+    const treeMeshes = [fakeInstance(trees), fakeInstance(trees), fakeInstance(trees)];
+    const bushMesh = fakeInstance(bushes);
+    const stream = createVegetationSectorStream({ trees, bushes, treeMeshes, bushMesh });
+    stream.update({ x: 0, z: 0 });
+    expect(bushMesh.count).toBe(32);
+    stream.setQuality(0.25);
+    expect(stream.update({ x: 0, z: 0 })).toBe(true);
+    expect(bushMesh.count).toBeGreaterThan(0);
+    expect(bushMesh.count).toBeLessThan(32);
+    expect(treeMeshes[0].count).toBe(1);
+    stream.setQuality(1);
+    stream.update({ x: 0, z: 0 });
+    expect(bushMesh.count).toBe(32);
+    stream.update({ x: 1000, z: 1000 });
+    expect(treeMeshes[0].count).toBe(0);
+    expect(bushMesh.count).toBe(0);
+  });
+});
