@@ -5,6 +5,7 @@ import { createVegetationSectorStream } from './VegetationSectorStream.js';
 import { createBackdropImpostors } from './BackdropImpostors.js';
 import { createUnreachableTreeCards } from './TreeImpostors.js';
 import { createRegionalDetailStream } from './RegionalDetailStream.js';
+import { createSafeDoorFrames } from './SafeRoomDoors.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -47,6 +48,8 @@ export function buildScenery({ world, data, quality }) {
   // Setores próximos criam geometria de detalhe sob demanda; ao afastar, liberam buffers.
   const regionalDetails = createRegionalDetailStream({ data });
   group.add(regionalDetails.group);
+  const safeDoors = createSafeDoorFrames({data,world});
+  group.add(safeDoors.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -221,7 +224,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails, safeDoors,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
@@ -247,6 +250,7 @@ export function buildScenery({ world, data, quality }) {
         lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
       }
       treeCards.update(camPos, dt);
+      safeDoors.update(playerPos,dt);
       for (const sign of safeSigns) sign.rotation.y = Math.atan2(camPos.x - sign.position.x, camPos.z - sign.position.z);
       for (const u of updaters) u(t, dt);
       // chuva segue a câmera
