@@ -48,6 +48,15 @@ describe('LOD visual (sem mexer em colisões ou saves)', () => {
 });
 
 describe('Câmera sobre o ombro em portais (sem mudança de controle)', () => {
+  it('distingue a passagem administrativa do corredor que dispara a emboscada', () => {
+    const d = getChapter('ch02').data;
+    const portal = { x: -13.2, z: 11.2 }, corredor = { x: -17, z: 11.2 };
+    const zona = d.zones.find((item) => item.id === 'admin_corridor');
+    expect(zoneAtPoint(d.cameraZones, d.zones, portal.x, portal.z)?.id).toBe('cz_portal_admin');
+    expect(zoneAtPoint(d.cameraZones, d.zones, corredor.x, corredor.z)?.id).toBe('cz_admin');
+    expect(Math.hypot(portal.x - zona.pos[0], portal.z - zona.pos[1])).toBeGreaterThan(zona.r);
+    expect(Math.hypot(corredor.x - zona.pos[0], corredor.z - zona.pos[1])).toBeLessThan(zona.r);
+  });
   it.each([
     [11.3, 27, 'cz_portal_breach'],
     [16, 12, 'cz_portal_shed'],

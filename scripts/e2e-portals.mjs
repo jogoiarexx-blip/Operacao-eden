@@ -31,14 +31,18 @@ try {
   await page.evaluate(() => { window.__eden.teleport(17.3, 12); });
   await page.waitForFunction(() => window.__game.camera.activeZone?.id === 'cz_portal_shed');
 
-  // Reproduz o estado 'rádio ligado' para entrar na zona da emboscada com controle ativo.
+  // A porta (-13,2) e o corredor (-17) são zonas diferentes. Primeiro valida
+  // a câmera curta na passagem; só depois entra no gatilho da emboscada do rádio.
   await page.evaluate(() => {
     const g = window.__game;
     g.save.storyFlags.radio_online = true;
     g.props.setRadio(true);
-    window.__eden.teleport(-17, 11.2);
+    window.__eden.teleport(-13.2, 11.2);
   });
   await page.waitForFunction(() => window.__game.camera.activeZone?.id === 'cz_portal_admin');
+  await page.screenshot({ path: SHOT + '/portal-admin-door.png' });
+  await page.evaluate(() => window.__eden.teleport(-17, 11.2));
+  await page.waitForFunction(() => window.__game.camera.activeZone?.id === 'cz_admin');
   await page.waitForFunction(() => window.__game.save.storyFlags.ch02_admin_hunter_triggered === true, null, { timeout: 12000 });
   const ambush = await page.evaluate(() => {
     const g = window.__game;
