@@ -8,7 +8,7 @@ import {
 const fakeContext = () => ({
   createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
   clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(),
-  lineTo: vi.fn(), closePath: vi.fn(), fill: vi.fn(), stroke: vi.fn(),
+  lineTo: vi.fn(), arc: vi.fn(), closePath: vi.fn(), fill: vi.fn(), stroke: vi.fn(),
   globalCompositeOperation: 'source-over', globalAlpha: 1,
 });
 let canvases;
@@ -26,6 +26,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Panoramas 360 graus dos dois capítulos', () => {
+  it('mantém duas texturas pequenas e desenhos sem custo de geometria adicional', () => {
+    expect(BACKDROP_TEXTURE_SIZE).toEqual({ width: 1024, height: 256 });
+    for (const id of ['ch01', 'ch02']) {
+      const data = getChapter(id).data;
+      const bg = createBackdropImpostors({ bounds: data.bounds, chapter: data.chapter });
+      expect(bg.textures).toHaveLength(2);
+      expect(bg.planeCount).toBe(2);
+      expect(bg.stats().textures).toBe(2);
+      expect(bg.group.children.length).toBe(2);
+      bg.dispose();
+    }
+  });
+
   it('montanhas fecham exatamente a costura horizontal da textura', () => {
     for (const baseline of [155, 163, 191, 192]) {
       for (const amplitude of [9, 18, 22, 29]) {
