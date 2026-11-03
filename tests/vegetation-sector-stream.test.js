@@ -34,11 +34,11 @@ describe('Streaming setorial: árvore, arbusto, buffer e câmera', () => {
     const cell = vegetationCells([{ x: 0, z: 0 }], 24);
     const near = selectVegetationIndices(cell, new Set(), { x: 0, z: 0 }, { showDistance: 20, hideDistance: 28 });
     expect(near.indices).toEqual([0]);
-    const between = selectVegetationIndices(cell, near.active, { x: 52, z: 0 }, { showDistance: 20, hideDistance: 28 });
-    expect(between.indices).toEqual([0]); // distância até borda = 28
+    const between = selectVegetationIndices(cell, near.active, { x: 51.5, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    expect(between.indices).toEqual([0]); // distância até borda = 27,5
     const far = selectVegetationIndices(cell, between.active, { x: 53, z: 0 }, { showDistance: 20, hideDistance: 28 });
     expect(far.indices).toEqual([]);
-    const noPop = selectVegetationIndices(cell, far.active, { x: 52, z: 0 }, { showDistance: 20, hideDistance: 28 });
+    const noPop = selectVegetationIndices(cell, far.active, { x: 51.5, z: 0 }, { showDistance: 20, hideDistance: 28 });
     expect(noPop.indices).toEqual([]);
     expect(() => selectVegetationIndices(cell, new Set(), { x: 0, z: 0 }, { showDistance: 32, hideDistance: 20 })).toThrow();
   });
@@ -49,7 +49,8 @@ describe('Streaming setorial: árvore, arbusto, buffer e câmera', () => {
     const treeMeshes = [fakeInstance(trees), fakeInstance(trees), fakeInstance(trees)];
     const bushMesh = fakeInstance(bushes);
     const stream = createVegetationSectorStream({ trees, bushes, treeMeshes, bushMesh, cellSize: 16 });
-    const initial = treeMeshes[0].getMatrixAt(3, new THREE.Matrix4()).elements[12];
+    const original = new THREE.Matrix4(); treeMeshes[0].getMatrixAt(3, original);
+    const initial = original.elements[12];
     expect(initial).toBe(104);
     expect(stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 })).toBe(true);
     expect(treeMeshes[0].count).toBe(2);
@@ -58,9 +59,11 @@ describe('Streaming setorial: árvore, arbusto, buffer e câmera', () => {
     expect(stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 })).toBe(false);
     stream.update({ x: 104, z: 0 }, { showDistance: 22, hideDistance: 34 });
     expect(treeMeshes[0].count).toBe(1);
-    expect(treeMeshes[0].getMatrixAt(0, new THREE.Matrix4()).elements[12]).toBe(104);
+    const matrix = new THREE.Matrix4(); treeMeshes[0].getMatrixAt(0, matrix);
+    expect(matrix.elements[12]).toBe(104);
     stream.update({ x: -50, z: 0 }, { showDistance: 22, hideDistance: 34 });
-    expect(treeMeshes[0].getMatrixAt(0, new THREE.Matrix4()).elements[12]).toBe(-52);
+    treeMeshes[0].getMatrixAt(0, matrix);
+    expect(matrix.elements[12]).toBe(-52);
     expect(stream.stats().treesTotal).toBe(4);
     expect(stream.stats().treesVisible).toBe(2);
   });
