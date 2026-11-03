@@ -133,6 +133,37 @@ try {
       hasWeapon:animation.hasWeapon,hasGun:animation.hasGun,
       muzzleForward:animation.muzzleForward,legKeys:animation.legKeys,
     }));
+  const reloadAudit = await page.evaluate(() => {
+    const rig = window.__game.playerView.regina;
+    const base = {
+      dead:false,dodging:false,hurtT:0,using:null,reloading:true,
+      aiming:false,simShooting:false,sprinting:false,speed:0,vx:0,vz:0,yaw:0,
+      mag:4,magSize:12,weapon:{reloadMs:1400,reloadShellMs:520,reloadOpenMs:250},
+    };
+    const results=[];
+    for (const id of ['pistol','shotgun']) {
+      const p={...base,weaponId:id};
+      for(let i=0;i<20;i++)rig.sync(p,1/60,0,1);
+      results.push({
+        weaponId:id, state:rig.state,
+        overlay:rig.overlayAction?.getClip().name,
+        running:rig.overlayAction?.isRunning(),
+        magazine:rig.magazine?.visible,
+        shell:rig.shell?.visible,
+        shellExists:!!rig.shell,
+        magazineExists:!!rig.magazine,
+        timeScale:rig.overlayAction?.getEffectiveTimeScale(),
+      });
+      // Sair da recarga permite que a animação retorne à mira.
+      for(let i=0;i<16;i++)rig.sync({...p,reloading:false,aiming:true},1/60,0,1);
+    }
+    return results;
+  });
+  console.log('RELOAD_WEAPONS',JSON.stringify(reloadAudit));
+  if (reloadAudit.length!==2 || reloadAudit.some(x=>!x.running || !x.shellExists || !x.magazineExists ||
+    !Number.isFinite(x.timeScale) || x.timeScale<=0 ||
+    x.overlay!==(x.weaponId==='shotgun'?'Regina_reloadShotgun':'Regina_reloadPistol')))
+    throw Error('Recargas não independentes: '+JSON.stringify(reloadAudit));
   const corpse = await page.evaluate(() => {
     const g=window.__game;
     if(!g.agents.length) {
