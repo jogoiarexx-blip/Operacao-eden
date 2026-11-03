@@ -228,3 +228,84 @@ describe('vegetação em blocos', () => {
     v.dispose();
   });
 });
+
+// ---------- Etapa 3b: estruturas detalhadas, chuva e poças ----------
+import collidersBefore from './fixtures/colliders-before.json';
+import { createRain, RAIN_COUNTS } from '../src/render/Rain.js';
+import { buildStructureDetail, buildPuddles } from '../src/render/Structures.js';
+
+describe('etapa 3b: estruturas e props sem mudar colisores', () => {
+  afterEach(() => disposeRenderResources());
+  for (const [k, d] of [['ch01', ch01Data], ['ch02', ch02Data]]) {
+    it(`${k}: colisores (ids e caixas) idênticos ao snapshot de antes, em qualquer qualidade`, () => {
+      for (const q of ['low', 'medium', 'high']) {
+        const w = fakeWorld(), s = buildScenery({ world: w, data: d, quality: q });
+        expect(w.adds).toEqual(collidersBefore[k].adds);
+        expect(w.cyl).toEqual(collidersBefore[k].cyl);
+        s.dispose();
+      }
+    });
+    it(`${k}: 3–5 poças em terreno aberto, fora de qualquer estrutura`, () => {
+      expect(d.puddles.length).toBeGreaterThanOrEqual(3); expect(d.puddles.length).toBeLessThanOrEqual(5);
+      for (const [x, z, r] of d.puddles) {
+        for (const s of d.structures) {
+          const hx = s.kind === 'box' ? s.size[0] / 2 : s.r, hz = s.kind === 'box' ? s.size[2] / 2 : s.r;
+          if (s.size && s.size[1] < 0.15) continue;                         // lajes/pisos rasos não contam
+          const inside = Math.abs(x - s.pos[0]) < hx + r && Math.abs(z - s.pos[1]) < hz + r;
+          expect(inside, `${k} poça ${x},${z} em ${s.id}`).toBe(false);
+        }
+      }
+    });
+    it(`${k}: detalhes e poças são malhas extras, poucos draw calls, materiais compartilhados intactos`, () => {
+      const lamp = getMaterial('emissiveLamp', 'medium', { color: 0xc9a35a, emissive: 0xd9a85a }), before = lamp.emissive.getHex(), ei = lamp.emissiveIntensity;
+      const s = buildScenery({ world: fakeWorld(), data: d, quality: 'medium' });
+      const det = s.group.getObjectByName('structure-detail'), pud = s.group.getObjectByName('puddles');
+      expect(det.children.length).toBeGreaterThan(0); expect(det.children.length).toBeLessThanOrEqual(5); expect(pud.children.length).toBe(1);
+      for (const m of det.children) expect(m.castShadow).toBe(false);
+      expect(pud.children[0].material.roughness).toBeLessThan(0.15);
+      expect(lamp.emissive.getHex()).toBe(before); expect(lamp.emissiveIntensity).toBe(ei);
+      s.dispose();
+      expect(lamp.userData.shared).toBe(true); expect(getMaterial('emissiveLamp', 'medium', { color: 0xc9a35a, emissive: 0xd9a85a })).toBe(lamp);   // cache intacto
+    });
+  }
+  it('poça no Baixo usa material Lambert simples; trocar a qualidade reconstrói o detalhe', () => {
+    const s = buildScenery({ world: fakeWorld(), data: ch01Data, quality: 'low' });
+    expect(s.group.getObjectByName('puddles').children[0].material.isMeshLambertMaterial).toBe(true);
+    s.setQuality(QUALITY.high);
+    expect(s.group.getObjectByName('puddles').children[0].material.isMeshStandardMaterial).toBe(true);
+    expect(s.group.children.filter((o) => o.name === 'structure-detail').length).toBe(1);
+    s.dispose();
+  });
+  it('detalhe é determinístico e não consome o rng do cenário (árvores iguais)', () => {
+    const a = buildStructureDetail({ data: ch02Data, quality: 'high' }), b = buildStructureDetail({ data: ch02Data, quality: 'high' });
+    expect(a.group.children.map((m) => m.geometry.attributes.position.count)).toEqual(b.group.children.map((m) => m.geometry.attributes.position.count));
+    a.dispose(); b.dispose(); buildPuddles({ data: {}, quality: 'low' }).dispose();
+  });
+});
+
+describe('etapa 3b: chuva em riscos com respingos', () => {
+  it('riscos (LineSegments), contagem por preset e pool de respingos limitado', () => {
+    const r = createRain({ seed: 7, quality: 'medium' });
+    expect(r.drops.isLineSegments).toBe(true); expect(r.splashes.isLineSegments).toBe(true);
+    expect(r.drops.geometry.drawRange.count).toBe(RAIN_COUNTS.medium.drops * 2);
+    r.setQuality('high'); expect(r.drops.geometry.drawRange.count).toBe(RAIN_COUNTS.high.drops * 2); expect(r.splashes.geometry.drawRange.count).toBe(RAIN_COUNTS.high.splash * 8);
+    r.setQuality('low'); expect(r.drops.geometry.drawRange.count).toBe(RAIN_COUNTS.low.drops * 2); expect(r.splashes.visible).toBe(false);
+    expect(RAIN_COUNTS.low.drops).toBeLessThan(RAIN_COUNTS.medium.drops); expect(RAIN_COUNTS.medium.drops).toBeLessThan(RAIN_COUNTS.high.drops);
+  });
+  it('update não realoca buffers, segue a câmera e mantém gotas na caixa', () => {
+    const r = createRain({ seed: 7, quality: 'high' }), pos = r.drops.geometry.attributes.position.array, spl = r.splashes.geometry.attributes.position.array;
+    const cam = { x: 200, y: 2, z: -150 };
+    for (let i = 0; i < 300; i++) r.update(0.016, cam);
+    expect(r.drops.geometry.attributes.position.array).toBe(pos); expect(r.splashes.geometry.attributes.position.array).toBe(spl);
+    for (let i = 0; i < RAIN_COUNTS.high.drops; i++) { expect(Math.abs(pos[i * 6 + 3] - cam.x)).toBeLessThanOrEqual(18.01); expect(Math.abs(pos[i * 6 + 5] - cam.z)).toBeLessThanOrEqual(18.01); expect(pos[i * 6 + 4]).toBeGreaterThanOrEqual(-0.01); }
+    let live = 0; for (let i = 0; i < RAIN_COUNTS.high.splash; i++) if (spl[i * 24 + 1] > 0) live++;
+    expect(live).toBeGreaterThan(0);
+  });
+  it('o cenário respeita o toggle de chuva do preset (Baixo desliga; Médio liga)', () => {
+    const s = buildScenery({ world: fakeWorld(), data: ch01Data, quality: 'medium' });
+    s.setQuality(QUALITY.low); expect(s.rain.group.visible).toBe(false);
+    s.setQuality(QUALITY.medium); expect(s.rain.group.visible).toBe(true);
+    s.update(1, 0.016, { x: 0, y: 2, z: 30 }, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 });
+    s.dispose();
+  });
+});

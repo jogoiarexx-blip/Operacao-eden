@@ -3,6 +3,8 @@ import { createRng } from '../core/rng.js';
 import { getMaterial } from '../render/Materials.js';
 import { getTexture } from '../render/ProceduralTextures.js';
 import { QUALITY } from '../core/Settings.js';
+import { buildStructureDetail, buildPuddles } from '../render/Structures.js';
+import { createRain } from '../render/Rain.js';
 import { createPathMaskTexture, scatterVegetation, assignTreeVariants, buildTrees } from '../render/Vegetation.js';
 
 /**
@@ -169,6 +171,11 @@ uniform vec2 uDetailRep;
   buildVeg(qKeyNow);
   updaters.push((t, dt, cam) => veg?.update(t, dt, cam));
 
+  // ---------- detalhe visual das estruturas e poças (malhas extras; não tocam colisores/LOS/nav) ----------
+  let sDetail = null, puddles = null;
+  const buildDetail = (qk) => { sDetail = buildStructureDetail({ data, quality: qk }); puddles = buildPuddles({ data, quality: qk }); group.add(sDetail.group, puddles.group); };
+  buildDetail(qKeyNow);
+
   // ---------- pistas ambientais ----------
   const clawMat = mat(0x2a1612);
   for (const [cx, cz] of data.clawMarks) for (let k = -1; k <= 1; k++) {
@@ -184,26 +191,21 @@ uniform vec2 uDetailRep;
   const moon = new THREE.DirectionalLight(0x9db9d4, 0.85); moon.position.set(-20, 40, 14); moon.castShadow = false; moon.shadow.intensity = 0.75; group.add(moon); group.add(moon.target);
   const flash = new THREE.SpotLight(0xfff1d0, 0, 34, 0.5, 0.65, 1.2); group.add(flash); group.add(flash.target);
 
-  const RAIN = 520;
-  const rainGeo = new THREE.BufferGeometry(); const rp = new Float32Array(RAIN * 3);
-  for (let i = 0; i < RAIN; i++) { rp[i * 3] = (rng.next() - 0.5) * 36; rp[i * 3 + 1] = rng.next() * 18; rp[i * 3 + 2] = (rng.next() - 0.5) * 36; }
-  rainGeo.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  const rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0x9fc4d6, size: 0.07, transparent: true, opacity: 0.55, depthWrite: false }));
-  rain.frustumCulled = false; group.add(rain);
+  const rain = createRain({ seed: data.treeSeed ?? 1, quality: qKeyNow }); group.add(rain.group);   // riscos + respingos; pools próprios, visual
 
   const vrng = createRng(9001);              // aleatoriedade SÓ visual (relâmpagos), fora da simulação
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, moon, lightBoost: 0, groundMask,
+    group, meshes, fadeMats, trees, moon, lightBoost: 0, groundMask, rain,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       bushes.count = Math.floor(bushes.userData.max * qc.foliage);
       const qk = Object.keys(QUALITY).find((k) => QUALITY[k] === qc) ?? qKeyNow;
-      if (qk !== qKeyNow) { qKeyNow = qk; treeSet.setQuality(qk); groundQ(qk); group.remove(veg.group); veg.dispose(); buildVeg(qk); }   // vegetação é barata: reconstrói na troca de qualidade
-      rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
+      if (qk !== qKeyNow) { qKeyNow = qk; treeSet.setQuality(qk); groundQ(qk); group.remove(veg.group); veg.dispose(); buildVeg(qk); group.remove(sDetail.group, puddles.group); sDetail.dispose(); puddles.dispose(); buildDetail(qk); rain.setQuality(qk); }   // vegetação é barata: reconstrói na troca de qualidade
+      rain.group.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = !!qc.moonShadow;
       if (!qc.moonShadow && moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; }
       if (qc.moonShadow) {
@@ -215,11 +217,7 @@ uniform vec2 uDetailRep;
     update(t, dt, camPos, camDir, playerPos) {
       for (const u of updaters) u(t, dt, camPos);
       // chuva segue a câmera
-      if (rain.visible) {
-        const a = rainGeo.attributes.position; rain.position.set(camPos.x, camPos.y - 6, camPos.z);
-        for (let i = 0; i < RAIN; i++) { let y = a.getY(i) - dt * 14; if (y < 0) y += 18; a.setY(i, y); }
-        a.needsUpdate = true;
-      }
+      if (rain.group.visible) rain.update(dt, camPos);
       // relâmpago
       light.next -= dt;
       if (light.next <= 0) { light.flashT = 0; light.next = vrng.range(16, 34); }
@@ -238,7 +236,7 @@ uniform vec2 uDetailRep;
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
       });
       moon.dispose(); flash.dispose(); veg?.dispose(); treeSet.dispose(); groundMask.dispose();   // máscara é por capítulo; texturas de getTexture são compartilhadas e não são tocadas
-      rainGeo.dispose();
+      sDetail.dispose(); puddles.dispose();
     },
   };
   api.onLightning = null;
