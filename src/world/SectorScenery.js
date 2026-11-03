@@ -3,6 +3,7 @@ import { createRng } from '../core/rng.js';
 import { createVisualDetailCuller } from './VisualDetailCulling.js';
 import { createVegetationSectorStream } from './VegetationSectorStream.js';
 import { createBackdropImpostors } from './BackdropImpostors.js';
+import { createUnreachableTreeCards } from './TreeImpostors.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -39,6 +40,9 @@ export function buildScenery({ world, data, quality }) {
   // Imagens estáticas pré-pintadas em CanvasTexture: fora dos limites do mapa.
   const backdrop = createBackdropImpostors({ bounds: data.bounds, chapter: data.chapter, quality });
   group.add(backdrop.group);
+  // Copas em imagens, 100% FORA das áreas alcançáveis: 2 InstancedMesh, 1 textura.
+  const treeCards = createUnreachableTreeCards(data.bounds, data.chapter, quality);
+  group.add(treeCards.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -110,18 +114,48 @@ export function buildScenery({ world, data, quality }) {
       for (const sz of [-1, 1]) { const lip = new THREE.Mesh(new THREE.BoxGeometry(s.size[0], 0.3, 0.55), rockMat); lip.position.set(0, 0.12, sz * (s.size[2] / 2 - 0.1)); mesh.add(lip); }
     }
   }
+  // Estações de salvamento/loja sinalizadas e visíveis. Perímetros NÃO
+  // substituem CollisionWorld: a exclusão de IA é responsabilidade do jogo.
+  const safeSigns = [];
+  if (data.safeRooms?.length) {
+    const cvs = document.createElement('canvas'); cvs.width = 512; cvs.height = 128;
+    const cx = cvs.getContext('2d');
+    if (cx) {
+      cx.fillStyle = '#0a2526'; cx.fillRect(0, 0, 512, 128);
+      cx.strokeStyle = '#4daba2'; cx.lineWidth = 7; cx.strokeRect(5, 5, 502, 118);
+      cx.fillStyle = '#9ae4d7'; cx.font = 'bold 38px sans-serif'; cx.textAlign = 'center';
+      cx.fillText('ÁREA SEGURA', 256, 53);
+      cx.fillStyle = '#c4d1c4'; cx.font = '26px sans-serif'; cx.fillText('SALVAR  /  COMPRAR', 256, 96);
+      const tex = new THREE.CanvasTexture(cvs); tex.colorSpace = THREE.SRGBColorSpace;
+      group.userData.safeSignTexture = tex;
+      const signMat = new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide,depthWrite:false});
+      const signGeo = new THREE.PlaneGeometry(2.35, 0.59);
+      for (const room of data.safeRooms) {
+        const terminal = data.terminals.find(t => t.id === room.terminalId);
+        if (!terminal) continue;
+        const sign = new THREE.Mesh(signGeo, signMat);
+        sign.position.set(terminal.pos[0], 2.35, terminal.pos[1]);
+        sign.name = 'safe_sign_' + room.id; safeSigns.push(sign); group.add(sign);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(room.radius - .07, room.radius, 36),
+          new THREE.MeshBasicMaterial({color:0x438e80,side:THREE.DoubleSide,transparent:true,opacity:.24,depthWrite:false}));
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(room.center[0], .065, room.center[1]); ring.name = 'safe_perimeter_' + room.id; group.add(ring);
+      }
+    }
+  }
   const visualDetailCuller = createVisualDetailCuller(data, meshes);
   let lastDetailUpdate = -Infinity, lastPX = Infinity, lastPZ = Infinity;
 
   // ---------- árvores (InstancedMesh + colisores) ----------
   const trees = [];
   const nearStruct = (x, z) => data.structures.some((s) => s.kind === 'box' && Math.abs(x - s.pos[0]) < s.size[0] / 2 + 2 && Math.abs(z - s.pos[1]) < s.size[2] / 2 + 2);
-  for (let attempt = 0; attempt < 2600 && trees.length < 190; attempt++) {
+  for (let attempt = 0; attempt < 2600 && trees.length < 160; attempt++) {
     const x = rng.range(bx0 + 2, bx1 - 2), z = rng.range(bz0 + 2, bz1 - 2);
     if (z > treeMaxZ) continue;
     if (data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 1.7)) continue;
     if (data.clearings.some((c) => Math.hypot(x - c.pos[0], z - c.pos[1]) < c.r)) continue;
     if (nearStruct(x, z)) continue;
+    if (data.safeRooms?.some(r => Math.hypot(x - r.center[0], z - r.center[1]) < r.radius + 1.5)) continue;
     if (trees.some((t) => Math.hypot(x - t.x, z - t.z) < 3.4)) continue;
     trees.push({ x, z, r: rng.range(0.32, 0.55), h: rng.range(7, 11), lean: rng.range(-0.05, 0.05), tone: rng.next() });
   }
@@ -147,6 +181,7 @@ export function buildScenery({ world, data, quality }) {
   for (let a = 0; a < 3000 && placed < bushCountMax; a++) {
     const x = rng.range(bx0 + 1, bx1 - 1), z = rng.range(bz0 + 1, bz1 - 1);
     if (z > treeMaxZ || data.paths.some((p) => distToPolyline(x, z, p.pts) < p.w / 2 + 0.4) || nearStruct(x, z)) continue;
+    if (data.safeRooms?.some(r => Math.hypot(x - r.center[0], z - r.center[1]) < r.radius + 1)) continue;
     const s = rng.range(0.5, 1.3);
     ps.set(x, 0.25 * s, z); e.set(0, rng.range(0, 6), 0); q.setFromEuler(e); sc.set(s * 1.3, s * 0.8, s * 1.3); m4.compose(ps, q, sc);
     bushPoints.push({ x, z }); bushes.setMatrixAt(placed++, m4);
@@ -182,13 +217,14 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       vegetationStream.setQuality(qc.foliage);
       backdrop.setQuality(qc);
+      treeCards.setQuality(qc);
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = qc.shadows;
       if (qc.shadows) {
@@ -204,6 +240,8 @@ export function buildScenery({ world, data, quality }) {
         vegetationStream.update(playerPos);
         lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
       }
+      treeCards.update(camPos, dt);
+      for (const sign of safeSigns) sign.rotation.y = Math.atan2(camPos.x - sign.position.x, camPos.z - sign.position.z);
       for (const u of updaters) u(t, dt);
       // chuva segue a câmera
       if (rain.visible) {
@@ -225,6 +263,8 @@ export function buildScenery({ world, data, quality }) {
     setFade(id, a) { const m = fadeMats.get(id); if (m) { m.opacity += (a - m.opacity) * 0.35; m.depthWrite = m.opacity > 0.9; } },
     dispose() {
       backdrop.dispose();
+      treeCards.dispose();
+      group.userData.safeSignTexture?.dispose();
       group.traverse((o) => {
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
         if (o.isInstancedMesh) o.dispose();                       // libera os buffers de instância (árvores/arbustos)
