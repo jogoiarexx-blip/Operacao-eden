@@ -3,6 +3,7 @@ import dialogues from '../src/data/dialogues.json';
 import { getChapter } from '../src/chapters/index.js';
 import { advanceToChapter } from '../src/gameplay/ChapterTransition.js';
 import { createNewSave } from '../src/gameplay/GameState.js';
+import { zoneAtPoint } from '../src/world/ShoulderCameraController.js';
 
 describe('Ligação cinematográfica Capítulo 01 → 02', () => {
   it('termina os diálogos antes do corte de cena, inclusive o contato com Caio', () => {
@@ -34,6 +35,18 @@ describe('Ligação cinematográfica Capítulo 01 → 02', () => {
     expect(fovs.every((fov) => fov >= 58 && fov <= 61)).toBe(true);
     expect(positions.flat().every(Number.isFinite)).toBe(true);
     expect(sync).toHaveLength(2);
+  });
+
+  it('aproxima suavemente a câmera em travessias e interiores sem trocar o ombro por câmera fixa', () => {
+    const d = getChapter('ch01').data;
+    expect(d.cameraZones.map((z) => z.id)).toEqual([
+      'cz_pier', 'cz_tower', 'cz_ravine', 'cz_camp', 'cz_gate',
+    ]);
+    expect(zoneAtPoint(d.cameraZones, d.zones, 8, -9).id).toBe('cz_ravine');
+    expect(zoneAtPoint(d.cameraZones, d.zones, -12, 18).id).toBe('cz_tower');
+    expect(zoneAtPoint(d.cameraZones, d.zones, 0, -40).id).toBe('cz_gate');
+    expect(zoneAtPoint(d.cameraZones, d.zones, 30, 25)).toBeNull();
+    expect(d.camera.mode).toBe('over_shoulder');
   });
 
   it('a passagem preserva a campanha e prepara Caio, sem substituir um save já existente', () => {
