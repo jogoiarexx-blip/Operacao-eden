@@ -16,6 +16,7 @@ export function recordChapterState(save) {
   const history = save.backtrack ??= { sectors: {}, visits: {}, patrolDeaths: [] };
   history.sectors ??= {}; history.visits ??= {}; history.patrolDeaths ??= [];
   history.sectors[save.chapterId] = {
+    ...(history.sectors[save.chapterId] ?? {}),
     completedObjectives: [...(save.completedObjectives ?? [])],
     stats: save.stats == null ? null : structuredClone(save.stats),
     checkpointId: save.checkpointId,
@@ -26,11 +27,19 @@ export function recordChapterState(save) {
 }
 
 /** Entrada por portal não recarrega HP, inventário, objetivos globais ou recompensas. */
-export function travelBacktrack(save, portal) {
+export function travelBacktrack(save, portal, liveEnemies = null) {
   if (portal !== BACKTRACK_PORTALS[save.chapterId] || !availableBacktrackPortal(save, ...portal.pos))
     throw new Error('Passagem de retorno bloqueada');
   const s = structuredClone(save);
   const h = recordChapterState(s);
+  // As criaturas narrativas sobreviventes mantêm dano e posição ao retornar.
+  // Patrulhas extras têm seu próprio ciclo de revisita, sem acumular indefinidamente.
+  if (Array.isArray(liveEnemies)) {
+    h.sectors[save.chapterId].enemies = liveEnemies
+      .filter(a => a && !a.backtrack && typeof a.id === 'string' && Number.isFinite(a.x) &&
+        Number.isFinite(a.z) && Number.isFinite(a.hp) && a.hp > 0)
+      .map(a => ({ id: a.id, x: a.x, z: a.z, hp: a.hp }));
+  }
   const dest = getChapter(portal.to).data;
   const previous = h.sectors[portal.to];
   h.visits[portal.to] = (h.visits[portal.to] ?? 1) + 1;
