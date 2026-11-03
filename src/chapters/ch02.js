@@ -149,7 +149,7 @@ function finishDefense(rt) {
   g.syncSaveFromRuntime(); completeTomasDefense(save); g.syncRuntimeFromSave();
   rt.defense = null; rt.defQueue = 0;
   g.props.setLeaf('archive_door_leaf', true); g.world.setEnabled('archive_door_leaf', false); g.props.setTomas({ retreat: false, working: false });
-  g.audio.play('gate'); g.hud.toast(`Tomás destravou o arquivo. Sobrevivente protegido (+${RESCUE_CC} CC).`, 'good');
+  g.audio.play('gate'); g.hud.toast(`Tomás destravou o arquivo. Sobrevivente protegido (+${RESCUE_CC} CC).`, 'good'); rt.revealArea('archive_door_opened');
   rt.gate = makeGate();
   g.checkpointSnap = JSON.stringify(retrySnapshot(g._snapshotForCheckpoint()));           // checkpoint automático pre_k1
   g.hud.toast('Checkpoint: antes do K-1.', 'good');
@@ -423,7 +423,7 @@ export default {
     // vitória sobre o K-1
     if (!STORY(save, 'k1_defeated') && save.persistentWorldFlags.defeatedEnemies.includes('k1')) {
       rt.flag('k1_defeated'); g.props.setLeaf('exit_gate', true); g.world.setEnabled('exit_gate', false);
-      g.audio.play('gate'); g.hud.toast('K-1 neutralizado. O portão de serviço norte foi liberado.', 'good');
+      g.audio.play('gate'); g.hud.toast('K-1 neutralizado. O portão de serviço norte foi liberado.', 'good'); rt.revealArea('exit_gate_opened');
     }
     // painel do portão de carga: luz pronto/carregando; recarga restante gravada no estado do capítulo
     const live = STORY(save, 'tomas_found') && !STORY(save, 'k1_defeated') && STORY(save, 'outpost_generator');
@@ -480,7 +480,7 @@ export default {
         return true;
       case 'yard_gate_panel':
         if (!canOpenYard(save)) { deny('Painel recusa: o cercado K-1 ainda se comunica com o pátio. Tranque o cercado (painel a oeste) antes de abrir.'); return true; }
-        rt.flag('yard_open'); g.props.setLeaf('yard_gate_leaf', true); g.world.setEnabled('yard_gate_leaf', false); g.audio.play('gate');
+        rt.flag('yard_open'); g.props.setLeaf('yard_gate_leaf', true); g.world.setEnabled('yard_gate_leaf', false); g.audio.play('gate'); rt.revealArea('yard_gate_opened');
         g.syncSaveFromRuntime(); markYardCheckpoint(save); g.syncRuntimeFromSave();
         g.checkpointSnap = JSON.stringify(retrySnapshot(g._snapshotForCheckpoint()));           // checkpoint automático yard_open (antes da defesa de Tomás)
         g.hud.toast('Portão do pátio aberto. Checkpoint: pátio.', 'good');
