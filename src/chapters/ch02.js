@@ -27,6 +27,8 @@ export function chapterState(save) {
 }
 /** O portão do pátio só abre com o cercado K-1 trancado (nunca bloqueia: o painel explica e o jogador volta depois). */
 export const canOpenYard = (save) => STORY(save, 'gate_k1_locked');
+/** A emboscada do rádio só fica armada após restabelecer a comunicação. */
+export const adminHunterShouldTrigger = (save) => STORY(save, 'radio_online') && !STORY(save, 'ch02_admin_hunter_triggered') && !(save.persistentWorldFlags.defeatedEnemies ?? []).includes('r4j_admin');
 /** O K-1 existe a partir de `tomas_found` até ser derrotado; cada (re)carga cria um agente novo (vida cheia). */
 export const k1ShouldSpawn = (save) => STORY(save, 'tomas_found') && !save.persistentWorldFlags.defeatedEnemies.includes('k1');
 
@@ -171,6 +173,20 @@ function spawnRoarJuvenile(rt, force) {
   const pt = pickSpawn(g, def.spawnCandidates, { force, minDist: 8 });
   if (!pt) return false;
   spawnAt(rt, enc, def, pt, { x: g.player.x, z: g.player.z });
+  return true;
+}
+function spawnAdminHunter(rt) {
+  const g = rt.g, enc = encOf('ch02_admin_hunter'), def = enc.enemies[0];
+  if (rt.wf.defeatedEnemies.includes(def.id) || liveById(g, def.id)) {
+    rt.flag('ch02_admin_hunter_triggered'); return true;
+  }
+  // Nunca força um ponto na câmera: a ameaça espera o jogador desviar o olhar.
+  const pt = pickSpawn(g, def.spawnCandidates, { minDist: 5 });
+  if (!pt) return false;
+  spawnAt(rt, enc, def, pt, { x: g.player.x, z: g.player.z });
+  rt.flag('ch02_admin_hunter_triggered');
+  g.audio.play('roar', pt.x, pt.z);
+  g.hud.toast('O som do rádio atraiu um predador ao corredor!', 'warn');
   return true;
 }
 function onRoar(rt) {
@@ -374,6 +390,14 @@ export default {
     switch (enc.id) {
       // A primeira ameaça entra quando Caio cruza a brecha, e não durante a cena de abertura.
       case 'ch02_court_r4': return !STORY(save, 'ch02_breach_entered');
+      case 'ch02_admin_hunter':
+        if (STORY(save, 'ch02_admin_hunter_triggered')) {
+          for (const e of alive) {
+            const pt = pickSpawn(g, e.spawnCandidates, { force: true, minDist: 5 });
+            if (pt) spawnAt(rt, enc, e, pt, { x: g.player.x, z: g.player.z });
+          }
+        }
+        return true;
       case 'ch02_generator': return !STORY(save, 'outpost_generator');             // surgem no ponto original após o gerador
       case 'ch02_tomas_defense':
         // só a defesa cria os juvenis; se a defesa terminou com sobreviventes, eles voltam pelos pontos marcados
@@ -387,6 +411,7 @@ export default {
     const g = rt.g, save = g.save, c = chapterState(save);
     rt.gate = makeGate(); rt.gate.restore(c.gate, g.simMs);
     rt.defense = null; rt.defQueue = 0; rt.defSpawned = new Set(); rt.box = {};
+    rt.adminAmbushAt = null;
     rt.k1At = k1ShouldSpawn(save) ? 0 : null; rt.k1Since = null;                 // retry: agente novo ⇒ vida cheia
     rt.roarPendingSince = c.roarSpawned && !rt.wf.defeatedEnemies.includes('r4j_roar') ? 0 : null;
     const P = g.props;
@@ -404,6 +429,7 @@ export default {
     const g = rt.g, save = g.save;
     if (simMs > 1500) rt.tutorial('tut_shotgun');
     if (rt.promptTarget?.type === 'heavy_lever') rt.tutorial('tut_lever');
+    if (rt.adminAmbushAt != null && simMs >= rt.adminAmbushAt && spawnAdminHunter(rt)) rt.adminAmbushAt = null;
     // defesa de Tomás
     if (rt.defense) {
       let near = Infinity; const tp = tomasPos();
@@ -451,6 +477,13 @@ export default {
             g.audio.play('roar', def.pos[0], def.pos[1]);
             g.hud.toast('Algo se moveu no pátio de serviço.', 'warn');
           }
+        }
+        break;
+      case 'admin_corridor':
+        if (adminHunterShouldTrigger(save) && rt.adminAmbushAt == null) {
+          rt.adminAmbushAt = g.simMs + 1100;
+          g.audio.play('creak', -20, 11);
+          g.hud.toast('Passos ecoam atrás da parede do rádio…', 'warn');
         }
         break;
       case 'generator_shed': if (!(rt.wf.broken ?? []).includes('crates_shed')) rt.tutorial('tut_impact'); break;
