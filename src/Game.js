@@ -519,7 +519,7 @@ export class Game {
     const ctx = this.aiCtx();
     if (safeRoom) {
       // Dentro do posto: cancelar ataques em andamento e silenciar a percepção de IA.
-      ctx.player = Object.assign(Object.create(p), { dead: true, invulnerable: true, takeDamage: () => 0 });
+      ctx.player = Object.assign(Object.create(p), { dead: true, takeDamage: () => 0 });
       ctx.noises = [];
       this.coordinator.clear();
     }
