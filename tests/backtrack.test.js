@@ -57,7 +57,7 @@ describe('Portais e backtracking entre cenários', () => {
     expect(next.backtrack.sectors.ch02.enemies).toEqual([{ id: 'r4_court', x: 3, z: 17, hp: 21 }]);
     const again = travelBacktrack(next, BACKTRACK_PORTALS.ch01, []);
     expect(again.backtrack.sectors.ch02.enemies).toEqual([{ id: 'r4_court', x: 3, z: 17, hp: 21 }]);
-    expect(original.backtrack?.sectors.ch02.enemies).toBeUndefined();
+    expect(original.backtrack?.sectors.ch02?.enemies).toBeUndefined();
   });
   it('revisitas trazem patrulhas seguras e não revivem inimigos narrativos', () => {
     const s = inChapterTwo();
