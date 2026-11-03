@@ -7,6 +7,7 @@ import { createUnreachableTreeCards } from './TreeImpostors.js';
 import { createRegionalDetailStream } from './RegionalDetailStream.js';
 import { createSafeDoorFrames } from './SafeRoomDoors.js';
 import { createServicePassage } from './ServicePassage.js';
+import { createNeighborSectorStream } from './NeighborSectorStream.js';
 
 /**
  * Cenário do Setor 01 em Three.js (low poly), construído a partir de chapter01.json.
@@ -54,6 +55,10 @@ export function buildScenery({ world, data, quality }) {
   // Mesma estrada de serviço nas duas pontas da ligação entre capítulos.
   const servicePassage = createServicePassage({ data, world });
   group.add(servicePassage.group);
+  // Trecho simplificado DO PRÓXIMO CAPÍTULO: carrega perto do acesso e
+  // libera material e geometria ao afastar. Sem NPCs/colisores duplicados.
+  const neighborSector = createNeighborSectorStream({ data });
+  group.add(neighborSector.group);
 
   // ---------- chão ----------
   const gW = bx1 - bx0 + 20, gD = bz1 - bz0 + 20;
@@ -228,7 +233,7 @@ export function buildScenery({ world, data, quality }) {
   const light = { next: 9, flashT: -1, intensityScale: 1, reduceFlash: false, hemiBase: 0.95 };
 
   const api = {
-    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails, safeDoors, servicePassage,
+    group, meshes, fadeMats, trees, visualDetailCuller, vegetationStream, backdrop, treeCards, regionalDetails, safeDoors, servicePassage, neighborSector,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
     setReduceFlash(v) { light.reduceFlash = v; },
@@ -254,6 +259,7 @@ export function buildScenery({ world, data, quality }) {
         lastDetailUpdate = t; lastPX = playerPos.x; lastPZ = playerPos.z;
       }
       treeCards.update(camPos, dt);
+      neighborSector.update(playerPos);
       safeDoors.update(playerPos,dt);
       for (const sign of safeSigns) sign.rotation.y = Math.atan2(camPos.x - sign.position.x, camPos.z - sign.position.z);
       for (const u of updaters) u(t, dt);
@@ -279,6 +285,7 @@ export function buildScenery({ world, data, quality }) {
       backdrop.dispose();
       treeCards.dispose();
       regionalDetails.dispose();
+      neighborSector.dispose();
       group.userData.safeSignTexture?.dispose();
       group.traverse((o) => {
         o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.());
