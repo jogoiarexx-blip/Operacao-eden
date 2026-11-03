@@ -39,6 +39,9 @@ export function createRain({ seed = 1, quality = 'medium' } = {}) {
       const c = RAIN_COUNTS[qk] ?? RAIN_COUNTS.medium; nDrops = c.drops; nSplash = c.splash;
       dg.setDrawRange(0, nDrops * 2); sg.setDrawRange(0, nSplash * 8); splashes.visible = nSplash > 0;
       if (head >= nSplash) head = 0;
+      // limpa os slots acima da nova contagem: sem isso, alto→médio→alto reexibe traços congelados (fantasmas)
+      sPos.fill(0, nSplash * 24); sCol.fill(0, nSplash * 24); sAge.fill(1, nSplash);
+      sg.attributes.position.needsUpdate = true; sg.attributes.color.needsUpdate = true;
     },
     update(dt, cam) {
       dt = Math.min(dt, 0.1); if (!(dt > 0)) return;

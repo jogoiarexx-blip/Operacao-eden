@@ -99,8 +99,12 @@ uniform vec2 uDetailRep;
     slab: mat(COLORS.slab), shed: mat(COLORS.shed), container: mat(COLORS.container), truck: mat(COLORS.truck), fence: mat(COLORS.fence, { transparent: true, opacity: 0.55 }),
   }[v] || wood);
 
+  // superfície de impacto por colisor (só efeitos: não toca ids/caixas dos colisores)
+  const SURF = { metal: 'metal', container: 'metal', truck: 'metal', gate: 'metal', terminal: 'metal', radio: 'metal', fence: 'metal', coro: 'metal', shed: 'metal', wood: 'wood', crate: 'wood', tent: 'wood', concrete: 'concrete', slab: 'concrete', shelter: 'concrete', shelter_roof: 'concrete', rock: 'concrete' };
+  const surfaces = new Map();
   for (const s of data.structures) {
     const y0 = s.y ?? 0;
+    surfaces.set(s.id, SURF[s.visual] ?? 'ground');
     let mesh;
     if (s.kind === 'box') {
       const [w, h, d] = s.size;
@@ -200,6 +204,8 @@ uniform vec2 uDetailRep;
     group, meshes, fadeMats, trees, moon, lightBoost: 0, groundMask, rain,
     /** Ganchos extras por frame (props do capítulo): fn(t, dt). */
     onUpdate: null, addUpdater(fn) { updaters.push(fn); },
+    /** Superfície do colisor atingido ('metal'|'concrete'|'wood'|'ground'); só para efeitos de impacto. */
+    surfaceOf(c) { const id = c?.id; return id ? (surfaces.get(id) ?? (String(id).startsWith('tree_') ? 'wood' : 'ground')) : 'ground'; },
     setReduceFlash(v) { light.reduceFlash = v; },
     setQuality(qc) {
       bushes.count = Math.floor(bushes.userData.max * qc.foliage);

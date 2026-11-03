@@ -40,7 +40,7 @@ export class ShoulderCameraController {
     this.collisionRadius = 0.22;
     this.fovOffset = 0;                // ajuste do jogador (graus), faixa segura ±12
     this.shakeScale = 1;               // acessibilidade (0 = sem tremor)
-    this.recoil = 0; this.shakeAmt = 0; this._shakeT = 0;
+    this.recoil = 0; this.shakeAmt = 0; this._shakeT = 0; this.vShake = 0;
     this.turnLeft = 0;                 // meia-volta em andamento (rad restantes)
     this.pivot = { x: 0, y: 1.5, z: 0 };
     this.pos = { x: 0, y: 1.5, z: 3 };
@@ -60,6 +60,8 @@ export class ShoulderCameraController {
   startTurn180() { if (Math.abs(this.turnLeft) < 0.01) this.turnLeft = Math.PI; }
   snapBehind(playerYaw, pitch = 0.1) { this.yaw = playerYaw; this.pitch = pitch; this.dist = CAMERA_PRESETS.explore.minDist; this.turnLeft = 0; }
   kick(deg) { this.recoil = Math.min(0.06, this.recoil + deg * DEG * this.shakeScale * 0.35); }
+  /** Tremor só visual (desloca a câmera renderizada, não o raio de mira): impactos do K-1. Respeita shakeScale. */
+  shakeVisual(a) { this.vShake = Math.max(this.vShake, a * this.shakeScale); }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a * this.shakeScale); }
   get pitchEff() { return this.pitch + this.recoil; }
 
@@ -113,7 +115,7 @@ export class ShoulderCameraController {
     if (allowed < this.dist) this.dist = allowed;
     else this.dist += (allowed - this.dist) * damp(dt, lerp(P0.tau, P1.tau, k) + 0.04);
     // 7) tremor opcional
-    this._shakeT += dt * 60; this.shakeAmt *= 1 - damp(dt, 0.18);
+    this._shakeT += dt * 60; this.shakeAmt *= 1 - damp(dt, 0.18); this.vShake *= 1 - damp(dt, 0.14);
     const sx = Math.sin(this._shakeT * 1.7) * this.shakeAmt * 0.03, sy = Math.cos(this._shakeT * 2.3) * this.shakeAmt * 0.03;
     this.pos.x = ax - d.x * this.dist + r.x * sx; this.pos.y = ay - d.y * this.dist + sy; this.pos.z = az - d.z * this.dist + r.z * sx;
     this.playerOpacity = clamp((this.dist - 0.55) / 0.5, 0.0, 1);       // some o avatar quando a câmera encosta
@@ -133,7 +135,8 @@ export class ShoulderCameraController {
   reticleRay() { const d = forwardVec(this.yaw, this.pitchEff); return { ox: this.pos.x, oy: this.pos.y, oz: this.pos.z, dx: d.x, dy: d.y, dz: d.z }; }
 
   writeTo(camera) {
-    camera.position.set(this.pos.x, this.pos.y, this.pos.z);
+    const vs = this.vShake * 0.05;
+    camera.position.set(this.pos.x + Math.sin(this._shakeT * 2.9) * vs, this.pos.y + Math.cos(this._shakeT * 3.7) * vs, this.pos.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.set(this.pitchEff, this.yaw, 0);
     if (Math.abs(camera.fov - this.fov) > 0.01) { camera.fov = this.fov; camera.updateProjectionMatrix(); }

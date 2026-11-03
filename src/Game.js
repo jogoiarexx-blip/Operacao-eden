@@ -80,7 +80,7 @@ export class Game {
     this.loadChapter(CHAPTER_IDS[0]);
     this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
     this.player = new Player(this.world); this.playerView = new PlayerView(this.player, this.settings?.quality); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
-    this.fx = new FX(this.scene);
+    this.fx = new FX(this.scene, this.settings.quality);
     this.coordinator = new AttackCoordinator(2);
     this.hud = new Hud(this.hudRoot); this.dialogue = new Dialogue(this.hud);
     this.audio = new AudioEngine();
@@ -126,12 +126,13 @@ export class Game {
   /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
   loadChapter(id) {
     if (this.scenery) { this.atmosphere?.dispose(); this.atmosphere = null; this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
-    this.chapter?.dispose();
+    this.chapter?.dispose(); this.fx?.reset();   // pools de partículas/decalques são descartados e recriados a cada capítulo
     this.terminal = null; this.chapterId = id; this.chapterDef = getChapter(id);
     const data = this.chapterDef.data, script = this.chapterDef.script;
     this.world = new CollisionWorld(data.bounds);
     this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
     this.scene.add(this.scenery.group);
+    this.fxSurf = { surfaceOf: (c) => this.scenery.surfaceOf(c), colliderAt: (p) => this._colliderAt(p) };
     this.scenery.onLightning = () => this.audio?.play('thunder');
     this._applyChapterRender(data.render);
     this.atmosphere = createAtmosphere({ scene: this.scene, quality: this.settings.quality, data });
@@ -139,6 +140,7 @@ export class Game {
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
     if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
     if (this.player) this.player.world = this.world;
+    if (this.props) this.props.onGateLand = (p) => this.fx?.gateImpact(p);
     this.chapter = new ChapterRuntime(this, this.chapterDef);
     if (this.settings && this.audio) this.applySettings();
   }
@@ -156,6 +158,7 @@ export class Game {
     });
     b.on('creatureCue', (e) => { if (e.cue === 'spotted') this.audio.play('spotted', e.x, e.z); if (e.cue === 'roar') this.audio.play('roar', e.x, e.z); });
     b.on('windupStart', (e) => { this.audio.play('windup', e.x, e.z); this.chapter.tutorial('tut_dodge'); });
+    b.on('k1Impact', (e) => { this.fx.dustRing({ x: e.x, y: 0, z: e.z }, 2.6); this.camera.shakeVisual(1.0); });   // só visual: poeira + tremor da câmera renderizada
     b.on('chainEnded', () => {});
   }
 
@@ -171,7 +174,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); for (const ag of this.agents) ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.bench?.agents.forEach((ag) => ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium')); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.fx?.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); for (const ag of this.agents) ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.bench?.agents.forEach((ag) => ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium')); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
@@ -267,7 +270,7 @@ export class Game {
     this.camera.preferredSide = s.cameraSettings?.preferredShoulder ?? 'right'; this.camera.snapBehind(this.player.yaw);
     this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint());
     if (fresh) this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint());
-    this.playerView.root.visible = true; this.fx.update(1);
+    this.playerView.root.visible = true; this.fx.update(1); this.fx.clear();
     this.applySettings();
   }
   _snapshotForCheckpoint() { this.syncSaveFromRuntime(); return structuredClone(this.save); }
@@ -506,24 +509,30 @@ export class Game {
     cam.kick(w.recoilKickDeg); cam.shake(0.35);
     this.noises.push({ x: p.x, z: p.z, r: w.noiseRadius });
     if (res.kind === 'spread') {
-      for (const t of res.tracers) this.fx.tracer(t.from, t.point);
-      for (const pt of res.impacts) this.fx.burst(pt, 0xffd98a, 3, 2.4, 0.2);
       if (res.hits.length) { this.stats.shotsHit++; this.hud.hitMarker(); }
       for (const hit of res.hits) {
         const ag = hit.enemy; this.audio.play('hit', ag.x, ag.z);
-        this.fx.burst(hit.point, 0x9a1c1c, 7, 3.4);
         const ctx = { ...this.aiCtx(), sim: this.simMs };
         const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx, hit.damageByPart);
         if (!r.dead && shouldInterrupt(w, hit, !!ag.species.boss)) ag.interrupt(ctx);
       }
+      this.fx.shotEffects(res, mz, w.id, this.fxSurf);   // efeitos visuais DEPOIS do resultado de jogo, só leitura (rng próprio do FX)
       return;
     }
-    this.fx.tracer(res.tracerFrom, res.point);
     if (res.kind === 'enemy') {
       const ag = res.enemy; this.stats.shotsHit++; this.hud.hitMarker(); this.audio.play('hit', ag.x, ag.z);
-      this.fx.burst(res.point, 0x9a1c1c, 7, 3.4);
       ag.takeDamage(res.damage, res.part, { ...this.aiCtx(), sim: this.simMs });
-    } else if (res.kind === 'world') this.fx.burst(res.point, 0xffd98a, 4, 2.4, 0.2);
+    }
+    this.fx.shotEffects(res, mz, w.id, this.fxSurf);
+  }
+  /** Colisor de tiro que contém o ponto (com folga) — só para decalques/superfície dos pellets da escopeta. */
+  _colliderAt(p) {
+    for (const c of this.world.list) {
+      if (!c.enabled || !c.bullet || p.y < c.y0 - 0.1 || p.y > c.y1 + 0.1) continue;
+      if (c.type === 'cyl') { if (Math.hypot(p.x - c.x, p.z - c.z) <= c.r + 0.1) return c; }
+      else if (p.x >= c.x0 - 0.1 && p.x <= c.x1 + 0.1 && p.z >= c.z0 - 0.1 && p.z <= c.z1 + 0.1) return c;
+    }
+    return null;
   }
   useUtility() {
     if (getCharacter(this.save.playerId).utility === 'impact_tool') return this.useImpact();
@@ -571,7 +580,7 @@ export class Game {
     else if (st === S.CUTSCENE) { this._updateCutscene(frameDt); this.scenery.update(this.tAnim, frameDt, this.threeCam.position, { x: 0, y: 0, z: -1 }, this.player); this.agents.forEach((a) => a.view.sync(1, frameDt)); }
     else if (st === S.BENCHMARK) this.renderBench(frameDt, t0);
     else this.renderIdle(frameDt);
-    if (st !== S.BENCHMARK) { this.postfx.render(frameDt); }
+    if (st !== S.BENCHMARK) { this.fx.setView(this.renderer.domElement.height, this.threeCam.fov); this.postfx.render(frameDt); }
     this.menuNav();
   }
   renderIdle(frameDt) {
@@ -686,7 +695,7 @@ export class Game {
     this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p); this._atmo(frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
     B.view.sync(1, frameDt, B.cam.playerOpacity); B.agents.forEach((a) => a.view.sync(1, frameDt));
     const updateMs = performance.now() - u0;
-    const r0 = performance.now(); this.postfx.render(frameDt); const renderMs = performance.now() - r0;
+    this.fx.setView(this.renderer.domElement.height, this.threeCam.fov); const r0 = performance.now(); this.postfx.render(frameDt); const renderMs = performance.now() - r0;
     const inf = this.renderer.info;
     col.frame(ts, { updateMs, renderMs, camMs, info: { calls: inf.render.calls, triangles: inf.render.triangles, geometries: inf.memory.geometries, textures: inf.memory.textures } });
     const e = col.elapsed, ph = col.phase;

@@ -268,10 +268,11 @@ function buildProps({ scene, data: d, scenery, quality = 'medium' }) {
   const gateLeaf = new THREE.Mesh(new THREE.BoxGeometry(6.0, 2.6, 0.45), lm(0x6a7176)); gateLeaf.castShadow = true; frame.add(gateLeaf);
   for (let i = -2; i <= 2; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.42, 2.6, 0.05), lm(0xb08c22)); st.position.set(i * 1.2, 0, 0.25); st.rotation.z = 0.5; gateLeaf.add(st); }
   const UP = 4.7, DOWN = 1.3; gateLeaf.position.y = UP;
-  const drop = { t: -1 };
+  const drop = { t: -1, land: null }, _gp = new THREE.Vector3();   // land: gancho visual (poeira/faíscas) chamado quando a folha encosta no chão
   updaters.push((t, dt) => {
     if (drop.t < 0) return;
-    drop.t += dt; const k = drop.t;
+    const k0 = drop.t; drop.t += dt; const k = drop.t;
+    if (k0 < 0.22 && k >= 0.22 && drop.land) { gateLeaf.getWorldPosition(_gp); _gp.y = 0; drop.land(_gp); }
     gateLeaf.position.y = k < 0.22 ? UP - (UP - DOWN) * (k / 0.22) ** 2 : k < 1.6 ? DOWN : Math.min(UP, DOWN + (k - 1.6) * 0.9);
     if (gateLeaf.position.y >= UP) drop.t = -1;
   });
@@ -305,6 +306,7 @@ function buildProps({ scene, data: d, scenery, quality = 'medium' }) {
 
   return {
     group, leaves, gateLeaf, tomas,
+    set onGateLand(fn) { drop.land = fn; },
     setPowered(on) {
       for (const h of lampHeads) setLamp(h, on ? lampOn : lampOff);
       courtLight.intensity = on ? 22 : 0; yardLight.intensity = on ? 26 : 0;
