@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math.js';
+import { ReginaRig } from './ReginaRig.js';
 
 /** Lia (1,70 m): malha low-poly com animação procedural (idle/walk/run/aim/shoot/reload/dodge/hurt/death). */
 export class PlayerView {
@@ -36,6 +37,10 @@ export class PlayerView {
     this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); this.flash.position.set(0, -0.5, -0.34); this.flash.visible = false; this.arms[1].add(this.flash);
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     this.t = 0; this.flashT = 0; this.deadT = 0; this.charId = 'lia';
+    this.proceduralParts = [...g.children];
+    this.regina = new ReginaRig(g);
+    // Pré-carrega sem atrasar a tela inicial. Falhas preservam o modelo procedural.
+    this.regina.load().then(() => this._applyAppearance());
   }
   /** Lia (padrão) ou Caio: mais largo, jaqueta ocre, cabelo curto, esquiva em rolamento pesado. */
   setCharacter(id) {
@@ -45,8 +50,14 @@ export class PlayerView {
     this.body.scale.set(caio ? 1.25 : 1, caio ? 1.05 : 1, caio ? 1.2 : 1);
     this.legs.forEach((l) => l.scale.set(caio ? 1.2 : 1, 1, caio ? 1.15 : 1));
     this.tail.visible = !caio;
+    this._applyAppearance();
   }
-  muzzleFlash() { this.flashT = 0.05; }
+  _applyAppearance() {
+    const useRegina = this.charId === 'lia' && this.regina.ready;
+    this.proceduralParts.forEach((obj) => { obj.visible = !useRegina; });
+    this.regina.setActive(useRegina);
+  }
+  muzzleFlash() { this.flashT = 0.05; this.regina.triggerShot(); }
   sync(alpha, dt, opacity = 1) {
     const p = this.player, g = this.root;
     this.t += dt;
@@ -76,7 +87,11 @@ export class PlayerView {
     if (p.dead) { this.deadT = Math.min(1, this.deadT + dt * 1.8); g.rotation.x = -this.deadT * (Math.PI / 2 - 0.1); g.position.y = 0.12 * this.deadT; }
     else this.deadT = 0, g.rotation.x = 0;
     this.flashT = Math.max(0, this.flashT - dt); this.flash.visible = this.flashT > 0;
+    this.regina.sync(p, dt, this.flashT, opacity);
     g.visible = opacity > 0.05 || p.dead;
-    this.root.traverse((o) => { if (o.isMesh && o.material !== this.flash.material) { o.material.transparent = opacity < 0.99; o.material.opacity = opacity; } });
+    // Não altere materiais do GLB aqui: o rig tem seu próprio gerenciamento de material.
+    this.proceduralParts.forEach((part) => part.traverse((o) => {
+      if (o.isMesh && o.material !== this.flash.material) { o.material.transparent = opacity < 0.99; o.material.opacity = opacity; }
+    }));
   }
 }

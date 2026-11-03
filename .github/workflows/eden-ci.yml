@@ -44,3 +44,39 @@ jobs:
           name: eden-qa-screenshots
           path: qa-shots/*.png
           if-no-files-found: ignore
+
+  publish_pages:
+    name: Publicar build compilado e assets
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Compilar HTML único
+        run: EDEN_BUILD_ID="${GITHUB_SHA:0:8}" npm run build:single
+      - name: Publicar HTML e GLB no branch main
+        run: |
+          cp dist-single/index.html index.html
+          if test -d dist-single/assets; then
+            mkdir -p assets
+            cp -R dist-single/assets/. assets/
+          fi
+          git add index.html assets/
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração no build publicado."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "build: publicar Operacao Eden com Regina [skip ci]"
+            git push origin HEAD:main
+          fi
