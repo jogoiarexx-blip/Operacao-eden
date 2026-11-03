@@ -26,6 +26,8 @@ Estilo "low-poly caprichado" com três presets (Opções → Qualidade; o benchm
 
 Bloom e SAO exigem GPU real: sob SwiftShader (Chromium headless) o pós-processamento cai para `grade` em todos os presets, então os scripts de captura/benchmark não medem esses passes.
 
+Para exercitar o caminho do composer (bloom/SAO), `node scripts/smoke-gpu.mjs` abre o Chromium com `--use-angle=d3d11` (GPU real), cicla low→medium→high→low, redimensiona, dispara efeitos/tiros e salva capturas em `shots/gpu/`; falha em erro de console ou perda de contexto (`ANGLE=default`/`HEADFUL=1` opcionais; ignora a execução sem GPU real).
+
 Ferramentas: com `?debug=1`, `__eden.setQuality('low'|'medium'|'high')` troca o preset e `__eden.cameraShot(x, z, yaw, pitch)` posiciona a câmera. `node scripts/shots-visual.mjs <rótulo>` gera as capturas (7 cenas × 3 presets em `shots/<rótulo>/`), `node scripts/bench.mjs <rótulo>` roda o B01 em Baixo/Médio (`shots/<rótulo>/bench.json`) e `node scripts/e2e-memory.mjs` verifica vazamento de recursos GPU na troca de capítulo/preset.
 
 ## Testes de fumaça (Playwright)

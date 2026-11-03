@@ -487,6 +487,7 @@ export class Game {
     const p = this.player;
     switch (e.type) {
       case 'fire': this.shoot(); break;
+      case 'bleedTick': this.postfx?.pulseDamage(this.settings.reduceFlash ? 0.05 : 0.2); break;   // sangramento pulsa a vinheta (overlay no Baixo, passe grade no Médio/Alto)
       case 'dryFire': this.audio.play('dry'); this.hud.toast('Sem munição', 'warn'); break;
       case 'reloadStart': this.audio.play('reload'); break;
       case 'shellLoaded': this.audio.play('reload'); break;

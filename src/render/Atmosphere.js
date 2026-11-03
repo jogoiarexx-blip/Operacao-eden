@@ -24,6 +24,8 @@ void main(){
   float noise = 0.65 + 0.35 * n(vec2(ang * 2.0 + uTime * 0.25, t * 6.0 - uTime * 0.6));
   float a = uI * rim * noise * smoothstep(0.0, 0.08, t) * pow(1.0 - t, 1.6) * 0.3;
   gl_FragColor = vec4(uColor * a, a);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
 }`;
 
 /** Textura de névoa: ruído de valor suave com queda radial (borda 0 → sem arestas visíveis nos quads). */

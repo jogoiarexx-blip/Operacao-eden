@@ -7,6 +7,9 @@ import { createRng } from '../core/rng.js';
  */
 export const DECAL_LIFE = 20, DECAL_FADE = 6;
 const KINDS = { bullet: [0.03, 0.03, 0.03, 0.9], blood: [0.38, 0.03, 0.03, 0.85], scorch: [0.02, 0.02, 0.02, 0.6] };
+// sRGB configurado -> linear, uma vez (o shader aplica tone mapping + sRGB por #include).
+const s2l = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+for (const k in KINDS) KINDS[k] = [s2l(KINDS[k][0]), s2l(KINDS[k][1]), s2l(KINDS[k][2]), KINDS[k][3]];
 
 const VERT = /* glsl */`
 attribute vec4 aColor; varying vec4 vColor; varying vec2 vUv;
@@ -14,7 +17,10 @@ void main() { vColor = aColor; vUv = uv; gl_Position = projectionMatrix * modelV
 const FRAG = /* glsl */`
 varying vec4 vColor; varying vec2 vUv;
 void main() { vec2 p = vUv - 0.5; float d = length(p) * 2.0; float ang = atan(p.y, p.x); d *= 1.0 + 0.22 * sin(ang * 5.0 + vColor.r * 40.0) + 0.1 * sin(ang * 9.0);
-  float a = vColor.a * smoothstep(1.0, 0.55, d); if (a < 0.01) discard; gl_FragColor = vec4(vColor.rgb, a); }`;
+  float a = vColor.a * smoothstep(1.0, 0.55, d); if (a < 0.01) discard; gl_FragColor = vec4(vColor.rgb, a);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`;
 
 export class Decals {
   constructor({ capacity = 40, scene = null, seed = 0xdeca1 } = {}) {
