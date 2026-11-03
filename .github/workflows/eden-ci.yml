@@ -25,8 +25,11 @@ jobs:
         run: npm test
       - name: Validate production bundle
         run: npm run build:single
-      - name: Check compiled HTML
-        run: test -s dist-single/index.html
+      - name: Check compiled HTML e Regina no bundle
+        run: |
+          test -s dist-single/index.html
+          grep -q 'Regina_Animated' dist-single/index.html
+          grep -q 'regina-optimized.glb' dist-single/index.html
       - name: Install Chromium for playtest
         run: npx playwright install --with-deps chromium
       - name: "End-to-end: Lia → Caio → K-1 → final"
