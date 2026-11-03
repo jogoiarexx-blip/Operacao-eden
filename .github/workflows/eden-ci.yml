@@ -10,7 +10,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,4 +26,19 @@ jobs:
       - name: Validate production bundle
         run: npm run build:single
       - name: Check compiled HTML
-        run: test -s dist/index.html
+        run: test -s dist-single/index.html
+      - name: Install Chromium for playtest
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end: Lia → Caio → K-1 → final
+        run: |
+          mkdir -p qa-shots
+          npx vite preview --config vite.single.config.js --host 127.0.0.1 --port 4177 --strictPort > /tmp/eden-preview.log 2>&1 &
+          for i in $(seq 1 40); do curl -fsS http://127.0.0.1:4177/ >/dev/null && break; sleep 1; done
+          URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e3.mjs
+      - name: Attach test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-qa-screenshots
+          path: qa-shots/*.png
+          if-no-files-found: ignore
