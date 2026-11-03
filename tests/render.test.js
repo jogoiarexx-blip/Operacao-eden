@@ -57,6 +57,21 @@ describe('correções de revisão', () => {
     expect(getMaterial('scales', 'high', { accent: 0xff0000 }).map).not.toBe(getMaterial('scales', 'high').map);
   });
 });
+describe('accent assado', () => {
+  afterEach(() => disposeRenderResources());
+  it('scales com accent: material branco, faixas ≈ accent, base ≈ cor do papel', () => {
+    const m = getMaterial('scales', 'high', { color: 0x5f8a4a, accent: 0xff0000 });
+    expect(m.color.getHex()).toBe(0xffffff);
+    const p = m.map.image.data; let bands = 0, base = 0, br = 0, bg = 0, bb = 0, ar = 0;
+    for (let i = 0; i < p.length; i += 4) { if (p[i] > p[i + 1] * 2) { bands++; ar += p[i]; } else { base++; br += p[i]; bg += p[i + 1]; bb += p[i + 2]; } }
+    expect(bands).toBeGreaterThan(0); expect(base).toBeGreaterThan(0);
+    expect(ar / bands).toBeGreaterThan(200);
+    expect(br / base / 255).toBeGreaterThan(0x5f / 255 * 0.8); expect(bg / base).toBeGreaterThan(bb / base); expect(Math.abs(br / base - 0x5f)).toBeLessThan(40);
+  });
+  it('accent só entra no hash de scales', () => {
+    expect(getMaterial('cloth', 'high', { accent: 1 })).toBe(getMaterial('cloth', 'high', { accent: 2 }));
+  });
+});
 describe('materiais', () => {
   afterEach(() => { disposeMaterials(); disposeTextures(); });
   it('Lambert no Baixo, Standard no Alto, com cache', () => {

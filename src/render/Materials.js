@@ -12,12 +12,14 @@ const ROLES = {
   emissiveLamp: { color: 0xfff1c0, emissive: 0xffe8a0, ei: 2, r: 0.4, m: 0 },
 };
 const cache = new Map();
-const hashOpts = (o) => o ? ['color', 'emissive', 'accent'].map((k) => o[k] ?? '').join(',') : '';
+const hashOpts = (o, role) => o ? ['color', 'emissive', ...(role === 'scales' ? ['accent'] : [])].map((k) => o[k] ?? '').join(',') : '';
 export function getMaterial(role, quality = 'medium', opts) {
   const R = ROLES[role]; if (!R) throw new Error(`papel de material desconhecido: ${role}`);
-  const key = `${role}:${quality}:${hashOpts(opts)}`; let m = cache.get(key); if (m) return m;
+  const key = `${role}:${quality}:${hashOpts(opts, role)}`; let m = cache.get(key); if (m) return m;
   const pbr = !!QUALITY[quality]?.pbr, p = { color: opts?.color ?? R.color, flatShading: true };
-  if (R.tex) p.map = getTexture(R.tex, { repeat: R.rep, accent: role === 'scales' ? opts?.accent : undefined });
+  const baked = role === 'scales' && opts?.accent != null; // com accent: base+faixas na textura, material branco
+  if (R.tex) p.map = getTexture(R.tex, { repeat: R.rep, accent: baked ? opts.accent : undefined, base: baked ? p.color : undefined });
+  if (baked) p.color = 0xffffff;
   if (R.emissive != null) { p.emissive = opts?.emissive ?? R.emissive; p.emissiveIntensity = R.ei; }
   if (pbr) { p.roughness = R.r; p.metalness = R.m; }
   m = pbr ? new THREE.MeshStandardMaterial(p) : new THREE.MeshLambertMaterial(p);

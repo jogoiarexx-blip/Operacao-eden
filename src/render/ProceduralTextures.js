@@ -19,11 +19,11 @@ function vnoise(u, v, period, seed) {
   const a = w(x0, y0), b = w(x0 + 1, y0), c = w(x0, y0 + 1), d = w(x0 + 1, y0 + 1);
   return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
 }
-/** opts.accent (0xRRGGBB): só no 'scales', faixas coloridas pelo acento. */
+/** opts.accent (0xRRGGBB): só no 'scales'; com accent, cor base (opts.base) e faixas (accent) são gravadas na textura (material fica branco). */
 export function generatePixels(kind, seed = 1, size = 256, opts = {}) {
   const k = KINDS[kind]; if (!k) throw new Error(`textura desconhecida: ${kind}`);
   const out = new Uint8ClampedArray(size * size * 4), rng = createRng((seed * 7919 + kind.length * 131 + kind.charCodeAt(0)) >>> 0), s0 = rng.int(1, 1e6), s1 = rng.int(1, 1e6);
-  const acc = opts.accent != null ? [(opts.accent >> 16) & 255, (opts.accent >> 8) & 255, opts.accent & 255] : null, p1 = Math.max(2, Math.round(size / k.cell / 2)), p2 = p1 * 3;
+  const rgb = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255], acc = opts.accent != null && k.scales ? rgb(opts.accent) : null, bas = acc ? rgb(opts.base ?? 0xffffff) : null, p1 = Math.max(2, Math.round(size / k.cell / 2)), p2 = p1 * 3;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const u = x / size, v = y / size;
     let n = vnoise(u, v, p1, s0) * 0.65 + vnoise(u, v, p2, s1) * 0.35; // 0..1
@@ -33,17 +33,17 @@ export function generatePixels(kind, seed = 1, size = 256, opts = {}) {
     if (k.weave) n = n * 0.5 + (((x >> 1) + (y >> 1)) & 1) * 0.5;
     const g = 235 + (n - 0.5) * 2 * k.amp * 45, i = (y * size + x) * 4;
     let r = g, gg = g, b = g;
-    if (acc && k.scales && Math.sin(v * Math.PI * 2 * 3 + vnoise(u, v, p1, s1) * 2) > 0.45) { const l = g / 255; r = acc[0] * l; gg = acc[1] * l; b = acc[2] * l; } // faixas de acento
+    if (acc) { const l = g / 235, c = Math.sin(v * Math.PI * 2 * 3 + vnoise(u, v, p1, s1) * 2) > 0.45 ? acc : bas; r = c[0] * l; gg = c[1] * l; b = c[2] * l; } // base + faixas de acento assadas
     out[i] = r; out[i + 1] = gg; out[i + 2] = b; out[i + 3] = 255;
   }
   return out;
 }
 const cache = new Map();
-export function getTexture(kind, { seed = 1, size = 256, repeat, accent } = {}) {
+export function getTexture(kind, { seed = 1, size = 256, repeat, accent, base } = {}) {
   const [rx, ry] = repeat == null ? [1, 1] : Array.isArray(repeat) ? repeat : [repeat, repeat];
-  const key = `${kind}:${seed}:${size}:${rx},${ry}:${accent ?? ''}`; let t = cache.get(key); // repeat na chave: cada repeat tem sua textura
+  const key = `${kind}:${seed}:${size}:${rx},${ry}:${accent ?? ''}:${accent != null ? base ?? '' : ''}`; let t = cache.get(key); // repeat na chave: cada repeat tem sua textura
   if (!t) {
-    t = new THREE.DataTexture(generatePixels(kind, seed, size, { accent }), size, size, THREE.RGBAFormat); t.repeat.set(rx, ry);
+    t = new THREE.DataTexture(generatePixels(kind, seed, size, { accent, base }), size, size, THREE.RGBAFormat); t.repeat.set(rx, ry);
     t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.generateMipmaps = true;
     t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.needsUpdate = true; cache.set(key, t);
   }
