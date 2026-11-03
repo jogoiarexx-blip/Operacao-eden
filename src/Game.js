@@ -79,7 +79,7 @@ export class Game {
     this.postfx = new PostFX(this.renderer, this.scene, this.threeCam);
     this.loadChapter(CHAPTER_IDS[0]);
     this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
-    this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
+    this.player = new Player(this.world); this.playerView = new PlayerView(this.player, this.settings?.quality); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
     this.fx = new FX(this.scene);
     this.coordinator = new AttackCoordinator(2);
     this.hud = new Hud(this.hudRoot); this.dialogue = new Dialogue(this.hud);
@@ -171,7 +171,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
@@ -650,7 +650,7 @@ export class Game {
     if (this.chapterId !== 'ch01') this.loadChapter('ch01');   // o benchmark B01 pertence ao Cap. 01
     this.sm.go(S.LOADING); this.hud.hide(); this.setScreen(null); this.audio.ensure();
     this.chapter.dispose(); this._clearAgents();
-    const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player);
+    const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player, this.settings.quality);
     this.scene.add(view.root);
     const route = [[0, 30], [3, 24], [6, 18], [8, 10], [8, 2], [3, 6], [-6, 12], [-12, 9], [-4, 18], [1, 26]];
     const agents = [0, 1, 2].map((i) => {
@@ -698,12 +698,12 @@ export class Game {
   async _finishBench() {
     const B = this.bench; this.bench = null;
     if (B.collector.cancelled) {
-      this.scene.remove(B.view.root); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
+      this.scene.remove(B.view.root); B.view.dispose(); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
       this.sm.go(S.BENCH_RESULTS); this.sm.go(S.EXTRAS); this.ui.extras(); return;
     }
     const env = collectEnv({ renderer: this.renderer, canvas: this.canvas, preset: B.preset, dpr: this.renderer.getPixelRatio() });
     const rep = B.collector.report(env, BUILD); rep.sceneName = BENCH.sceneName;
-    this.scene.remove(B.view.root); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
+    this.scene.remove(B.view.root); B.view.dispose(); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
     this.sm.go(S.BENCH_RESULTS);
     const hist = await this.saveManager.loadBenchHistory().catch(() => []); hist.push(rep); await this.saveManager.saveBenchHistory(hist).catch(() => {});   // registro SEPARADO do save narrativo
     this.lastBench = rep;
