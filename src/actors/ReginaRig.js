@@ -141,25 +141,45 @@ POSES.idle.RightShoulder = step(q(0), q(0, 0, -0.025), q(0));
 // A rotação de braço utiliza o sentido oposto ao das pernas no bind do GLB:
 // X positivo levava as mãos para trás durante a mira.
 function gaitPose({ stride = 0.36, knee = 0.40, lean = 0.025, armed = false, back = false, strafe = 0 }) {
-  const count = 49;
-  const samples = fn => Array.from({ length: count }, (_, i) => fn(i * Math.PI * 2 / (count - 1)));
+  const count = 65;
   const sign = back ? -1 : 1;
-  const phase = (t, side) => t + (side ? Math.PI : 0);
-  const swing = (t, side) => Math.sin(phase(t, side));
-  const lift = (t, side) => Math.max(0, Math.cos(phase(t, side)));
+  const smooth = t => t * t * (3 - 2 * t);
+  // 60% de apoio (pé no chão) e 40% de avanço (pé levantado).
+  // Evita o joelho dobrado no instante em que o pé deveria suportar o peso.
+  const stepAt = (t, side) => {
+    const p = ((t / (Math.PI * 2) + side * 0.5) % 1 + 1) % 1;
+    const stance = p < 0.6;
+    const u = stance ? p / 0.6 : (p - 0.6) / 0.4;
+    const travel = stance ? 1 - 2 * smooth(u) : -1 + 2 * smooth(u);
+    const lift = stance ? 0 : Math.sin(u * Math.PI);
+    const heel = stance ? (p < 0.14 ? (0.14 - p) / 0.14 : 0) : 0;
+    return { travel, lift, heel };
+  };
+  const samples = fn => Array.from({ length: count }, (_, i) => fn(i * Math.PI * 2 / (count - 1)));
+  const leg = (t, side) => {
+    const {travel}=stepAt(t,side);
+    return q(sign * stride * travel * (strafe ? 0.38 : 1), 0, -strafe * stride * travel * 0.52);
+  };
+  const shin = (t, side) => {
+    const {lift,heel}=stepAt(t,side);
+    return q(0.035 + knee * lift + heel * 0.08);
+  };
+  const foot = (t, side) => {
+    const {travel,lift,heel}=stepAt(t,side);
+    return q(-sign * stride * travel * 0.33 - knee * lift * 0.50 - heel * 0.09);
+  };
   return {
-    Hips: samples(t => q(lean * 0.3, 0.017 * Math.sin(t), 0.018 * Math.sin(t))),
-    Spine: samples(t => q(-lean * 0.35, -0.018 * Math.sin(t), -0.014 * Math.sin(t))),
-    Chest: samples(t => q(lean, -0.025 * Math.sin(t), 0.013 * Math.sin(t))),
-    LeftUpLeg: samples(t => q(sign * stride * swing(t, 0) * (strafe ? 0.35 : 1), 0, -strafe * stride * swing(t, 0) * 0.6)),
-    RightUpLeg: samples(t => q(sign * stride * swing(t, 1) * (strafe ? 0.35 : 1), 0, -strafe * stride * swing(t, 1) * 0.6)),
-    LeftLeg: samples(t => q(0.05 + knee * lift(t, 0))),
-    RightLeg: samples(t => q(0.05 + knee * lift(t, 1))),
-    LeftFoot: samples(t => q(-sign * stride * swing(t, 0) * 0.28 - knee * lift(t, 0) * 0.35)),
-    RightFoot: samples(t => q(-sign * stride * swing(t, 1) * 0.28 - knee * lift(t, 1) * 0.35)),
-    // Rotação negativa eleva a mão diante do peito neste esqueleto.
-    LeftArm: samples(t => q(armed ? -0.96 + 0.015 * swing(t, 0) : sign * stride * 0.48 * swing(t, 0))),
-    RightArm: samples(t => q(armed ? -1.14 + 0.015 * swing(t, 1) : sign * stride * 0.48 * swing(t, 1))),
+    Hips: samples(t => q(lean * 0.30, -0.017 * Math.sin(t), 0.022 * Math.sin(t))),
+    Spine: samples(t => q(-lean * 0.35, 0.017 * Math.sin(t), -0.014 * Math.sin(t))),
+    Chest: samples(t => q(lean, -0.026 * Math.sin(t), 0.015 * Math.sin(t))),
+    LeftUpLeg: samples(t => leg(t, 0)),
+    RightUpLeg: samples(t => leg(t, 1)),
+    LeftLeg: samples(t => shin(t, 0)),
+    RightLeg: samples(t => shin(t, 1)),
+    LeftFoot: samples(t => foot(t, 0)),
+    RightFoot: samples(t => foot(t, 1)),
+    LeftArm: samples(t => q(armed ? -0.96 + 0.012 * Math.sin(t) : -sign * stride * 0.46 * Math.sin(t))),
+    RightArm: samples(t => q(armed ? -1.14 - 0.012 * Math.sin(t) : sign * stride * 0.46 * Math.sin(t))),
     ...(armed ? { LeftForeArm: samples(() => q(-0.45)), RightForeArm: samples(() => q(-0.18)) } : {}),
   };
 }
@@ -239,7 +259,7 @@ function createAnimations(scene) {
       const base = bones.Hips.position;
       const walking = ['walk', 'walkBack', 'run', 'aimWalk', 'aimBack', 'aimStrafeLeft', 'aimStrafeRight'].includes(state);
       const offsets = walking
-        ? Array.from({ length: 49 }, (_, i) => (state === 'run' ? 0.024 : 0.010) * (1 - Math.cos(i * Math.PI * 4 / 48)) * 0.5)
+        ? Array.from({ length: 65 }, (_, i) => (state === 'run' ? 0.024 : 0.010) * (1 - Math.cos(i * Math.PI * 4 / 64)) * 0.5)
         : state === 'dodge' ? [0, -0.14, -0.28, -0.14, 0] : [0, 0.012, 0];
       const times = offsets.map((_, idx) => idx * duration / (offsets.length - 1));
       tracks.push(new THREE.VectorKeyframeTrack('Hips.position',times,offsets.flatMap(y=>[base.x,base.y+y,base.z])));
@@ -326,15 +346,23 @@ export class ReginaRig {
       this.weapon = new THREE.Group();
       const mat = new THREE.MeshStandardMaterial({ color: 0x252b30, metalness: 0.55, roughness: 0.48 });
       const gun = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.10, 0.32),mat);
-      gun.position.z = -0.14;
+      gun.position.z = 0.15;
       const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.17,0.095),mat);
       grip.position.set(0,-0.11,0);
       this.weapon.add(gun,grip);
       this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.11,6,4), new THREE.MeshBasicMaterial({color:0xffdd9b,depthWrite:false}));
-      this.flash.position.z=-0.32;
+      this.flash.position.z=0.34;
       this.flash.visible=false;
       this.weapon.add(this.flash);
       socket.add(this.weapon);
+      // O GLB olha para +Z localmente e o personagem vira 180 graus na cena.
+      // Desfaz a rotação do socket da mão para apontar o cano para a frente
+      // do personagem, não para trás ou para o lado.
+      model.updateMatrixWorld(true);
+      const socketWorld = socket.getWorldQuaternion(new THREE.Quaternion());
+      const modelWorld = model.getWorldQuaternion(new THREE.Quaternion());
+      this.weapon.quaternion.copy(socketWorld.invert().multiply(modelWorld));
+      this.weapon.userData.forwardAxis = 'model-local +Z';
     }
     model.visible = this.active;
     this.root.add(model);
