@@ -2473,7 +2473,12 @@
       ],
       "radius": 4,
       "terminalId": "terminal_outpost_b",
-      "kind": "interior"
+      "kind": "interior",
+      "entrance": [
+        -12,
+        11.2
+      ],
+      "doorWidth": 2.3
     },
     {
       "id": "safe_outpost_shed",
@@ -2484,7 +2489,13 @@
       ],
       "radius": 3.1,
       "terminalId": "terminal_generator",
-      "kind": "interior"
+      "kind": "interior",
+      "entrance": [
+        16,
+        12
+      ],
+      "doorWidth": 3,
+      "requiresBroken": "crates_shed"
     }
   ]
 }

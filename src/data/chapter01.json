@@ -1559,7 +1559,12 @@
       ],
       "radius": 3,
       "terminalId": "terminal_shelter",
-      "kind": "interior"
+      "kind": "interior",
+      "entrance": [
+        -24.2,
+        4.12
+      ],
+      "doorWidth": 1.65
     },
     {
       "id": "safe_forest_gate",
