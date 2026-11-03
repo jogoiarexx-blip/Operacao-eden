@@ -8,7 +8,7 @@ const CLIP_DURATIONS = {
   aimBack: 1.04, aimStrafeLeft: 0.95, aimStrafeRight: 0.95,
   shoot: 0.28, reload: 1.1, use: 0.8, dodge: 0.34, hurt: 0.35, death: 0.95,
 };
-const ONESHOT = new Set(['shoot', 'reload', 'use', 'dodge', 'hurt', 'death']);
+const ONESHOT = new Set(['shoot', 'reload', 'reloadPistol', 'use', 'dodge', 'hurt', 'death']);
 // O corpo continua andando enquanto braços/peito executam recarga ou disparo.
 const GAIT_STATES = new Set(['walk','walkBack','run','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight']);
 const LOCOMOTION_STATES = new Set(['idle','aim', ...GAIT_STATES]);
@@ -217,6 +217,24 @@ POSES.reload = {
   Chest: step(q(), q(0.08), q(0.06), q()),
 };
 
+
+/* A recarga de pistola é contínua: baixar a arma, trocar o carregador e
+   recolocar a mão de apoio. A escopeta repete o gesto de inserir cartuchos. */
+POSES.reloadPistol = {
+  RightArm: [q(-1.14),q(-0.95),q(-0.72),q(-0.75),q(-0.92),q(-1.14)],
+  LeftArm: [q(-0.96),q(-0.82),q(-0.53),q(-0.40),q(-0.77),q(-0.96)],
+  LeftForeArm: [q(-0.45),q(-0.61),q(-1.10),q(-0.94),q(-0.64),q(-0.45)],
+  Chest: [q(0.02),q(0.04),q(0.08),q(0.07),q(0.04),q(0.02)],
+};
+POSES.reloadShotgun = {
+  RightArm: [q(-1.14),q(-1.02),q(-1.02),q(-1.02),q(-1.14)],
+  LeftArm: [q(-0.96),q(-0.43),q(-0.58),q(-0.80),q(-0.96)],
+  LeftForeArm: [q(-0.45),q(-0.80),q(-1.13),q(-0.72),q(-0.45)],
+  Chest: [q(0.02),q(0.045),q(0.065),q(0.04),q(0.02)],
+};
+CLIP_DURATIONS.reloadPistol = 1.4;
+CLIP_DURATIONS.reloadShotgun = 0.52;
+
 function createAnimations(scene) {
   const bones = {};
   scene.traverse((node) => { if (node.isBone) bones[node.name] = node; });
@@ -243,7 +261,7 @@ function createAnimations(scene) {
     // Se X positivo coloca a mão mais à frente, inverte apenas esse braço.
     armCorrection[side + 'Arm'] = samples[1] > samples[0] ? -1 : 1;
   }
-  const armedStates = new Set(['aim','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight','shoot','reload']);
+  const armedStates = new Set(['aim','aimWalk','aimBack','aimStrafeLeft','aimStrafeRight','shoot','reload','reloadPistol','reloadShotgun']);
   const clips = {};
   for (const [state, poses] of Object.entries(POSES)) {
     const duration = CLIP_DURATIONS[state];
@@ -372,6 +390,14 @@ export class ReginaRig {
       const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.17,0.095),mat);
       grip.position.set(0,-0.11,0);
       this.weapon.add(gun,grip);
+      this.magazine = new THREE.Mesh(new THREE.BoxGeometry(0.065,0.13,0.075),mat);
+      this.magazine.position.set(0,-0.15,-0.005);
+      this.weapon.add(this.magazine);
+      this.shell = new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.105,8),
+        new THREE.MeshStandardMaterial({color:0xb83c25,metalness:0.3,roughness:0.5}));
+      this.shell.rotation.x = Math.PI / 2;
+      this.shell.visible = false;
+      model.add(this.shell);
       this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.11,6,4), new THREE.MeshBasicMaterial({color:0xffdd9b,depthWrite:false}));
       this.flash.position.z=0.34;
       this.flash.visible=false;
@@ -477,7 +503,9 @@ export class ReginaRig {
     const nextBase = baseWanted
       ? (upper ? this.lowerActions[baseWanted] : null) ?? this.actions[baseWanted]
       : null;
-    const nextOverlay = (upper || full) ? this.actions[wanted] : null;
+    const nextOverlay = upper && wanted === 'reload'
+      ? this.actions[player.weaponId === 'shotgun' ? 'reloadShotgun' : 'reloadPistol']
+      : (upper || full) ? this.actions[wanted] : null;
     const transition = full || wanted === 'shoot' ? 0.08 : 0.16;
 
     if (nextBase !== this.baseAction) {
@@ -506,19 +534,36 @@ export class ReginaRig {
     if (nextBase && baseWanted === 'run')
       nextBase.setEffectiveTimeScale(Math.max(0.7, Math.min(1.4, player.speed / 5.4)));
     if (wanted === 'reload' && nextOverlay) {
-      // Tempo visual acompanha o cronômetro real da arma (também por cartucho).
       const w = player.weapon;
-      const seconds = w?.reloadMode === 'shell'
-        ? ((w.reloadOpenMs ?? 0) + (w.reloadShellMs ?? 550) * Math.max(1, player.magSize - player.mag)) / 1000
-        : (w?.reloadMs ?? 1100) / 1000;
-      nextOverlay.setEffectiveTimeScale(CLIP_DURATIONS.reload / Math.max(0.25, seconds));
+      const isShell = player.weaponId === 'shotgun';
+      // Cada cartucho tem um ciclo independente; o movimento não desacelera
+      // conforme o número de cartuchos faltantes.
+      nextOverlay.setEffectiveTimeScale(isShell
+        ? CLIP_DURATIONS.reloadShotgun / Math.max(0.2,(w?.reloadShellMs ?? 520)/1000)
+        : CLIP_DURATIONS.reloadPistol / Math.max(0.25,(w?.reloadMs ?? 1400)/1000));
     }
     this.mixer.update(Math.min(Math.max(dt, 0), 0.05));
     this._stabilizeFeet(baseWanted ?? wanted, dt);
     this._supportWeapon(wanted);
     if (this.weapon) {
-      this.weapon.scale.z = player.weaponId === 'shotgun' ? 2.2 : 1;
+      const shotgun = player.weaponId === 'shotgun';
+      this.weapon.scale.z = shotgun ? 2.2 : 1;
       this.flash.visible = flashT > 0;
+      // Carregador desce durante a troca; cartucho aparece perto da mão de
+      // apoio durante a inserção. Elementos são apenas visuais.
+      const reloading = wanted === 'reload';
+      const phase = nextOverlay && reloading
+        ? (nextOverlay.time / nextOverlay.getClip().duration) % 1 : 0;
+      this.magazine.visible = !shotgun;
+      this.magazine.position.y = reloading && !shotgun
+        ? -0.15 - 0.15*Math.max(0,Math.sin(phase*Math.PI)) : -0.15;
+      this.shell.visible = reloading && shotgun && phase > 0.12 && phase < 0.8;
+      if (this.shell.visible && this.leftHand) {
+        this.model.updateMatrixWorld(true);
+        const world = this.leftHand.getWorldPosition(new THREE.Vector3());
+        this.shell.position.copy(this.model.worldToLocal(world));
+        this.shell.position.y -= 0.035;
+      }
     }
     // Mantém transparência durante a aproximação de câmera.
     if (this._opacity !== opacity) {
