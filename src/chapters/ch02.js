@@ -372,6 +372,8 @@ export default {
   onEncounter(rt, enc, alive) {
     const g = rt.g, save = g.save;
     switch (enc.id) {
+      // A primeira ameaça entra quando Caio cruza a brecha, e não durante a cena de abertura.
+      case 'ch02_court_r4': return !STORY(save, 'ch02_breach_entered');
       case 'ch02_generator': return !STORY(save, 'outpost_generator');             // surgem no ponto original após o gerador
       case 'ch02_tomas_defense':
         // só a defesa cria os juvenis; se a defesa terminou com sobreviventes, eles voltam pelos pontos marcados
@@ -440,6 +442,17 @@ export default {
   onZoneEnter(rt, z) {
     const g = rt.g, save = g.save, c = chapterState(save);
     switch (z.id) {
+      case 'breach':
+        if (!STORY(save, 'ch02_breach_entered')) {
+          rt.flag('ch02_breach_entered');
+          const enc = encOf('ch02_court_r4'), def = enc.enemies[0];
+          if (!rt.wf.defeatedEnemies.includes(def.id) && !liveById(g, def.id)) {
+            spawnAt(rt, enc, def, { x: def.pos[0], z: def.pos[1] }, { x: g.player.x, z: g.player.z });
+            g.audio.play('roar', def.pos[0], def.pos[1]);
+            g.hud.toast('Algo se moveu no pátio de serviço.', 'warn');
+          }
+        }
+        break;
       case 'generator_shed': if (!(rt.wf.broken ?? []).includes('crates_shed')) rt.tutorial('tut_impact'); break;
       case 'truck': if (!c.truckHint) { c.truckHint = true; hint(save, 'CACHE_02'); g.hud.toast('Marcas de pneu saem da estrada — e a porta da cabine do caminhão está entreaberta.', 'warn'); } break;
       default: break;
