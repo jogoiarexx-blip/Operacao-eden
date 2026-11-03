@@ -1,187 +1,2335 @@
 {
- "id": "outpost_02",
- "chapter": 2,
- "chapterId": "ch02",
- "title": "A Ordem de Retirada",
- "mapTitle": "Posto Avançado Norte",
- "protagonist": "caio",
- "bounds": [-40, -40, 40, 40],
- "treeSeed": 2207,
- "treeMaxZ": 33,
- "spawn": {"id": "south_breach", "pos": [11.3, 33.5], "yaw": 0},
- "camera": {"mode": "over_shoulder", "exploreDistance": 3.1, "aimDistance": 2.05, "shoulderOffset": 0.55, "collisionLayer": "camera_blockers", "pitchLimitsDeg": [-60, 65]},
- "cameraZones": [
-   {"id": "cz_admin", "zone": "admin_corridor", "rect": [-28, 4, -12, 18], "exploreDistance": 2.2, "aimDistance": 1.6},
-   {"id": "cz_shed", "zone": "generator_shed", "rect": [16, 6, 28, 18], "exploreDistance": 2.4, "aimDistance": 1.7},
-   {"id": "cz_archive", "zone": "archive", "rect": [3.5, -38, 22, -26], "exploreDistance": 2.4, "aimDistance": 1.7},
-   {"id": "cz_yard", "zone": "yard", "rect": [-13, -26, 13, -4], "exploreDistance": 2.8, "aimDistance": 1.9}
+  "id": "outpost_02",
+  "chapter": 2,
+  "chapterId": "ch02",
+  "title": "A Ordem de Retirada",
+  "mapTitle": "Posto Avançado Norte",
+  "protagonist": "caio",
+  "bounds": [
+    -40,
+    -40,
+    40,
+    40
   ],
- "paths": [
-   {"id": "service", "w": 3.4, "pts": [[11.3, 37], [11.3, 31], [4, 34], [-8, 34.2], [-18, 33.8], [-27, 33.4]]},
-   {"id": "breach", "w": 2.6, "pts": [[11.3, 31], [11.3, 24], [6, 14], [0, 0]]},
-   {"id": "court_w", "w": 2.4, "pts": [[6, 14], [-6, 11.2], [-12, 11.2]]},
-   {"id": "court_e", "w": 2.4, "pts": [[6, 14], [12, 12], [16, 12]]}
+  "treeSeed": 2207,
+  "treeMaxZ": 33,
+  "spawn": {
+    "id": "south_breach",
+    "pos": [
+      11.3,
+      33.5
+    ],
+    "yaw": 0
+  },
+  "camera": {
+    "mode": "over_shoulder",
+    "exploreDistance": 3.1,
+    "aimDistance": 2.05,
+    "shoulderOffset": 0.55,
+    "collisionLayer": "camera_blockers",
+    "pitchLimitsDeg": [
+      -60,
+      65
+    ]
+  },
+  "cameraZones": [
+    {
+      "id": "cz_admin",
+      "zone": "admin_corridor",
+      "rect": [
+        -28,
+        4,
+        -12,
+        18
+      ],
+      "exploreDistance": 2.2,
+      "aimDistance": 1.6
+    },
+    {
+      "id": "cz_shed",
+      "zone": "generator_shed",
+      "rect": [
+        16,
+        6,
+        28,
+        18
+      ],
+      "exploreDistance": 2.4,
+      "aimDistance": 1.7
+    },
+    {
+      "id": "cz_archive",
+      "zone": "archive",
+      "rect": [
+        3.5,
+        -38,
+        22,
+        -26
+      ],
+      "exploreDistance": 2.4,
+      "aimDistance": 1.7
+    },
+    {
+      "id": "cz_yard",
+      "zone": "yard",
+      "rect": [
+        -13,
+        -26,
+        13,
+        -4
+      ],
+      "exploreDistance": 2.8,
+      "aimDistance": 1.9
+    }
   ],
- "structures": [
-   {"id": "outpost_slab", "kind": "box", "visual": "slab", "pos": [0, -5], "size": [61, 0.1, 67], "y": -0.08, "flags": []},
-   {"id": "wall_s_w", "kind": "box", "visual": "concrete", "pos": [-16.65, 28], "size": [27.3, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_s_mid", "kind": "box", "visual": "concrete", "pos": [6.5, 28], "size": [7.0, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_s_e", "kind": "box", "visual": "concrete", "pos": [21.45, 28], "size": [17.7, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "main_gate", "kind": "box", "visual": "gate", "pos": [0, 28], "size": [6, 3.6, 0.8], "gate": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_w", "kind": "box", "visual": "concrete", "pos": [-30, -5.0], "size": [0.6, 3.4, 66.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_e", "kind": "box", "visual": "concrete", "pos": [30, -5.0], "size": [0.6, 3.4, 66.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_n_w", "kind": "box", "visual": "concrete", "pos": [-3.15, -38], "size": [54.3, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "wall_n_e", "kind": "box", "visual": "concrete", "pos": [29.15, -38], "size": [2.3, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "breach_rubble_a", "kind": "box", "visual": "rock", "pos": [9.2, 29.4], "size": [1.2, 0.7, 1.1], "flags": ["move"]},
-   {"id": "breach_rubble_b", "kind": "box", "visual": "rock", "pos": [13.5, 29.6], "size": [1.0, 0.6, 1.2], "flags": ["move"]},
-   {"id": "shed_n", "kind": "box", "visual": "shed", "pos": [22.0, 6], "size": [12.6, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "shed_s", "kind": "box", "visual": "shed", "pos": [22.0, 18], "size": [12.6, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "shed_e", "kind": "box", "visual": "shed", "pos": [28, 12.0], "size": [0.6, 3.0, 12.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "shed_w_a", "kind": "box", "visual": "shed", "pos": [16, 8.05], "size": [0.6, 3.0, 4.7], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "shed_w_b", "kind": "box", "visual": "shed", "pos": [16, 15.95], "size": [0.6, 3.0, 4.7], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "shed_roof", "kind": "box", "visual": "shelter_roof", "pos": [22, 12], "size": [12.8, 0.3, 12.8], "y": 3.0, "fade": true, "flags": ["camera"]},
-   {"id": "crates_shed", "kind": "box", "visual": "crate", "pos": [16, 12], "size": [0.9, 1.7, 3.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "generator", "kind": "box", "visual": "metal", "pos": [22, 12], "size": [2.6, 1.8, 2.2], "flags": ["move", "bullet"]},
-   {"id": "lever_post_a", "kind": "box", "visual": "metal", "pos": [27.1, 8.4], "size": [0.4, 1.2, 0.4], "flags": ["move"]},
-   {"id": "lever_post_b", "kind": "box", "visual": "metal", "pos": [27.1, 15.6], "size": [0.4, 1.2, 0.4], "flags": ["move"]},
-   {"id": "admin_n", "kind": "box", "visual": "concrete", "pos": [-20.0, 4], "size": [16.6, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "admin_s", "kind": "box", "visual": "concrete", "pos": [-20.0, 18], "size": [16.6, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "admin_w", "kind": "box", "visual": "concrete", "pos": [-28, 11.0], "size": [0.6, 3.0, 14.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "admin_e_a", "kind": "box", "visual": "concrete", "pos": [-12, 6.8], "size": [0.6, 3.0, 6.2], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "admin_e_b", "kind": "box", "visual": "concrete", "pos": [-12, 15.4], "size": [0.6, 3.0, 5.8], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "corr_n_a", "kind": "box", "visual": "concrete", "pos": [-20.4, 9.6], "size": [3.8, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "corr_n_b", "kind": "box", "visual": "concrete", "pos": [-14.2, 9.6], "size": [5.0, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "corr_s", "kind": "box", "visual": "concrete", "pos": [-17.0, 12.8], "size": [10.6, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "radio_e_a", "kind": "box", "visual": "concrete", "pos": [-22, 6.8], "size": [0.6, 3.0, 6.2], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "radio_e_b", "kind": "box", "visual": "concrete", "pos": [-22, 15.4], "size": [0.6, 3.0, 5.8], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "admin_roof", "kind": "box", "visual": "shelter_roof", "pos": [-20, 11], "size": [16.6, 0.3, 14.6], "y": 3.0, "fade": true, "flags": ["camera"]},
-   {"id": "radio_console", "kind": "box", "visual": "radio", "pos": [-27.1, 8], "size": [0.9, 1.1, 1.6], "flags": ["move", "bullet"]},
-   {"id": "terminal_outpost_b", "kind": "box", "visual": "terminal", "pos": [-27.0, 15], "size": [0.9, 1.3, 0.7], "flags": ["move", "bullet"]},
-   {"id": "office_desk", "kind": "box", "visual": "wood", "pos": [-15, 6.2], "size": [1.8, 0.8, 0.9], "flags": ["move"]},
-   {"id": "pen_fence_w", "kind": "box", "visual": "fence", "pos": [-26.55, -4], "size": [7.15, 2.6, 0.25], "flags": ["move"]},
-   {"id": "pen_fence_e", "kind": "box", "visual": "fence", "pos": [-16.45, -4], "size": [7.15, 2.6, 0.25], "flags": ["move"]},
-   {"id": "pen_gate", "kind": "box", "visual": "gate", "pos": [-21.5, -4], "size": [3.0, 2.8, 0.4], "flags": ["move", "bullet"]},
-   {"id": "pen_lock_panel", "kind": "box", "visual": "terminal", "pos": [-18.8, -2.7], "size": [0.6, 1.2, 0.4], "flags": ["move"]},
-   {"id": "pen_trough", "kind": "box", "visual": "metal", "pos": [-24, -14], "size": [3.0, 0.6, 1.0], "flags": ["move"]},
-   {"id": "yard_s_w", "kind": "box", "visual": "concrete", "pos": [-7.8, -4], "size": [11.0, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_s_e", "kind": "box", "visual": "concrete", "pos": [7.8, -4], "size": [11.0, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_gate_leaf", "kind": "box", "visual": "gate", "pos": [0, -4], "size": [5.0, 3.4, 0.7], "gate": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_gate_panel", "kind": "box", "visual": "terminal", "pos": [4.4, -2.6], "size": [0.6, 1.2, 0.4], "flags": ["move"]},
-   {"id": "yard_w", "kind": "box", "visual": "concrete", "pos": [-13, -21.0], "size": [0.6, 3.4, 34.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_e", "kind": "box", "visual": "concrete", "pos": [13, -15.0], "size": [0.6, 3.4, 22.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_n_w", "kind": "box", "visual": "concrete", "pos": [-8.25, -26], "size": [10.1, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "yard_n_e", "kind": "box", "visual": "concrete", "pos": [6.25, -26], "size": [6.1, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "pen_chute", "kind": "box", "visual": "gate", "pos": [-12.4, -15], "size": [0.6, 2.4, 4.0], "flags": ["move", "bullet", "camera"]},
-   {"id": "bay_w", "kind": "box", "visual": "concrete", "pos": [-3.5, -27.8], "size": [0.6, 3.4, 4.2], "flags": ["move", "bullet", "camera"]},
-   {"id": "bay_e", "kind": "box", "visual": "concrete", "pos": [3.5, -27.8], "size": [0.6, 3.4, 4.2], "flags": ["move", "bullet", "camera"]},
-   {"id": "bay_back", "kind": "box", "visual": "concrete", "pos": [0.0, -29.6], "size": [7.6, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "gate_drop_panel", "kind": "box", "visual": "terminal", "pos": [6.2, -24.7], "size": [0.6, 1.2, 0.4], "flags": ["move"]},
-   {"id": "cover_a", "kind": "box", "visual": "container", "pos": [-6, -10], "size": [3.2, 1.4, 1.5], "flags": ["move", "bullet", "camera"]},
-   {"id": "cover_b", "kind": "box", "visual": "container", "pos": [6, -10], "size": [3.2, 1.4, 1.5], "flags": ["move", "bullet", "camera"]},
-   {"id": "cover_c", "kind": "box", "visual": "container", "pos": [-6, -19.5], "size": [3.2, 1.4, 1.5], "flags": ["move", "bullet", "camera"]},
-   {"id": "cover_d", "kind": "box", "visual": "container", "pos": [6, -19.5], "size": [3.2, 1.4, 1.5], "flags": ["move", "bullet", "camera"]},
-   {"id": "ammo_box_a", "kind": "box", "visual": "crate", "pos": [-10.8, -6.6], "size": [0.9, 0.6, 0.6], "flags": ["move"]},
-   {"id": "ammo_box_b", "kind": "box", "visual": "crate", "pos": [10.8, -21.6], "size": [0.9, 0.6, 0.6], "flags": ["move"]},
-   {"id": "ne_block", "kind": "box", "visual": "concrete", "pos": [21.5, -4], "size": [17.6, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "court_s", "kind": "box", "visual": "concrete", "pos": [17.5, -26], "size": [9.6, 3.4, 0.6], "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_s_a", "kind": "box", "visual": "concrete", "pos": [6.55, -30], "size": [6.7, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_s_b", "kind": "box", "visual": "concrete", "pos": [17.2, -30], "size": [10.2, 3.0, 0.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_door_leaf", "kind": "box", "visual": "gate", "pos": [11, -30], "size": [2.8, 2.8, 0.5], "gate": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_w", "kind": "box", "visual": "concrete", "pos": [3.5, -34.0], "size": [0.6, 3.0, 8.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_e", "kind": "box", "visual": "concrete", "pos": [22, -34.0], "size": [0.6, 3.0, 8.6], "fade": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "archive_roof", "kind": "box", "visual": "shelter_roof", "pos": [12.75, -34], "size": [19.2, 0.3, 8.6], "y": 3.0, "fade": true, "flags": ["camera"]},
-   {"id": "shelf_a", "kind": "box", "visual": "wood", "pos": [8, -37], "size": [3.6, 2.2, 0.7], "flags": ["move", "bullet"]},
-   {"id": "shelf_b", "kind": "box", "visual": "wood", "pos": [13, -37], "size": [3.6, 2.2, 0.7], "flags": ["move", "bullet"]},
-   {"id": "shelf_c", "kind": "box", "visual": "wood", "pos": [16, -33.2], "size": [0.7, 2.2, 3.2], "flags": ["move", "bullet"]},
-   {"id": "archive_desk", "kind": "box", "visual": "wood", "pos": [20.4, -35.6], "size": [1.2, 0.8, 0.8], "flags": ["move"]},
-   {"id": "exit_gate", "kind": "box", "visual": "gate", "pos": [22, -28], "size": [0.6, 3.4, 4.0], "gate": true, "flags": ["move", "bullet", "camera"]},
-   {"id": "truck_body", "kind": "box", "visual": "truck", "pos": [-20.6, 33.6], "size": [5.2, 2.2, 2.4], "flags": ["move", "bullet", "camera"]},
-   {"id": "truck_cab", "kind": "box", "visual": "truck", "pos": [-24.4, 33.6], "size": [2.0, 2.5, 2.4], "flags": ["move", "bullet", "camera"]}
+  "paths": [
+    {
+      "id": "service",
+      "w": 3.4,
+      "pts": [
+        [
+          11.3,
+          37
+        ],
+        [
+          11.3,
+          31
+        ],
+        [
+          4,
+          34
+        ],
+        [
+          -8,
+          34.2
+        ],
+        [
+          -18,
+          33.8
+        ],
+        [
+          -27,
+          33.4
+        ]
+      ]
+    },
+    {
+      "id": "breach",
+      "w": 2.6,
+      "pts": [
+        [
+          11.3,
+          31
+        ],
+        [
+          11.3,
+          24
+        ],
+        [
+          6,
+          14
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "court_w",
+      "w": 2.4,
+      "pts": [
+        [
+          6,
+          14
+        ],
+        [
+          -6,
+          11.2
+        ],
+        [
+          -12,
+          11.2
+        ]
+      ]
+    },
+    {
+      "id": "court_e",
+      "w": 2.4,
+      "pts": [
+        [
+          6,
+          14
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          16,
+          12
+        ]
+      ]
+    }
   ],
- "flares": [[10.2, 31.2], [12.4, 32.4], [11.0, 26.6], [7.6, 22.8]],
- "lamps": [[0, 12], [-9, 0], [9, 0], [-6, -14.5], [6, -14.5], [12, -28]],
- "ribbons": [],
- "clawMarks": [[-17.5, 36.2], [-15.5, 37.0], [-13.5, 37.6]],
- "clearings": [],
- "terminals": [
-   {"id": "terminal_outpost_b", "name": "Terminal Éden B", "pos": [-26.6, 15], "safe": [-25, 14], "checkpointId": "terminal_B2"}
+  "structures": [
+    {
+      "id": "outpost_slab",
+      "kind": "box",
+      "visual": "slab",
+      "pos": [
+        0,
+        -5
+      ],
+      "size": [
+        61,
+        0.1,
+        67
+      ],
+      "y": -0.08,
+      "flags": []
+    },
+    {
+      "id": "wall_s_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -16.65,
+        28
+      ],
+      "size": [
+        27.3,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_s_mid",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        6.5,
+        28
+      ],
+      "size": [
+        7,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_s_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        21.45,
+        28
+      ],
+      "size": [
+        17.7,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "main_gate",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        0,
+        28
+      ],
+      "size": [
+        6,
+        3.6,
+        0.8
+      ],
+      "gate": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -30,
+        -5
+      ],
+      "size": [
+        0.6,
+        3.4,
+        66.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        30,
+        -5
+      ],
+      "size": [
+        0.6,
+        3.4,
+        66.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_n_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -3.15,
+        -38
+      ],
+      "size": [
+        54.3,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "wall_n_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        29.15,
+        -38
+      ],
+      "size": [
+        2.3,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "breach_rubble_a",
+      "kind": "box",
+      "visual": "rock",
+      "pos": [
+        9.2,
+        29.4
+      ],
+      "size": [
+        1.2,
+        0.7,
+        1.1
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "breach_rubble_b",
+      "kind": "box",
+      "visual": "rock",
+      "pos": [
+        13.5,
+        29.6
+      ],
+      "size": [
+        1,
+        0.6,
+        1.2
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "shed_n",
+      "kind": "box",
+      "visual": "shed",
+      "pos": [
+        22,
+        6
+      ],
+      "size": [
+        12.6,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "shed_s",
+      "kind": "box",
+      "visual": "shed",
+      "pos": [
+        22,
+        18
+      ],
+      "size": [
+        12.6,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "shed_e",
+      "kind": "box",
+      "visual": "shed",
+      "pos": [
+        28,
+        12
+      ],
+      "size": [
+        0.6,
+        3,
+        12.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "shed_w_a",
+      "kind": "box",
+      "visual": "shed",
+      "pos": [
+        16,
+        8.05
+      ],
+      "size": [
+        0.6,
+        3,
+        4.7
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "shed_w_b",
+      "kind": "box",
+      "visual": "shed",
+      "pos": [
+        16,
+        15.95
+      ],
+      "size": [
+        0.6,
+        3,
+        4.7
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "shed_roof",
+      "kind": "box",
+      "visual": "shelter_roof",
+      "pos": [
+        22,
+        12
+      ],
+      "size": [
+        12.8,
+        0.3,
+        12.8
+      ],
+      "y": 3,
+      "fade": true,
+      "flags": [
+        "camera"
+      ]
+    },
+    {
+      "id": "crates_shed",
+      "kind": "box",
+      "visual": "crate",
+      "pos": [
+        16,
+        12
+      ],
+      "size": [
+        0.9,
+        1.7,
+        3.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "generator",
+      "kind": "box",
+      "visual": "metal",
+      "pos": [
+        22,
+        12
+      ],
+      "size": [
+        2.6,
+        1.8,
+        2.2
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "lever_post_a",
+      "kind": "box",
+      "visual": "metal",
+      "pos": [
+        27.1,
+        8.4
+      ],
+      "size": [
+        0.4,
+        1.2,
+        0.4
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "lever_post_b",
+      "kind": "box",
+      "visual": "metal",
+      "pos": [
+        27.1,
+        15.6
+      ],
+      "size": [
+        0.4,
+        1.2,
+        0.4
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "admin_n",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -20,
+        4
+      ],
+      "size": [
+        16.6,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "admin_s",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -20,
+        18
+      ],
+      "size": [
+        16.6,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "admin_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -28,
+        11
+      ],
+      "size": [
+        0.6,
+        3,
+        14.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "admin_e_a",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -12,
+        6.8
+      ],
+      "size": [
+        0.6,
+        3,
+        6.2
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "admin_e_b",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -12,
+        15.4
+      ],
+      "size": [
+        0.6,
+        3,
+        5.8
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "corr_n_a",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -20.4,
+        9.6
+      ],
+      "size": [
+        3.8,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "corr_n_b",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -14.2,
+        9.6
+      ],
+      "size": [
+        5,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "corr_s",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -17,
+        12.8
+      ],
+      "size": [
+        10.6,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "radio_e_a",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -22,
+        6.8
+      ],
+      "size": [
+        0.6,
+        3,
+        6.2
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "radio_e_b",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -22,
+        15.4
+      ],
+      "size": [
+        0.6,
+        3,
+        5.8
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "admin_roof",
+      "kind": "box",
+      "visual": "shelter_roof",
+      "pos": [
+        -20,
+        11
+      ],
+      "size": [
+        16.6,
+        0.3,
+        14.6
+      ],
+      "y": 3,
+      "fade": true,
+      "flags": [
+        "camera"
+      ]
+    },
+    {
+      "id": "radio_console",
+      "kind": "box",
+      "visual": "radio",
+      "pos": [
+        -27.1,
+        8
+      ],
+      "size": [
+        0.9,
+        1.1,
+        1.6
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "terminal_outpost_b",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        -27,
+        15
+      ],
+      "size": [
+        0.9,
+        1.3,
+        0.7
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "office_desk",
+      "kind": "box",
+      "visual": "wood",
+      "pos": [
+        -15,
+        6.2
+      ],
+      "size": [
+        1.8,
+        0.8,
+        0.9
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "pen_fence_w",
+      "kind": "box",
+      "visual": "fence",
+      "pos": [
+        -26.55,
+        -4
+      ],
+      "size": [
+        7.15,
+        2.6,
+        0.25
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "pen_fence_e",
+      "kind": "box",
+      "visual": "fence",
+      "pos": [
+        -16.45,
+        -4
+      ],
+      "size": [
+        7.15,
+        2.6,
+        0.25
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "pen_gate",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        -21.5,
+        -4
+      ],
+      "size": [
+        3,
+        2.8,
+        0.4
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "pen_lock_panel",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        -18.8,
+        -2.7
+      ],
+      "size": [
+        0.6,
+        1.2,
+        0.4
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "pen_trough",
+      "kind": "box",
+      "visual": "metal",
+      "pos": [
+        -24,
+        -14
+      ],
+      "size": [
+        3,
+        0.6,
+        1
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "yard_s_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -7.8,
+        -4
+      ],
+      "size": [
+        11,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_s_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        7.8,
+        -4
+      ],
+      "size": [
+        11,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_gate_leaf",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        0,
+        -4
+      ],
+      "size": [
+        5,
+        3.4,
+        0.7
+      ],
+      "gate": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_gate_panel",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        4.4,
+        -2.6
+      ],
+      "size": [
+        0.6,
+        1.2,
+        0.4
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "yard_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -13,
+        -21
+      ],
+      "size": [
+        0.6,
+        3.4,
+        34.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        13,
+        -15
+      ],
+      "size": [
+        0.6,
+        3.4,
+        22.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_n_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -8.25,
+        -26
+      ],
+      "size": [
+        10.1,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "yard_n_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        6.25,
+        -26
+      ],
+      "size": [
+        6.1,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "pen_chute",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        -12.4,
+        -15
+      ],
+      "size": [
+        0.6,
+        2.4,
+        4
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "bay_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        -3.5,
+        -27.8
+      ],
+      "size": [
+        0.6,
+        3.4,
+        4.2
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "bay_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        3.5,
+        -27.8
+      ],
+      "size": [
+        0.6,
+        3.4,
+        4.2
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "bay_back",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        0,
+        -29.6
+      ],
+      "size": [
+        7.6,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "gate_drop_panel",
+      "kind": "box",
+      "visual": "terminal",
+      "pos": [
+        6.2,
+        -24.7
+      ],
+      "size": [
+        0.6,
+        1.2,
+        0.4
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "cover_a",
+      "kind": "box",
+      "visual": "container",
+      "pos": [
+        -6,
+        -10
+      ],
+      "size": [
+        3.2,
+        1.4,
+        1.5
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "cover_b",
+      "kind": "box",
+      "visual": "container",
+      "pos": [
+        6,
+        -10
+      ],
+      "size": [
+        3.2,
+        1.4,
+        1.5
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "cover_c",
+      "kind": "box",
+      "visual": "container",
+      "pos": [
+        -6,
+        -19.5
+      ],
+      "size": [
+        3.2,
+        1.4,
+        1.5
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "cover_d",
+      "kind": "box",
+      "visual": "container",
+      "pos": [
+        6,
+        -19.5
+      ],
+      "size": [
+        3.2,
+        1.4,
+        1.5
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "ammo_box_a",
+      "kind": "box",
+      "visual": "crate",
+      "pos": [
+        -10.8,
+        -6.6
+      ],
+      "size": [
+        0.9,
+        0.6,
+        0.6
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "ammo_box_b",
+      "kind": "box",
+      "visual": "crate",
+      "pos": [
+        10.8,
+        -21.6
+      ],
+      "size": [
+        0.9,
+        0.6,
+        0.6
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "ne_block",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        21.5,
+        -4
+      ],
+      "size": [
+        17.6,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "court_s",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        17.5,
+        -26
+      ],
+      "size": [
+        9.6,
+        3.4,
+        0.6
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_s_a",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        6.55,
+        -30
+      ],
+      "size": [
+        6.7,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_s_b",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        17.2,
+        -30
+      ],
+      "size": [
+        10.2,
+        3,
+        0.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_door_leaf",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        11,
+        -30
+      ],
+      "size": [
+        2.8,
+        2.8,
+        0.5
+      ],
+      "gate": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_w",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        3.5,
+        -34
+      ],
+      "size": [
+        0.6,
+        3,
+        8.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_e",
+      "kind": "box",
+      "visual": "concrete",
+      "pos": [
+        22,
+        -34
+      ],
+      "size": [
+        0.6,
+        3,
+        8.6
+      ],
+      "fade": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "archive_roof",
+      "kind": "box",
+      "visual": "shelter_roof",
+      "pos": [
+        12.75,
+        -34
+      ],
+      "size": [
+        19.2,
+        0.3,
+        8.6
+      ],
+      "y": 3,
+      "fade": true,
+      "flags": [
+        "camera"
+      ]
+    },
+    {
+      "id": "shelf_a",
+      "kind": "box",
+      "visual": "wood",
+      "pos": [
+        8,
+        -37
+      ],
+      "size": [
+        3.6,
+        2.2,
+        0.7
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "shelf_b",
+      "kind": "box",
+      "visual": "wood",
+      "pos": [
+        13,
+        -37
+      ],
+      "size": [
+        3.6,
+        2.2,
+        0.7
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "shelf_c",
+      "kind": "box",
+      "visual": "wood",
+      "pos": [
+        16,
+        -33.2
+      ],
+      "size": [
+        0.7,
+        2.2,
+        3.2
+      ],
+      "flags": [
+        "move",
+        "bullet"
+      ]
+    },
+    {
+      "id": "archive_desk",
+      "kind": "box",
+      "visual": "wood",
+      "pos": [
+        20.4,
+        -35.6
+      ],
+      "size": [
+        1.2,
+        0.8,
+        0.8
+      ],
+      "flags": [
+        "move"
+      ]
+    },
+    {
+      "id": "exit_gate",
+      "kind": "box",
+      "visual": "gate",
+      "pos": [
+        22,
+        -28
+      ],
+      "size": [
+        0.6,
+        3.4,
+        4
+      ],
+      "gate": true,
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "truck_body",
+      "kind": "box",
+      "visual": "truck",
+      "pos": [
+        -20.6,
+        33.6
+      ],
+      "size": [
+        5.2,
+        2.2,
+        2.4
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    },
+    {
+      "id": "truck_cab",
+      "kind": "box",
+      "visual": "truck",
+      "pos": [
+        -24.4,
+        33.6
+      ],
+      "size": [
+        2,
+        2.5,
+        2.4
+      ],
+      "flags": [
+        "move",
+        "bullet",
+        "camera"
+      ]
+    }
   ],
- "pickups": [
-   {"id": "ammo_breach", "pos": [8.6, 25.2], "kind": "supplies", "ammo": {"shotgun": 6}, "label": "Cartuchos de escopeta"},
-   {"id": "ammo_court", "pos": [-7, 21.5], "kind": "supplies", "ammo": {"shotgun": 4, "pistol": 8}, "label": "Munição do posto"},
-   {"id": "ammo_shed", "pos": [18.6, 16.6], "kind": "supplies", "ammo": {"shotgun": 6}, "consumable": {"hemostatic": 1}, "label": "Armário de manutenção"},
-   {"id": "medkit_office", "pos": [-20.6, 5.4], "kind": "supplies", "consumable": {"medkit": 1}, "label": "Kit médico"},
-   {"id": "ammo_yard", "pos": [-11.2, -24.4], "kind": "supplies", "ammo": {"shotgun": 6}, "label": "Cartuchos de escopeta"},
-   {"id": "doc_02", "pos": [-14.4, 7.4], "kind": "document", "doc": "DOC_02", "label": "Ordem impressa"},
-   {"id": "doc_03", "pos": [6.4, -32.6], "kind": "document", "doc": "DOC_03", "label": "Escala de manutenção"},
-   {"id": "BIO_03", "pos": [19.6, -35.4], "kind": "dossier", "dossier": "BIO_03", "label": "Dossiê de campo"},
-   {"id": "CACHE_02", "pos": [-24.4, 35.6], "kind": "cache", "cache": "CACHE_02", "label": "Caixa na cabine do caminhão"}
+  "flares": [
+    [
+      10.2,
+      31.2
+    ],
+    [
+      12.4,
+      32.4
+    ],
+    [
+      11,
+      26.6
+    ],
+    [
+      7.6,
+      22.8
+    ]
   ],
- "interactables": [
-   {"id": "crates_shed", "kind": "breakable", "pos": [16.2, 12], "r": 2.4, "colliderId": "crates_shed", "label": "Barreira de caixas"},
-   {"id": "lever_a", "kind": "heavy_lever", "pos": [26.3, 8.4], "r": 1.8, "holdMs": 2400, "flag": "gen_lever_a", "label": "Puxar alavanca do gerador (1)", "doneText": "Primeira alavanca travada."},
-   {"id": "lever_b", "kind": "heavy_lever", "pos": [26.3, 15.6], "r": 1.8, "holdMs": 2400, "flag": "gen_lever_b", "label": "Puxar alavanca do gerador (2)", "doneText": "Segunda alavanca travada."},
-   {"id": "radio_console", "kind": "radio_console", "pos": [-26.2, 8], "r": 1.9, "holdMs": 1800, "label": "Estabilizar o rádio"},
-   {"id": "pen_lock", "kind": "pen_lock", "pos": [-18.8, -2.1], "r": 2.0, "label": "Trancar o cercado K-1"},
-   {"id": "yard_gate_panel", "kind": "yard_gate_panel", "pos": [4.4, -2.0], "r": 2.2, "label": "Abrir o portão do pátio"},
-   {"id": "archive_door", "kind": "archive_door", "pos": [11, -28.0], "r": 2.4, "label": "Falar com o sobrevivente"},
-   {"id": "gate_drop", "kind": "gate_drop", "pos": [6.2, -24.0], "r": 2.2, "label": "Soltar portão de carga"},
-   {"id": "ammo_box_a", "kind": "ammo_box", "pos": [-10.8, -6.0], "r": 1.8, "label": "Caixa de munição"},
-   {"id": "ammo_box_b", "kind": "ammo_box", "pos": [10.8, -21.0], "r": 1.8, "label": "Caixa de munição"}
+  "lamps": [
+    [
+      0,
+      12
+    ],
+    [
+      -9,
+      0
+    ],
+    [
+      9,
+      0
+    ],
+    [
+      -6,
+      -14.5
+    ],
+    [
+      6,
+      -14.5
+    ],
+    [
+      12,
+      -28
+    ]
   ],
- "zones": [
-   {"id": "breach", "pos": [11.3, 27], "r": 3.5},
-   {"id": "generator_shed", "pos": [22, 12], "r": 5},
-   {"id": "admin_corridor", "pos": [-17, 11.2], "r": 3, "narrow": true},
-   {"id": "radio_room", "pos": [-25, 11], "r": 3.2},
-   {"id": "pen_area", "pos": [-19, -1.5], "r": 4.5},
-   {"id": "yard", "pos": [0, -15], "r": 9},
-   {"id": "yard_passage", "pos": [10.8, -26.5], "r": 2.2, "narrow": true},
-   {"id": "archive", "pos": [13, -34], "r": 4},
-   {"id": "service_road", "pos": [-6, 34], "r": 6},
-   {"id": "truck", "pos": [-23, 34.4], "r": 4.5},
-   {"id": "gate_zone", "pos": [0, -27.8], "r": 3.0},
-   {"id": "north_service_exit", "pos": [26, -39.2], "r": 2.0}
+  "ribbons": [],
+  "clawMarks": [
+    [
+      -17.5,
+      36.2
+    ],
+    [
+      -15.5,
+      37
+    ],
+    [
+      -13.5,
+      37.6
+    ]
   ],
- "tomas": {"pos": [11, -28.7], "retreat": [11, -29.5], "yaw": 0},
- "preK1": {"pos": [11, -27.2], "yaw": 3.14},
- "yardCheckpoint": {"pos": [0, -6.5], "yaw": 3.14},
- "exitCheckpoint": {"pos": [26, -37], "yaw": 0},
- "encounters": [
-   {"id": "ch02_court_r4", "title": "Corredor no pátio de serviço", "enemies": [
-     {"id": "r4_court", "type": "forest_runner", "pos": [-4, 16], "patrol": [[-4, 16], [-8, 22], [2, 22], [4, 8]]}
-   ]},
-   {"id": "ch02_generator", "title": "Atraídos pelo gerador", "deferred": "outpost_generator", "enemies": [
-     {"id": "r4_gen_a", "type": "forest_runner", "pos": [4, 22], "patrol": []},
-     {"id": "r4_gen_b", "type": "forest_runner", "pos": [6, -0.5], "patrol": []}
-   ]},
-   {"id": "ch02_tomas_defense", "title": "Juvenis no arquivo", "deferred": "defense", "enemies": [
-     {"id": "r4j_def_a", "type": "forest_runner_juvenile", "spawnCandidates": [[-10, -8], [-10, -23], [9, -8]], "patrol": []},
-     {"id": "r4j_def_b", "type": "forest_runner_juvenile", "spawnCandidates": [[-9, -15], [10, -14], [-10, -23]], "patrol": []},
-     {"id": "r4j_def_c", "type": "forest_runner_juvenile", "spawnCandidates": [[9, -8], [-10, -8], [0, -12]], "patrol": []}
-   ]},
-   {"id": "ch02_k1", "title": "K-1 — Alfa de contenção", "deferred": "tomas_found", "enemies": [
-     {"id": "k1", "type": "containment_alpha", "spawnCandidates": [[-9, -9], [-9, -21], [9, -8], [0, -9]], "patrol": []}
-   ]},
-   {"id": "ch02_k1_roar", "title": "Chamado do alfa", "deferred": "k1Roar", "enemies": [
-     {"id": "r4j_roar", "type": "forest_runner_juvenile", "spawnCandidates": [[-10, -7], [10, -7], [-10, -24], [10, -16]], "patrol": []}
-   ]}
+  "clearings": [],
+  "terminals": [
+    {
+      "id": "terminal_outpost_b",
+      "name": "Terminal Éden B",
+      "pos": [
+        -26.6,
+        15
+      ],
+      "safe": [
+        -25,
+        14
+      ],
+      "checkpointId": "terminal_B2"
+    }
   ],
- "objectives": [
-   {"id": "restore_generator", "text": "Religue o gerador no galpão de serviço, a leste.", "doneWhen": {"flag": "outpost_generator"}, "target": [22, 12]},
-   {"id": "radio", "text": "Estabilize o rádio na sala do prédio administrativo, a oeste.", "doneWhen": {"flag": "radio_online"}, "target": [-26.2, 8]},
-   {"id": "lock_pen", "text": "Tranque o cercado K-1 antes de abrir o pátio.", "doneWhen": {"flag": "gate_k1_locked"}, "target": [-18.8, -2.1]},
-   {"id": "open_yard", "text": "Abra o portão do pátio central.", "doneWhen": {"flag": "yard_open"}, "target": [4.4, -2.0]},
-   {"id": "find_tomas", "text": "Localize o sobrevivente no arquivo, do outro lado do pátio.", "doneWhen": {"flag": "tomas_found"}, "target": [11, -28]},
-   {"id": "defeat_k1", "text": "Detenha o K-1. O portão de carga do pátio pode feri-lo.", "doneWhen": {"flag": "k1_defeated"}, "target": [6.2, -24]},
-   {"id": "exit", "text": "Saia com Tomás pelo portão de serviço norte.", "doneWhen": {"zone": "north_service_exit"}, "target": [26, -37]}
+  "pickups": [
+    {
+      "id": "ammo_breach",
+      "pos": [
+        8.6,
+        25.2
+      ],
+      "kind": "supplies",
+      "ammo": {
+        "shotgun": 6
+      },
+      "label": "Cartuchos de escopeta"
+    },
+    {
+      "id": "ammo_court",
+      "pos": [
+        -7,
+        21.5
+      ],
+      "kind": "supplies",
+      "ammo": {
+        "shotgun": 4,
+        "pistol": 8
+      },
+      "label": "Munição do posto"
+    },
+    {
+      "id": "ammo_shed",
+      "pos": [
+        18.6,
+        16.6
+      ],
+      "kind": "supplies",
+      "ammo": {
+        "shotgun": 6
+      },
+      "consumable": {
+        "hemostatic": 1
+      },
+      "label": "Armário de manutenção"
+    },
+    {
+      "id": "medkit_office",
+      "pos": [
+        -20.6,
+        5.4
+      ],
+      "kind": "supplies",
+      "consumable": {
+        "medkit": 1
+      },
+      "label": "Kit médico"
+    },
+    {
+      "id": "ammo_yard",
+      "pos": [
+        -11.2,
+        -24.4
+      ],
+      "kind": "supplies",
+      "ammo": {
+        "shotgun": 6
+      },
+      "label": "Cartuchos de escopeta"
+    },
+    {
+      "id": "doc_02",
+      "pos": [
+        -14.4,
+        7.4
+      ],
+      "kind": "document",
+      "doc": "DOC_02",
+      "label": "Ordem impressa"
+    },
+    {
+      "id": "doc_03",
+      "pos": [
+        6.4,
+        -32.6
+      ],
+      "kind": "document",
+      "doc": "DOC_03",
+      "label": "Escala de manutenção"
+    },
+    {
+      "id": "BIO_03",
+      "pos": [
+        19.6,
+        -35.4
+      ],
+      "kind": "dossier",
+      "dossier": "BIO_03",
+      "label": "Dossiê de campo"
+    },
+    {
+      "id": "CACHE_02",
+      "pos": [
+        -24.4,
+        35.6
+      ],
+      "kind": "cache",
+      "cache": "CACHE_02",
+      "label": "Caixa na cabine do caminhão"
+    }
   ],
- "tutorials": [
-   {"id": "tut_shotgun", "when": "start", "text": "{fire} dispara a escopeta · {reload} põe um cartucho por vez (atirar interrompe) · {weapon1}/{weapon2} trocam de arma"},
-   {"id": "tut_impact", "when": "zone:generator_shed", "text": "{utility} golpe de impacto — rompe barreiras de caixas"},
-   {"id": "tut_lever", "when": "nearLever", "text": "{interact} segure para puxar a alavanca — sofrer dano interrompe"},
-   {"id": "ch02_tut_dodge", "when": "firstWindup", "text": "O animal agachou: {dodge} esquiva para o lado antes do salto"},
-   {"id": "ch02_tut_terminal", "when": "zone:terminal", "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura"},
-   {"id": "tut_gate", "when": "k1", "text": "Atraia a investida do K-1 para a baia do portão de carga e acione o painel ({interact}). Recarrega em 20 s."}
+  "interactables": [
+    {
+      "id": "crates_shed",
+      "kind": "breakable",
+      "pos": [
+        16.2,
+        12
+      ],
+      "r": 2.4,
+      "colliderId": "crates_shed",
+      "label": "Barreira de caixas"
+    },
+    {
+      "id": "lever_a",
+      "kind": "heavy_lever",
+      "pos": [
+        26.3,
+        8.4
+      ],
+      "r": 1.8,
+      "holdMs": 2400,
+      "flag": "gen_lever_a",
+      "label": "Puxar alavanca do gerador (1)",
+      "doneText": "Primeira alavanca travada."
+    },
+    {
+      "id": "lever_b",
+      "kind": "heavy_lever",
+      "pos": [
+        26.3,
+        15.6
+      ],
+      "r": 1.8,
+      "holdMs": 2400,
+      "flag": "gen_lever_b",
+      "label": "Puxar alavanca do gerador (2)",
+      "doneText": "Segunda alavanca travada."
+    },
+    {
+      "id": "radio_console",
+      "kind": "radio_console",
+      "pos": [
+        -26.2,
+        8
+      ],
+      "r": 1.9,
+      "holdMs": 1800,
+      "label": "Estabilizar o rádio"
+    },
+    {
+      "id": "pen_lock",
+      "kind": "pen_lock",
+      "pos": [
+        -18.8,
+        -2.1
+      ],
+      "r": 2,
+      "label": "Trancar o cercado K-1"
+    },
+    {
+      "id": "yard_gate_panel",
+      "kind": "yard_gate_panel",
+      "pos": [
+        4.4,
+        -2
+      ],
+      "r": 2.2,
+      "label": "Abrir o portão do pátio"
+    },
+    {
+      "id": "archive_door",
+      "kind": "archive_door",
+      "pos": [
+        11,
+        -28
+      ],
+      "r": 2.4,
+      "label": "Falar com o sobrevivente"
+    },
+    {
+      "id": "gate_drop",
+      "kind": "gate_drop",
+      "pos": [
+        6.2,
+        -24
+      ],
+      "r": 2.2,
+      "label": "Soltar portão de carga"
+    },
+    {
+      "id": "ammo_box_a",
+      "kind": "ammo_box",
+      "pos": [
+        -10.8,
+        -6
+      ],
+      "r": 1.8,
+      "label": "Caixa de munição"
+    },
+    {
+      "id": "ammo_box_b",
+      "kind": "ammo_box",
+      "pos": [
+        10.8,
+        -21
+      ],
+      "r": 1.8,
+      "label": "Caixa de munição"
+    }
+  ],
+  "zones": [
+    {
+      "id": "breach",
+      "pos": [
+        11.3,
+        27
+      ],
+      "r": 3.5
+    },
+    {
+      "id": "generator_shed",
+      "pos": [
+        22,
+        12
+      ],
+      "r": 5
+    },
+    {
+      "id": "admin_corridor",
+      "pos": [
+        -17,
+        11.2
+      ],
+      "r": 3,
+      "narrow": true
+    },
+    {
+      "id": "radio_room",
+      "pos": [
+        -25,
+        11
+      ],
+      "r": 3.2
+    },
+    {
+      "id": "pen_area",
+      "pos": [
+        -19,
+        -1.5
+      ],
+      "r": 4.5
+    },
+    {
+      "id": "yard",
+      "pos": [
+        0,
+        -15
+      ],
+      "r": 9
+    },
+    {
+      "id": "yard_passage",
+      "pos": [
+        10.8,
+        -26.5
+      ],
+      "r": 2.2,
+      "narrow": true
+    },
+    {
+      "id": "archive",
+      "pos": [
+        13,
+        -34
+      ],
+      "r": 4
+    },
+    {
+      "id": "service_road",
+      "pos": [
+        -6,
+        34
+      ],
+      "r": 6
+    },
+    {
+      "id": "truck",
+      "pos": [
+        -23,
+        34.4
+      ],
+      "r": 4.5
+    },
+    {
+      "id": "gate_zone",
+      "pos": [
+        0,
+        -27.8
+      ],
+      "r": 3
+    },
+    {
+      "id": "north_service_exit",
+      "pos": [
+        26,
+        -39.2
+      ],
+      "r": 2
+    }
+  ],
+  "tomas": {
+    "pos": [
+      11,
+      -28.7
+    ],
+    "retreat": [
+      11,
+      -29.5
+    ],
+    "yaw": 0
+  },
+  "preK1": {
+    "pos": [
+      11,
+      -27.2
+    ],
+    "yaw": 3.14
+  },
+  "yardCheckpoint": {
+    "pos": [
+      0,
+      -6.5
+    ],
+    "yaw": 3.14
+  },
+  "exitCheckpoint": {
+    "pos": [
+      26,
+      -37
+    ],
+    "yaw": 0
+  },
+  "encounters": [
+    {
+      "id": "ch02_court_r4",
+      "title": "Corredor no pátio de serviço",
+      "enemies": [
+        {
+          "id": "r4_court",
+          "type": "forest_runner",
+          "pos": [
+            -4,
+            16
+          ],
+          "patrol": [
+            [
+              -4,
+              16
+            ],
+            [
+              -8,
+              22
+            ],
+            [
+              2,
+              22
+            ],
+            [
+              4,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ch02_generator",
+      "title": "Atraídos pelo gerador",
+      "deferred": "outpost_generator",
+      "enemies": [
+        {
+          "id": "r4_gen_a",
+          "type": "forest_runner",
+          "pos": [
+            4,
+            22
+          ],
+          "patrol": []
+        },
+        {
+          "id": "r4_gen_b",
+          "type": "forest_runner",
+          "pos": [
+            6,
+            -0.5
+          ],
+          "patrol": []
+        }
+      ]
+    },
+    {
+      "id": "ch02_tomas_defense",
+      "title": "Juvenis no arquivo",
+      "deferred": "defense",
+      "enemies": [
+        {
+          "id": "r4j_def_a",
+          "type": "forest_runner_juvenile",
+          "spawnCandidates": [
+            [
+              -10,
+              -8
+            ],
+            [
+              -10,
+              -23
+            ],
+            [
+              9,
+              -8
+            ]
+          ],
+          "patrol": []
+        },
+        {
+          "id": "r4j_def_b",
+          "type": "forest_runner_juvenile",
+          "spawnCandidates": [
+            [
+              -9,
+              -15
+            ],
+            [
+              10,
+              -14
+            ],
+            [
+              -10,
+              -23
+            ]
+          ],
+          "patrol": []
+        },
+        {
+          "id": "r4j_def_c",
+          "type": "forest_runner_juvenile",
+          "spawnCandidates": [
+            [
+              9,
+              -8
+            ],
+            [
+              -10,
+              -8
+            ],
+            [
+              0,
+              -12
+            ]
+          ],
+          "patrol": []
+        }
+      ]
+    },
+    {
+      "id": "ch02_k1",
+      "title": "K-1 — Alfa de contenção",
+      "deferred": "tomas_found",
+      "enemies": [
+        {
+          "id": "k1",
+          "type": "containment_alpha",
+          "spawnCandidates": [
+            [
+              -9,
+              -9
+            ],
+            [
+              -9,
+              -21
+            ],
+            [
+              9,
+              -8
+            ],
+            [
+              0,
+              -9
+            ]
+          ],
+          "patrol": []
+        }
+      ]
+    },
+    {
+      "id": "ch02_k1_roar",
+      "title": "Chamado do alfa",
+      "deferred": "k1Roar",
+      "enemies": [
+        {
+          "id": "r4j_roar",
+          "type": "forest_runner_juvenile",
+          "spawnCandidates": [
+            [
+              -10,
+              -7
+            ],
+            [
+              10,
+              -7
+            ],
+            [
+              -10,
+              -24
+            ],
+            [
+              10,
+              -16
+            ]
+          ],
+          "patrol": []
+        }
+      ]
+    }
+  ],
+  "objectives": [
+    {
+      "id": "restore_generator",
+      "text": "Religue o gerador no galpão de serviço, a leste.",
+      "doneWhen": {
+        "flag": "outpost_generator"
+      },
+      "target": [
+        22,
+        12
+      ]
+    },
+    {
+      "id": "radio",
+      "text": "Estabilize o rádio na sala do prédio administrativo, a oeste.",
+      "doneWhen": {
+        "flag": "radio_online"
+      },
+      "target": [
+        -26.2,
+        8
+      ]
+    },
+    {
+      "id": "lock_pen",
+      "text": "Tranque o cercado K-1 antes de abrir o pátio.",
+      "doneWhen": {
+        "flag": "gate_k1_locked"
+      },
+      "target": [
+        -18.8,
+        -2.1
+      ]
+    },
+    {
+      "id": "open_yard",
+      "text": "Abra o portão do pátio central.",
+      "doneWhen": {
+        "flag": "yard_open"
+      },
+      "target": [
+        4.4,
+        -2
+      ]
+    },
+    {
+      "id": "find_tomas",
+      "text": "Localize o sobrevivente no arquivo, do outro lado do pátio.",
+      "doneWhen": {
+        "flag": "tomas_found"
+      },
+      "target": [
+        11,
+        -28
+      ]
+    },
+    {
+      "id": "defeat_k1",
+      "text": "Detenha o K-1. O portão de carga do pátio pode feri-lo.",
+      "doneWhen": {
+        "flag": "k1_defeated"
+      },
+      "target": [
+        6.2,
+        -24
+      ]
+    },
+    {
+      "id": "exit",
+      "text": "Saia com Tomás pelo portão de serviço norte.",
+      "doneWhen": {
+        "zone": "north_service_exit"
+      },
+      "target": [
+        26,
+        -37
+      ]
+    }
+  ],
+  "tutorials": [
+    {
+      "id": "tut_shotgun",
+      "when": "start",
+      "text": "{fire} dispara a escopeta · {reload} põe um cartucho por vez (atirar interrompe) · {weapon1}/{weapon2} trocam de arma"
+    },
+    {
+      "id": "tut_impact",
+      "when": "zone:generator_shed",
+      "text": "{utility} golpe de impacto — rompe barreiras de caixas"
+    },
+    {
+      "id": "tut_lever",
+      "when": "nearLever",
+      "text": "{interact} segure para puxar a alavanca — sofrer dano interrompe"
+    },
+    {
+      "id": "ch02_tut_dodge",
+      "when": "firstWindup",
+      "text": "O animal agachou: {dodge} esquiva para o lado antes do salto"
+    },
+    {
+      "id": "ch02_tut_terminal",
+      "when": "zone:terminal",
+      "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura"
+    },
+    {
+      "id": "tut_gate",
+      "when": "k1",
+      "text": "Atraia a investida do K-1 para a baia do portão de carga e acione o painel ({interact}). Recarrega em 20 s."
+    }
+  ],
+  "areaTransitions": [
+    {
+      "id": "ch02_breach",
+      "trigger": "breach",
+      "tag": "POSTO NORTE",
+      "title": "BRECHA NO MURO",
+      "subtitle": "Sinais de uma retirada interrompida."
+    },
+    {
+      "id": "ch02_shed",
+      "trigger": "generator_shed",
+      "tag": "ÁREA DE SERVIÇO",
+      "title": "GALPÃO DO GERADOR",
+      "subtitle": "Religue o circuito para reativar as portas.",
+      "sound": "creak"
+    },
+    {
+      "id": "ch02_admin",
+      "trigger": "admin_corridor",
+      "tag": "ADMINISTRAÇÃO",
+      "title": "CORREDOR DE CONTROLE",
+      "subtitle": "As câmeras de segurança ainda observam."
+    },
+    {
+      "id": "ch02_yard",
+      "trigger": "yard_gate_opened",
+      "tag": "CONFINAMENTO",
+      "title": "PÁTIO CENTRAL",
+      "subtitle": "A trava principal foi liberada.",
+      "requires": "yard_open",
+      "tone": "danger"
+    },
+    {
+      "id": "ch02_archive",
+      "trigger": "archive_door_opened",
+      "tag": "RESGATE",
+      "title": "ARQUIVO TÉCNICO",
+      "subtitle": "Tomás está fora de perigo, mas algo responde ao barulho.",
+      "requires": "tomas_found",
+      "tone": "danger"
+    },
+    {
+      "id": "ch02_exit",
+      "trigger": "exit_gate_opened",
+      "tag": "ROTA DE RETIRADA",
+      "title": "PORTÃO DE SERVIÇO",
+      "subtitle": "Caminho liberado para a extração.",
+      "requires": "k1_defeated"
+    }
   ]
 }
