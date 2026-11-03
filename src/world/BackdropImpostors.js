@@ -32,8 +32,10 @@ function mountainPath(ctx, y, amplitude, random, width, height, color) {
   ctx.moveTo(0, height);
   ctx.lineTo(0, y);
   for (let x = 0; x <= width + 12; x += 12) {
-    const wave = Math.sin(x * .008) * amplitude + Math.cos(x * .019) * amplitude * .4;
-    ctx.lineTo(x, y - wave + (random() - .5) * amplitude * .3);
+    // Ondas periódicas: borda esquerda e direita do panorama coincidem exatamente.
+    const angle = x / width * Math.PI * 2;
+    const wave = (Math.sin(angle * 3) * .7 + Math.cos(angle * 7) * .3 + Math.sin(angle * 13) * .14) * amplitude;
+    ctx.lineTo(x, y - wave);
   }
   ctx.lineTo(width, height);
   ctx.closePath();
@@ -49,22 +51,27 @@ function paintForest(ctx, { width: w, height: h }, random, colors, near) {
   // Muitas árvores pequenas pintadas na MESMA textura, sem geometria 3D extra.
   const amount = near ? 95 : 145;
   for (let i = 0; i < amount; i++) {
-    const x = random() * (w + 30) - 15;
+    const x = random() * w;
     const baseY = (near ? 215 : 200) + random() * 48;
     const height = (near ? 31 : 20) + random() * (near ? 76 : 55);
     const width = height * (0.13 + random() * .12);
     ctx.globalAlpha = near ? .52 + random() * .30 : .52 + random() * .40;
     ctx.fillStyle = i % 3 ? colors.silhouette : colors.distant;
-    ctx.fillRect(x - width * .075, baseY - height * .3, width * .15, height * .4);
-    for (let layer = 0; layer < 3; layer++) {
-      const yy = baseY - height + layer * height * .19;
-      const ww = width * (0.45 + layer * .22);
-      ctx.beginPath();
-      ctx.moveTo(x, yy);
-      ctx.lineTo(x - ww, baseY - height * .31 + layer * height * .10);
-      ctx.lineTo(x + ww, baseY - height * .31 + layer * height * .10);
-      ctx.closePath();
-      ctx.fill();
+    // Desenhar também as cópias além da borda fecha a costura na textura 360°.
+    for (const wrap of [-w, 0, w]) {
+      const px = x + wrap;
+      if (px < -width || px > w + width) continue;
+      ctx.fillRect(px - width * .075, baseY - height * .3, width * .15, height * .4);
+      for (let layer = 0; layer < 3; layer++) {
+        const yy = baseY - height + layer * height * .19;
+        const ww = width * (0.45 + layer * .22);
+        ctx.beginPath();
+        ctx.moveTo(px, yy);
+        ctx.lineTo(px - ww, baseY - height * .31 + layer * height * .10);
+        ctx.lineTo(px + ww, baseY - height * .31 + layer * height * .10);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
   ctx.globalAlpha = 1;
@@ -85,16 +92,20 @@ function paintFacility(ctx, { width: w, height: h }, random, colors, near) {
     // Silhuetas de galpões e prédios técnicos em segundo plano.
     for (let i = 0; i < 18; i++) {
       const x = i * 60 + random() * 16 - 15;
-      const width = 37 + random() * 55, y = 173 + random() * 33;
-      ctx.fillStyle = colors.silhouette;
-      ctx.fillRect(x, y, width, h - y);
-      ctx.beginPath();
-      ctx.moveTo(x - 4, y); ctx.lineTo(x + width * .45, y - 8 - random() * 15);
-      ctx.lineTo(x + width + 6, y); ctx.closePath(); ctx.fill();
-      // Janelas distantes (não são luzes reais de Three.js).
-      for (let n = 0; n < 3; n++) {
-        ctx.fillStyle = 'rgba(205,166,99,0.24)';
-        ctx.fillRect(x + 7 + n * 12, y + 10, 4, 2);
+      const width = 37 + random() * 55, y = 173 + random() * 33, roof = 8 + random() * 15;
+      for (const wrap of [-w, 0, w]) {
+        const px = x + wrap;
+        if (px + width < 0 || px > w) continue;
+        ctx.fillStyle = colors.silhouette;
+        ctx.fillRect(px, y, width, h - y);
+        ctx.beginPath();
+        ctx.moveTo(px - 4, y); ctx.lineTo(px + width * .45, y - roof);
+        ctx.lineTo(px + width + 6, y); ctx.closePath(); ctx.fill();
+        // Janelas distantes, todas na pintura 2D (sem luzes reais).
+        for (let n = 0; n < 3; n++) {
+          ctx.fillStyle = 'rgba(205,166,99,0.24)';
+          ctx.fillRect(px + 7 + n * 12, y + 10, 4, 2);
+        }
       }
     }
     // Torres de vigilância e antenas: só linhas 2D no mapa.
@@ -115,7 +126,7 @@ function paintFacility(ctx, { width: w, height: h }, random, colors, near) {
     ctx.fillRect(0, 227, w, 29);
     ctx.strokeStyle = '#253d43';
     ctx.lineWidth = 2;
-    for (let x = 0; x < w; x += 39) {
+    for (let x = 0; x <= w; x += w / 32) {
       ctx.beginPath(); ctx.moveTo(x, 189); ctx.lineTo(x, 245); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x - 7, 187); ctx.lineTo(x, 180); ctx.lineTo(x + 7, 187); ctx.stroke();
     }
@@ -124,7 +135,7 @@ function paintFacility(ctx, { width: w, height: h }, random, colors, near) {
     }
     ctx.strokeStyle = 'rgba(70,84,91,.45)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += 24) {
+    for (let x = -w / 32; x <= w; x += w / 32) {
       ctx.beginPath(); ctx.moveTo(x, 196); ctx.lineTo(x + 26, 228); ctx.stroke();
     }
     for (const x of [220, 635, 894]) {
@@ -176,12 +187,7 @@ function makeBackdropTexture(chapter, layer, size = BACKDROP_TEXTURE_SIZE) {
     alpha.addColorStop(1, 'rgba(0,0,0,1)');
   }
   ctx.fillStyle = alpha; ctx.fillRect(0, 0, w, h);
-  const edges = ctx.createLinearGradient(0, 0, w, 0);
-  edges.addColorStop(0, 'rgba(0,0,0,0)');
-  edges.addColorStop(.08, 'rgba(0,0,0,1)');
-  edges.addColorStop(.92, 'rgba(0,0,0,1)');
-  edges.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = edges; ctx.fillRect(0, 0, w, h);
+  // Panorama circular: não apagar bordas laterais (criaria uma faixa vazia a 0°).
   ctx.globalCompositeOperation = 'source-over';
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -193,23 +199,30 @@ function makeBackdropTexture(chapter, layer, size = BACKDROP_TEXTURE_SIZE) {
   return texture;
 }
 
-/** Retorna dados puros para testar que cada plano está FORA do mapa. */
+/**
+ * Geometria circular e inacessível: raio maior que a distância do centro
+ * do mapa a QUALQUER canto, mais a margem da camada.
+ * A mesma posição vale para os dois capítulos, sem colisores no mundo.
+ */
 export function backdropLayout(bounds, layer = 'far') {
   const [x0, z0, x1, z1] = bounds;
   if (!(x0 < x1 && z0 < z1)) throw new Error('bounds inválidos no backdrop');
   const offset = BACKDROP_OFFSETS[layer];
   if (!offset) throw new Error('Camada de backdrop desconhecida');
-  const width = x1 - x0 + 2 * offset + 24;
-  const depth = z1 - z0 + 2 * offset + 24;
-  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-  const near = layer === 'near';
-  const y = near ? 4.8 : 12.4, h = near ? 14 : 30;
-  return [
-    { id: layer + '_north', x: cx, y, z: z0 - offset, width, height: h, yaw: 0 },
-    { id: layer + '_south', x: cx, y, z: z1 + offset, width, height: h, yaw: Math.PI },
-    { id: layer + '_west', x: x0 - offset, y, z: cz, width: depth, height: h, yaw: Math.PI / 2 },
-    { id: layer + '_east', x: x1 + offset, y, z: cz, width: depth, height: h, yaw: -Math.PI / 2 },
-  ];
+  const x = (x0 + x1) / 2, z = (z0 + z1) / 2;
+  const radius = Math.hypot((x1 - x0) / 2, (z1 - z0) / 2) + offset;
+  return {
+    id: layer, x, z, radius,
+    y: layer === 'near' ? 4.8 : 12.4,
+    height: layer === 'near' ? 14 : 30,
+    radialSegments: 48,
+  };
+}
+
+/** Opacidade do panorama ajustada à distância da névoa do preset. */
+export function backdropOpacity(fogFar = 78) {
+  const t = Math.max(0, Math.min(1, (fogFar - 62) / 30));
+  return { far: .35 + t * .34, near: .40 + t * .27 };
 }
 
 export function createBackdropImpostors({ bounds, chapter = 1, quality = 'medium' }) {
@@ -221,35 +234,47 @@ export function createBackdropImpostors({ bounds, chapter = 1, quality = 'medium
   const textures = [farTexture, nearTexture];
   const nearGroup = new THREE.Group(); nearGroup.name = 'near_silhouettes';
   group.add(nearGroup);
+  const materials = [];
   let planeCount = 0;
   for (const layer of ['far', 'near']) {
+    const layout = backdropLayout(bounds, layer);
     const material = new THREE.MeshBasicMaterial({
       map: layer === 'far' ? farTexture : nearTexture,
-      transparent: true, opacity: layer === 'far' ? .95 : .88,
-      depthWrite: false, depthTest: true, fog: false,
-      side: THREE.FrontSide, toneMapped: false,
+      transparent: true, opacity: 1, depthWrite: false, depthTest: true,
+      fog: false, side: THREE.BackSide, toneMapped: false,
     });
+    materials.push(material);
     const target = layer === 'far' ? group : nearGroup;
-    for (const item of backdropLayout(bounds, layer)) {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(item.width, item.height), material);
-      mesh.name = 'backdrop_' + item.id;
-      mesh.position.set(item.x, item.y, item.z);
-      mesh.rotation.y = item.yaw;
-      mesh.castShadow = false; mesh.receiveShadow = false;
-      mesh.frustumCulled = true;
-      mesh.renderOrder = -10;
-      target.add(mesh); planeCount++;
-    }
+    // Um único panorama cilíndrico sem tampas: sem cantos e apenas 1 draw call/camada.
+    const geometry = new THREE.CylinderGeometry(
+      layout.radius, layout.radius, layout.height, layout.radialSegments, 1, true,
+    );
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'backdrop_' + layout.id;
+    mesh.position.set(layout.x, layout.y, layout.z);
+    mesh.castShadow = false; mesh.receiveShadow = false;
+    mesh.frustumCulled = true;
+    mesh.renderOrder = -10;
+    target.add(mesh); planeCount++;
   }
   const api = {
-    group, textures, planeCount, nearGroup,
+    group, textures, planeCount, nearGroup, materials,
     setQuality(qc) {
-      // Modo baixo: apenas 4 planos de fundo, sem as silhuetas extras.
-      nearGroup.visible = (typeof qc === 'string' ? qc !== 'low' : (qc?.foliage ?? 1) >= .7);
+      const low = typeof qc === 'string' ? qc === 'low' : (qc?.foliage ?? 1) < .7;
+      const fogFar = typeof qc === 'object' ? (qc?.fogFar ?? 78) : ({ low: 62, medium: 78, high: 92 }[qc] ?? 78);
+      const opacity = backdropOpacity(fogFar);
+      materials[0].opacity = opacity.far;
+      materials[1].opacity = opacity.near;
+      nearGroup.visible = !low;
     },
     stats() {
-      return { chapter, planes: planeCount, visiblePlanes: nearGroup.visible ? planeCount : 4,
-        textures: textures.length, width: BACKDROP_TEXTURE_SIZE.width, height: BACKDROP_TEXTURE_SIZE.height };
+      return {
+        chapter, planes: planeCount, visiblePlanes: nearGroup.visible ? planeCount : 1,
+        textures: textures.length,
+        width: BACKDROP_TEXTURE_SIZE.width, height: BACKDROP_TEXTURE_SIZE.height,
+        radii: [backdropLayout(bounds, 'far').radius, backdropLayout(bounds, 'near').radius],
+        opacity: materials.map(m => m.opacity),
+      };
     },
     dispose() {
       // Geometrias e materiais são descartados pelo dispose do SectorScenery.
