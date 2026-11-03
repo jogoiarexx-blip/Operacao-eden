@@ -128,6 +128,9 @@ export class Game {
       const outgoing = { world: this.world, scenery: this.scenery, props: this.props };
       const sameRun = !!this.save?.runId && this._cacheRunId === this.save.runId;
       if (!forceFresh && sameRun && this.chapterId !== id) {
+        // Malhas regionais são descartáveis: manter a cena base, sem reservar
+        // buffers de detalhes de uma região inativa na GPU.
+        outgoing.scenery.regionalDetails?.dispose();
         this.sceneCache.store(this.chapterId, outgoing);
       } else {
         outgoing.props?.dispose?.();
@@ -327,6 +330,8 @@ export class Game {
     this.simMs = 0; this.deathAt = null; this.mapOpen = false; this._lastSafeRoomId = null; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
     this.playerView.setCharacter(s.playerId); this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
     const r = this.world.resolveCircle(this.player.x, this.player.z, 0.4); this.player.teleport(r.x, r.z, s.checkpoint.yaw ?? 0);
+    // Reconstrói SOMENTE detalhes próximos ao ponto de entrada.
+    this.scenery.regionalDetails?.update(this.player);
     this._clearAgents(); this.chapter.exiting = false; this.chapter._roared = false; this.chapter.load();
     this.dialogue.clear(); this.hud.toasts.replaceChildren(); this.hud.feedEl.replaceChildren();
     this.camera.preferredSide = s.cameraSettings?.preferredShoulder ?? 'right'; this.camera.snapBehind(this.player.yaw);
