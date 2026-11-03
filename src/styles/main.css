@@ -101,3 +101,17 @@ body.hc .threat { border-bottom-color: #fff; outline: 2px solid var(--red); }
 .bench-hud { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); text-align: center; background: rgba(5,14,14,.8); border: 1px solid var(--line); border-radius: 8px; padding: 10px 18px; }
 @media (max-width: 720px) { #hud-chain { top: 34%; } #hud-feed { top: calc(34% + 52px); } #hud-objective { max-width: 62vw; font-size: .85rem; } #hud-boss { top: 18%; width: 60vw; } .panel { padding: 16px; } }
 @media (prefers-reduced-motion: reduce) { .fade-in, #hud-feed div, .toast { animation-duration: .01s; } }
+
+/* Entradas de áreas: vinheta cinematográfica leve, sem capturar controles ou congelar IA. */
+.area-reveal { position:absolute; inset:0; z-index:5; pointer-events:none!important; display:flex; flex-direction:column;
+  align-items:flex-start; justify-content:flex-end; padding:0 max(5vw,20px) 24vh; color:#f3eee1;
+  background:linear-gradient(90deg,rgba(0,0,0,.72),transparent 72%); animation:area-reveal-fade 2.6s ease both; }
+.area-reveal::before,.area-reveal::after { content:''; position:absolute; left:0; right:0; height:6vh; background:rgba(0,0,0,.88); }
+.area-reveal::before { top:0; } .area-reveal::after { bottom:0; }
+.area-reveal small { font-size:.7rem; letter-spacing:.34em; color:#d0ae6d; font-weight:700; text-transform:uppercase; }
+.area-reveal strong { display:block; margin:6px 0; font-size:clamp(1.15rem,3.2vw,2.2rem); letter-spacing:.14em; font-weight:750; line-height:1.1; text-shadow:0 3px 16px #000; }
+.area-reveal span { font-size:clamp(.8rem,1.45vw,.95rem); color:#ddd6c6; max-width:28rem; text-shadow:0 2px 8px #000; }
+.area-reveal.danger small { color:#f07958; }
+@keyframes area-reveal-fade { 0% { opacity:0; } 15%,68% { opacity:1; } 100% { opacity:0; } }
+@media (max-width:720px) { .area-reveal { padding-bottom:29vh; } .area-reveal::before,.area-reveal::after { height:4vh; } }
+@media (prefers-reduced-motion:reduce) { .area-reveal { animation:none; opacity:1; } }
