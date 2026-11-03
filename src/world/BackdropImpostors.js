@@ -27,17 +27,20 @@ const randomFrom = (seed) => () => {
   return seed / 4294967296;
 };
 
+/** Curva periódica de montanhas: o valor em 0 é igual ao valor na largura inteira. */
+export function panoramicRidgeY(x, width, baseline, amplitude) {
+  const angle = x / width * Math.PI * 2;
+  return baseline - (Math.sin(angle * 3) * .7 + Math.cos(angle * 7) * .3 + Math.sin(angle * 13) * .14) * amplitude;
+}
+
 function mountainPath(ctx, y, amplitude, random, width, height, color) {
   ctx.beginPath();
   ctx.moveTo(0, height);
-  ctx.lineTo(0, y);
-  for (let x = 0; x < width; x += 12) {
-    // Ondas periódicas: borda esquerda e direita do panorama coincidem exatamente.
-    const angle = x / width * Math.PI * 2;
-    const wave = (Math.sin(angle * 3) * .7 + Math.cos(angle * 7) * .3 + Math.sin(angle * 13) * .14) * amplitude;
-    ctx.lineTo(x, y - wave);
+  ctx.lineTo(0, panoramicRidgeY(0, width, y, amplitude));
+  for (let x = 12; x < width; x += 12) {
+    ctx.lineTo(x, panoramicRidgeY(x, width, y, amplitude));
   }
-  ctx.lineTo(width, y - amplitude * .3); // mesmo perfil da coluna x=0
+  ctx.lineTo(width, panoramicRidgeY(width, width, y, amplitude));
   ctx.lineTo(width, height);
   ctx.closePath();
   ctx.fillStyle = color;
