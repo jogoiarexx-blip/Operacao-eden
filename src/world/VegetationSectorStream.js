@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 /**
  * Streaming espacial de instâncias 3D, sem descarregar colisores ou criar draw calls
  * adicionais. As quatro InstancedMeshes existentes recebem só matrizes visíveis.
@@ -61,13 +63,15 @@ export function createVegetationSectorStream({ trees, bushes, treeMeshes, bushMe
   if (treeMeshes.length !== 3) throw new Error('Esperadas três camadas de árvore');
   const treeCells = vegetationCells(trees, cellSize), bushCells = vegetationCells(bushes, cellSize);
   const treeMatrices = treeMeshes.map((mesh) => trees.map((_, i) => {
-    const matrix = mesh.matrixForIndex ? mesh.matrixForIndex(i) : mesh.userData?.sourceMatrices?.[i];
-    if (!matrix) throw new Error('A matriz original da árvore não foi preservada');
+    if (typeof mesh.getMatrixAt !== 'function') throw new Error('InstancedMesh de árvore inválido');
+    const matrix = new THREE.Matrix4();
+    mesh.getMatrixAt(i, matrix);
     return matrix;
   }));
   const bushMatrices = bushes.map((_, i) => {
-    const matrix = bushMesh.matrixForIndex ? bushMesh.matrixForIndex(i) : bushMesh.userData?.sourceMatrices?.[i];
-    if (!matrix) throw new Error('A matriz original do arbusto não foi preservada');
+    if (typeof bushMesh.getMatrixAt !== 'function') throw new Error('InstancedMesh de arbusto inválido');
+    const matrix = new THREE.Matrix4();
+    bushMesh.getMatrixAt(i, matrix);
     return matrix;
   });
   let activeTrees = new Set(), activeBushes = new Set();
