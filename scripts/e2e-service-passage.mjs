@@ -25,9 +25,20 @@ try {
     g.player.teleport(11.3,34);
     const immediate=g._stepBacktrack({interactPressed:false});
     const nearEntrance=g.chapterId==='ch02';
-    g.player.teleport(11.3,37.1);
-    const automatic=g._stepBacktrack({interactPressed:false});
-    const first={automatic,chapter:g.chapterId,who:g.save.playerId,
+    // Movimenta o personagem com o passo físico real — não chama o portal diretamente.
+    g.player.teleport(11.3,36.3);
+    g.camera.yaw=Math.PI; // frente da câmera aponta para +Z (saída do posto)
+    const savedSnapshot=g.input.snapshot;
+    g.input.snapshot=()=>({moveX:0,moveY:1,run:false,aim:false,interactPressed:false});
+    let walkDistance=0;
+    for(let i=0;i<90 && g.chapterId==='ch02';i++) {
+      const z=g.player.z;
+      g.step(1/60);
+      if(g.chapterId==='ch02') walkDistance+=Math.max(0,g.player.z-z);
+    }
+    g.input.snapshot=savedSnapshot;
+    const automatic=g.chapterId==='ch01';
+    const first={automatic,walkDistance,chapter:g.chapterId,who:g.save.playerId,
       passage:g.scenery.servicePassage.stats(),pos:{x:g.player.x,z:g.player.z}};
     g.scenery.servicePassage.setUnlocked(true);
     const innerSafe=!g.world.blockedAt(0,-42.8,.4);
@@ -44,7 +55,7 @@ try {
   });
   console.log('WALKABLE_SERVICE_PASSAGE',JSON.stringify({report,errors}));
   if(report.immediate || !report.nearEntrance || !report.initial.walkwayClear ||
-     !report.initial.blocksLeft || !report.first.automatic ||
+     !report.initial.blocksLeft || !report.first.automatic || report.first.walkDistance < .25 ||
      report.first.chapter!=='ch01' || report.first.who!=='lia' ||
      !report.first.passage.active || !report.innerSafe ||
      !report.second.reverse || report.second.chapter!=='ch02' ||
