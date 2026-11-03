@@ -60,7 +60,7 @@ describe('Continuidade das regiões e respawn controlado', () => {
     expect(planRegionReentry({ save, region, data, world: clearWorld, player, occupied, now:100 })).toBeNull();
   });
   it('diretor só conta nova visita após sair e voltar; não exige recarregar o mapa', () => {
-    const { save, data } = prepare();
+    const { save, data } = prepare('ch02');
     const region = REGION_DEFINITIONS.ch02[0];
     save.chapterId = 'ch02';
     const game = {
