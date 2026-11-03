@@ -16,9 +16,9 @@ export const DEFAULTS = {
   deadzone: 0.15, bindings: { ...DEFAULT_BINDINGS },
 };
 export const QUALITY = {
-  low: { label: 'Baixo', dpr: 1.0, shadows: false, shadowMap: 0, foliage: 0.45, rain: false, flashlight: false, fogFar: 62, far: 120 },
-  medium: { label: 'Médio', dpr: 1.5, shadows: true, shadowMap: 1024, foliage: 0.8, rain: true, flashlight: true, fogFar: 78, far: 150 },
-  high: { label: 'Alto', dpr: 2.0, shadows: true, shadowMap: 2048, foliage: 1.0, rain: true, flashlight: true, fogFar: 92, far: 180 },
+  low: { label: 'Baixo', dpr: 1.0, shadows: false, shadowMap: 0, foliage: 0.45, rain: false, flashlight: false, fogFar: 62, far: 120, postfx: 'grade', pbr: false, moonShadow: false, grass: 0, particles: 80, decals: 12, volumetric: false },
+  medium: { label: 'Médio', dpr: 1.5, shadows: true, shadowMap: 1024, foliage: 0.8, rain: true, flashlight: true, fogFar: 78, far: 150, postfx: 'bloom', pbr: true, moonShadow: true, grass: 0.6, particles: 220, decals: 40, volumetric: true },
+  high: { label: 'Alto', dpr: 2.0, shadows: true, shadowMap: 2048, foliage: 1.0, rain: true, flashlight: true, fogFar: 92, far: 180, postfx: 'full', pbr: true, moonShadow: true, grass: 1.0, particles: 400, decals: 80, volumetric: true },
 };
 const KEY = 'eden.settings.v1';
 /** Migração: configurações antigas (sem weapon1/weapon2) tinham kit médico/hemostático em 1/2; move para 3/4 para não colidir com as armas. */
