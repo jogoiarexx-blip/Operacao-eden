@@ -49,13 +49,32 @@ try {
       const saved = await g.saveToSlot(3);
       g.closeTerminal();
       const restored = await g.saveManager.load(3);
+      const doors = g.scenery.safeDoors;
+      const doorResults = doors.doors.map(d => {
+        g.player.teleport(...d.room.entrance);
+        doors.update(g.player, 1);
+        const locked = !!(d.room.requiresBroken && g.world.byId.has(d.room.requiresBroken));
+        const opened = doors.stats().open.includes(d.room.id);
+        let openedAfterUnlock = null;
+        if (locked) {
+          // Confirma a progressão da missão sem alterar permanentemente o colisor.
+          g.world.removeById(d.room.requiresBroken);
+          doors.update(g.player, 1);
+          openedAfterUnlock = doors.stats().open.includes(d.room.id);
+          g.world.restoreById(d.room.requiresBroken);
+        }
+        return {id:d.room.id,locked,opened,openedAfterUnlock};
+      });
       return { chapter: g.chapterId, tests, shop, saved: saved.ok, restored: !!restored,
-        treeStats: trees.stats(), playing: g.sm.state === 'PLAYING' };
+        treeStats: trees.stats(), doors: doorResults, doorCount: doors.stats().doors,
+        playing: g.sm.state === 'PLAYING' };
     });
     console.log('SAFE_ROOMS_QA', JSON.stringify(report));
     if (report.tests.length < 2 || !report.tests.every(t => t.safe && t.hpPreserved && t.terminal) ||
       !report.shop || !report.saved || !report.restored || !report.treeStats.outsideBounds ||
-      report.treeStats.panels !== 2 || report.treeStats.trees < 40 || !report.playing)
+      report.treeStats.panels !== 2 || report.treeStats.trees < 40 || !report.playing ||
+      report.doorCount !== (id === 'ch01' ? 1 : 2) ||
+      !report.doors.every(d => d.locked ? (!d.opened && d.openedAfterUnlock) : d.opened))
       throw Error('Salas seguras / árvores 2.5D falharam: ' + JSON.stringify(report));
     await page.screenshot({ path: shots + '/safe-rooms-' + id + '.png' });
   }
