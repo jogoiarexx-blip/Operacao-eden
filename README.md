@@ -1,6 +1,15 @@
-# Projeto Extinção — Operação Éden (R0 + R1 + R2.3)
+# Projeto Extinção — Operação Éden (R0 + R1 + R2.4)
 
 Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) e o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados). Capítulos 03–10 seguem o roadmap do GDD v4.
+
+## R2.4 — Fundos ilustrados inacessíveis (2D matte painting)
+- **Aplicado no Capítulo 01 — Lia:** horizonte de montanhas, mata úmida, copas de árvores e silhuetas além dos limites do mapa.
+- **Aplicado no Capítulo 02 — Caio:** horizonte industrial com galpões, antenas, torres de vigilância, cercas e vegetação distante.
+- **Imagem leve e offline:** cada capítulo pinta apenas duas `CanvasTexture` estáticas de 1024×256 e reutiliza cada imagem nas quatro direções. Não há download, vídeo, física, shaders animados ou malhas 3D detalhadas nesses fundos.
+- **Inacessível:** os painéis ficam a 15m e 29m *além* dos limites de `CollisionWorld`; o jogador não pode chegar até as imagens e elas não possuem hitbox.
+- **Profundidade e atmosfera:** duas camadas com alpha suave, silhuetas e névoa pintada. Sem iluminação dinâmica e sem projetar/receber sombra.
+- **Desempenho:** no preset **Baixo**, só a camada distante é desenhada (quatro planos; nas demais, oito). As duas texturas continuam alocadas até a troca de fase e são liberadas no `dispose`; custo potencial de VRAM de aproximadamente 2,7 MiB incluindo mipmaps.
+- **Testes:** `tests/backdrop-impostors.test.js` e `scripts/e2e-backdrops.mjs`; o segundo testa geração de textura, limites, qualidade, memória/ciclo de vida, colisões e save em Chromium nas duas fases. A execução completa do Chromium ainda precisa ser conferida no Actions.
 
 ## R2.3 — Streaming setorial de árvores e arbustos
 - **Vegetação em células de 24m**: mantém até 190 árvores e 420 arbustos gerados pelo mesmo seed, mas compacta as matrizes por proximidade. Um setor entra a até 70m e sai depois de 84m (névoa plena a 80m), criando histerese contra aparecimentos súbitos.
@@ -47,6 +56,7 @@ Servir `dist-single` em :4177 (`npm run build:single && npx vite preview --confi
 - `scripts/e2e-area-transitions.mjs` — entrada no Posto Norte com apresentação visual e R-4 sem duplicação.
 - `scripts/e2e-portals.mjs` — LOD de detalhes, câmera dos portais e emboscada do rádio (Chromium + screenshots).
 - `scripts/e2e-vegetation.mjs` — vegetação setorial, qualidade, colisões e triângulos renderizados nos dois capítulos.
+- `scripts/e2e-backdrops.mjs` — fundos ilustrados dos capítulos 1 e 2, imagens fora do mapa e presets de qualidade.
 - `scripts/play-ch02.mjs` — partida do Cap. 02 com teclado/mouse reais (sem teleporte/god), relata até onde chegou.
 
 Jogo original, inspirado apenas em convenções do gênero.
