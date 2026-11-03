@@ -10,18 +10,36 @@ import { QUALITY } from '../core/Settings.js';
 
 const DAMAGE_DECAY_S = 0.4;
 
+/** Overlay DOM do Baixo: vinheta (CSS) + flash vermelho de dano sobre o canvas. */
+export function createDomOverlay(canvas) {
+  if (typeof document === 'undefined' || !canvas?.parentNode) return null;
+  const root = document.createElement('div');
+  root.setAttribute('aria-hidden', 'true');
+  root.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+  const vig = document.createElement('div'); vig.style.cssText = 'position:absolute;inset:0;';
+  const dmg = document.createElement('div');
+  dmg.style.cssText = 'position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse at center,rgba(140,6,6,0.18) 0%,rgba(140,6,6,0.55) 100%);';
+  root.append(vig, dmg);
+  canvas.parentNode.insertBefore(root, canvas.nextSibling);
+  return {
+    setVignette(v) { vig.style.background = `radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(0,0,0,${Math.min(1, v * 1.6).toFixed(3)}) 115%)`; },
+    setDamage(d) { dmg.style.opacity = String(d); },
+    dispose() { root.remove(); },
+  };
+}
+
 /** Lista (pura) de passes do pós-processamento para o nível `postfx`. */
 export function passesFor(quality) {
   if (quality === 'full') return ['render', 'sao', 'bloom', 'grade', 'output'];
   if (quality === 'bloom') return ['render', 'bloom', 'grade', 'output'];
-  return ['render', 'grade', 'output'];
+  return [];   // 'grade' (Baixo): renderização direta, sem composer (vinheta/dano em overlay DOM)
 }
 
 const toColor = (v) => (Array.isArray(v) ? new THREE.Color(v[0], v[1], v[2]) : new THREE.Color(v));
 
 export class PostFX {
   /** `createPass(name)` e `composer` injetáveis para testes sem WebGL. */
-  constructor(renderer, scene, camera, { createPass, composer } = {}) {
+  constructor(renderer, scene, camera, { createPass, composer, createOverlay } = {}) {
     this.renderer = renderer; this.scene = scene; this.camera = camera;
     this.createPass = createPass ?? ((n) => this._defaultPass(n));
     this.injected = !!createPass;
@@ -32,6 +50,9 @@ export class PostFX {
     this.w = 1; this.h = 1; this.dpr = 1; this.time = 0; this.damage = 0;
     this.gradeCfg = null; this.requested = 'grade';
     this.rtKey = null;
+    this.createOverlay = createOverlay ?? ((c) => createDomOverlay(c));
+    this.overlay = null;
+    if (renderer?.info) renderer.info.autoReset = false;   // contadores cobrem o quadro inteiro nos dois caminhos
   }
 
   _detectSoft() {
@@ -50,7 +71,7 @@ export class PostFX {
   _ensureComposer(eff = 'grade') {
     if (this.injected) return;
     const key = this.soft || eff === 'grade' ? 'ldr' : 'hdr';
-    if (!this.composer) { this.composer = new EffectComposer(this.renderer, this._makeTarget(eff)); this.rtKey = key; if (this.renderer.info) this.renderer.info.autoReset = false; }
+    if (!this.composer) { this.composer = new EffectComposer(this.renderer, this._makeTarget(eff)); this.rtKey = key; }
     else if (this.rtKey !== key) { this.composer.reset(this._makeTarget(eff)); this.rtKey = key; }   // reset() descarta os alvos antigos
   }
 
@@ -101,12 +122,20 @@ export class PostFX {
     for (const [n, p] of [...this.passes]) if (!names.includes(n)) { p.dispose?.(); this.passes.delete(n); }
     this.passNames = names; this.effectivePreset = eff;
     if (names.length) this._ensureComposer(eff);
+    else if (this.composer && !this.injected) { this.composer.dispose?.(); this.composer = null; this.rtKey = null; }   // Baixo: sem composer
+    this._syncOverlay(!names.length);
     if (this.composer && this.composer.passes) {
       this.composer.passes.length = 0;
       for (const n of names) this.composer.addPass(this.passes.get(n));
     }
     this.setSize(this.w, this.h, this.dpr);
     if (this.gradeCfg) this.setGrade(this.gradeCfg);
+  }
+
+  _syncOverlay(on) {
+    if (!on) { this.overlay?.dispose?.(); this.overlay = null; return; }
+    if (!this.overlay) this.overlay = this.createOverlay(this.renderer?.domElement) ?? null;
+    if (this.overlay && this.gradeCfg?.vignette != null) this.overlay.setVignette(this.gradeCfg.vignette);
   }
 
   setSize(w, h, dpr = 1) {
@@ -117,9 +146,10 @@ export class PostFX {
 
   setGrade({ vignette, grain, tint } = {}) {
     this.gradeCfg = { vignette, grain, tint };
+    this.overlay?.setVignette(vignette ?? 0.35);
     const u = this.passes.get('grade')?.uniforms; if (!u) return;
     if (vignette != null) u.uVignette.value = vignette;
-    if (grain != null) u.uGrain.value = this.requested === 'grade' ? 0 : grain;   // grão só no Médio/Alto
+    if (grain != null) u.uGrain.value = grain;   // grão só no Médio/Alto (Baixo não tem passe grade)
     if (tint?.shadow != null) u.uTintShadow.value = toColor(tint.shadow);
     if (tint?.light != null) u.uTintLight.value = toColor(tint.light);
   }
@@ -129,6 +159,7 @@ export class PostFX {
   render(dt) {
     this.time += dt;
     this.damage = Math.max(0, this.damage - dt / DAMAGE_DECAY_S);
+    this.overlay?.setDamage(this.damage);
     const u = this.passes.get('grade')?.uniforms;
     if (u) { u.uDamage.value = this.damage; u.uTime.value = this.time; }
     if (this.renderer?.info) this.renderer.info.reset();   // autoReset=false: contadores cobrem o quadro inteiro
@@ -139,6 +170,7 @@ export class PostFX {
   dispose() {
     for (const p of this.passes.values()) p.dispose?.();
     this.passes.clear(); this.passNames = [];
-    this.composer?.dispose?.();
+    this.composer?.dispose?.(); if (!this.injected) this.composer = null;
+    this._syncOverlay(false);
   }
 }
