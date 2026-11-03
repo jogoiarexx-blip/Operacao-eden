@@ -1,6 +1,7 @@
 import shop from '../data/shop.json';
 import { WEAPONS } from './GameState.js';
 import { EconomyLedger } from './EconomyLedger.js';
+import { activeInventory } from './Characters.js';
 
 /**
  * SHOP (Terminal de Rede Logística Vértice) — GDD 5.2.
@@ -12,7 +13,7 @@ export const SHOP_TABS = shop.tabs;
 export const getItem = (id) => shop.items.find((i) => i.id === id);
 
 export function itemState(item, save, chapter = 1) {
-  const inv = save.inventory;
+  const inv = activeInventory(save);
   const grants = item.grants || {};
   if (item.starter) return { state: 'owned', reason: 'Equipamento inicial' };
   if (grants.weapon && inv.weapons[grants.weapon]) return { state: 'owned', reason: 'Já possui' };
@@ -58,7 +59,7 @@ export async function purchase(save, itemId, transactionId, persist, chapter = 1
   const nl = new EconomyLedger(next.economyLedger);
   const r = nl.spend(transactionId, item.price);
   if (!r.ok) return { ok: false, error: r.error, save };
-  applyGrants(next.inventory, item);
+  applyGrants(activeInventory(next), item);
   next.economyLedger = nl.serialize();
   next.credits = nl.credits;
   try { await persist(next); } catch (e) { return { ok: false, error: 'falha_ao_salvar', detail: String(e?.message ?? e), save }; }

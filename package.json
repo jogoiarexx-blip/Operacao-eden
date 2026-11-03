@@ -10,13 +10,13 @@
     "build:single": "vite build --config vite.single.config.js",
     "preview": "vite preview",
     "test": "vitest run",
-    "e2e": "node scripts/e2e.mjs",
-    "build:pages": "node scripts/publish-pages.mjs"
+    "e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "three": "0.170.0"
   },
   "devDependencies": {
+    "playwright": "^1.49.1",
     "vite": "^5.4.11",
     "vite-plugin-singlefile": "^2.0.3",
     "vitest": "^2.1.8"

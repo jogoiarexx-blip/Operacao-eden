@@ -1,0 +1,12 @@
+{
+  "lia": {
+    "id": "lia", "name": "Lia", "maxHp": 100, "damageTakenMult": 1, "dodgeCdS": 0.85, "utility": "electric_tool",
+    "start": { "weapons": { "pistol": { "mag": 12 } }, "equipped": "pistol", "ammoReserve": { "pistol": 24 }, "consumables": { "medkit": 1, "hemostatic": 1 } },
+    "interactions": ["panel"]
+  },
+  "caio": {
+    "id": "caio", "name": "Caio", "maxHp": 120, "damageTakenMult": 0.85, "dodgeCdS": 1.0, "utility": "impact_tool",
+    "start": { "weapons": { "shotgun": { "mag": 6 }, "pistol": { "mag": 12 } }, "equipped": "shotgun", "ammoReserve": { "shotgun": 12, "pistol": 12 }, "consumables": { "medkit": 2, "hemostatic": 1 } },
+    "interactions": ["heavy_lever", "breakable"]
+  }
+}

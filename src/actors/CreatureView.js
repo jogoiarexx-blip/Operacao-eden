@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { AI } from './DinosaurAgent.js';
+import { K1 } from './K1Agent.js';
 import { clamp } from '../core/math.js';
 
-/** Malha low-poly procedural para R-4 / R-4J + animação por estado (telegráfico legível: agacha, cabeça baixa, olhos vermelhos). */
+/** Malha low-poly procedural para R-4 / R-4J / K-1 (chefe: corpo mais pesado e crista óssea) + animação por estado (telegráfico legível: agacha, cabeça baixa, olhos vermelhos). */
 export function buildCreature(species) {
   const root = new THREE.Group();
   const s = species.scale;
@@ -38,6 +39,13 @@ export function buildCreature(species) {
     const foot = new THREE.Mesh(new THREE.BoxGeometry(0.14 * s, 0.05 * s, 0.3 * s), body); foot.position.set(0, -0.78 * s, -0.06 * s); hip.add(foot);
     legs.push(hip);
   }
+  if (species.boss) {                                                    // K-1: tronco largo, pescoço grosso, crista/placas ósseas
+    torso.scale.set(1.35, 1.05, 1.3); chest.scale.set(1.2, 0.9, 1.25); neckM.scale.set(1.5, 1, 1.5); skull.scale.set(1.2, 1.1, 1.05);
+    crest.scale.set(1.6, 2.6, 1.3); crest.position.y = 0.24 * s;
+    for (const sx of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06 * s, 0.26 * s, 5), accent); horn.position.set(sx * 0.13 * s, 0.2 * s, 0.1 * s); horn.rotation.x = 0.9; horn.rotation.z = -sx * 0.4; head.add(horn); }
+    for (let i = 0; i < 6; i++) { const pl = new THREE.Mesh(new THREE.BoxGeometry(0.08 * s, (0.26 - i * 0.025) * s, 0.16 * s), accent); pl.position.set(0, (1.32 - i * 0.02) * s, (-0.5 + i * 0.22) * s); rig.add(pl); }
+    tailM.scale.set(1.35, 1, 1.35);
+  }
   root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   root.userData = { rig, neck, head, jaw, tail, legs, arms, mats, eyeMat, body, s };
   return root;
@@ -59,13 +67,24 @@ export class CreatureView {
     u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
     u.tail.rotation.y = Math.sin(this.t * 2.2) * 0.15 + Math.sin(a.walkPhase * 3) * 0.1 * clamp(a.speedNow / 3, 0, 1);
     u.neck.rotation.x = Math.sin(this.t * 1.4) * 0.04 + (a.speedNow > 3 ? 0.18 : 0);
+    u.tail.rotation.x *= 0.9;
     let crouch = 0, stretch = 0, jaw = 0, eye = 0xffb02e;
     if (a.state === AI.ATTACK_WINDUP) { const p = a.windupProgress; crouch = clamp(p * 3, 0, 1); jaw = 0.3 + Math.sin(this.t * 40) * 0.1 * p; eye = 0xff2a1a; m.position.x += Math.sin(this.t * 60) * 0.015 * p; u.neck.rotation.x = 0.35 * crouch; u.tail.rotation.x = -0.3 * crouch; }
     else if (a.state === AI.ATTACK) { stretch = 1; jaw = 0.7; eye = 0xff2a1a; }
     else if (a.state === AI.STALK) { crouch = 0.45; eye = 0xff8a1a; }
     else if (a.state === AI.STAGGER) { m.rotation.z = Math.sin(this.t * 30) * 0.08; eye = 0xffffff; }
+    else if (a.state === K1.CHARGE_WINDUP) {          // agacha, cabeça baixa e raspa o chão com a pata
+      const p = a.windupProgress; crouch = clamp(p * 2.5, 0, 1); eye = 0xff2a1a; u.neck.rotation.x = 0.45 * crouch; u.tail.rotation.x = -0.25 * crouch;
+      u.legs[0].rotation.x = -0.25 + Math.sin(this.t * 16) * 0.55; u.legs[1].rotation.x = 0.15; m.position.x += Math.sin(this.t * 50) * 0.02 * p;
+    }
+    else if (a.state === K1.CHARGE) { stretch = 0.55; jaw = 0.35; eye = 0xff2a1a; u.neck.rotation.x = 0.4; u.tail.rotation.x = -0.15; }
+    else if (a.state === K1.DAZED) {                  // atordoado: cabeça no chão, balança, olhos apagados
+      crouch = 0.7; jaw = 0.45; eye = 0x8a8a8a; u.neck.rotation.x = 0.95; u.head.rotation.z = Math.sin(this.t * 4) * 0.25; m.rotation.z = Math.sin(this.t * 3) * 0.06;
+    }
+    else if (a.state === K1.TAIL_WINDUP) { const p = a.windupProgress; eye = 0xff2a1a; crouch = 0.3 * p; u.tail.rotation.y = -0.9 * p + Math.sin(this.t * 30) * 0.05 * p; u.tail.rotation.x = 0.25 * p; }
     else if (a.state === AI.RECOVER) { u.head.rotation.y = Math.sin(this.t * 14) * 0.4; }
     else { u.head.rotation.y *= 0.9; m.rotation.z *= 0.8; }
+    if (a.state !== K1.DAZED) u.head.rotation.z *= 0.85;
     u.rig.position.y = -0.22 * u.s * crouch; u.rig.rotation.x = 0.18 * crouch - 0.38 * stretch;
     u.jaw.rotation.x = jaw; u.eyeMat.color.setHex(eye);
     // acerto: pisca

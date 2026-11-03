@@ -2,17 +2,25 @@
  * Entrada: teclado/mouse (Pointer Lock opcional) e gamepad. Ações remapeáveis.
  * Bordas "de simulação" persistem até um passo fixo consumi-las; bordas "de quadro" (UI) são consumidas no render.
  */
-const SIM_EDGE = ['fire', 'dodge', 'reload', 'utility', 'medkit', 'hemo', 'interact'];
+const SIM_EDGE = ['fire', 'dodge', 'reload', 'utility', 'medkit', 'hemo', 'interact', 'weapon1', 'weapon2', 'weaponNext'];
 const FRAME_EDGE = ['swap', 'turn180', 'map', 'inventory', 'pause'];
-const PAD = { fire: 7, aim: 6, interact: 0, dodge: 1, reload: 2, turn180: 3, utility: 4, swap: 11, pause: 9, map: 8, run: 10, inventory: 5 };
+const PAD = { fire: 7, aim: 6, interact: 0, dodge: 1, reload: 2, turn180: 3, utility: 4, swap: 11, pause: 9, map: 8, run: 10, inventory: 5, weaponNext: 15 };
+const PAD_WEAPON_PREV = 14;                 // direcional esquerdo também alterna a arma
+
+/** Primeiro gamepad conectado com mapeamento 'standard' (dispositivos HID genéricos/não padrão são ignorados). */
+export function selectGamepad(pads) {
+  return [...(pads ?? [])].find((p) => p && p.connected && p.mapping === 'standard') ?? null;
+}
+/** Entrada deliberada: algum botão pressionado ou algum eixo além da zona morta. */
+export function padHasInput(gp, deadzone = 0.15) {
+  return !!gp && (gp.buttons.some((b) => b?.pressed) || gp.axes.some((v) => Math.abs(v) > deadzone));
+}
 
 export class Input {
   constructor(el, settings) {
     this.el = el; this.settings = settings;
     this.down = new Set(); this.simEdges = new Set(); this.frameEdges = new Set();
     this.look = { x: 0, y: 0 }; this.locked = false; this.enabled = false; this.padPrev = {}; this.padLook = { x: 0, y: 0 };
-    this.touchActive = !!globalThis.matchMedia?.('(pointer: coarse)').matches;
-    this.touchHeld = new Set(); this.touchMove = { x: 0, y: 0 };
     this.rebinding = null; this.lastDevice = 'kbm';
     this._bind();
   }
@@ -32,10 +40,11 @@ export class Input {
       this.lastDevice = 'kbm'; this._press(e.code);
     });
     addEventListener('keyup', (e) => this._release(e.code));
-    addEventListener('blur', () => this.reset());
+    addEventListener('blur', () => { this.down.clear(); });
     this.el.addEventListener('mousedown', (e) => { if (!this.enabled) return; this.lastDevice = 'kbm'; this._press(`Mouse${e.button}`); e.preventDefault(); });
     addEventListener('mouseup', (e) => this._release(`Mouse${e.button}`));
     this.el.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.el.addEventListener('wheel', (e) => { if (!this.enabled) return; this.lastDevice = 'kbm'; this.simEdges.add('weaponNext'); e.preventDefault(); }, { passive: false });
     addEventListener('mousemove', (e) => {
       if (!this.enabled || (!this.locked && !(this.down.has('Mouse0') || this.down.has('Mouse2')))) return;
       this.look.x += e.movementX || 0; this.look.y += e.movementY || 0;
@@ -45,26 +54,10 @@ export class Input {
       if (was && !this.locked) this.onLockLost?.();
     });
   }
-  lock() { if (this.touchActive) return; try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* sem pointer lock */ } }
-  unlock() { if (this.touchActive) return; try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignora */ } }
-  reset() {
-    this.down.clear(); this.simEdges.clear(); this.frameEdges.clear(); this.touchHeld.clear();
-    this.touchMove.x = this.touchMove.y = this.look.x = this.look.y = 0;
-    this.padEdges = {}; this.navEdges = [];
-    this.onReset?.();
-  }
-  setEnabled(v) { this.enabled = v; if (!v) this.reset(); }
-  touchAction(action, pressed) {
-    if (!this.enabled) return;
-    this.touchActive = true; this.lastDevice = 'touch';
-    if (pressed && !this.touchHeld.has(action)) {
-      if (SIM_EDGE.includes(action)) this.simEdges.add(action);
-      if (FRAME_EDGE.includes(action)) this.frameEdges.add(action);
-    }
-    if (pressed) this.touchHeld.add(action); else this.touchHeld.delete(action);
-  }
+  lock() { try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* sem pointer lock */ } }
+  unlock() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignora */ } }
+  setEnabled(v) { this.enabled = v; if (!v) { this.down.clear(); this.simEdges.clear(); this.look.x = this.look.y = 0; } }
   held(action) {
-    if (this.touchHeld.has(action)) return true;
     const code = this.settings.bindings[action];
     if (this.down.has(code)) return true;
     return !!this.padState?.[action];
@@ -83,15 +76,20 @@ export class Input {
 
   pollGamepad() {
     const pads = navigator.getGamepads?.() ?? [];
-    const gp = [...pads].find((p) => p && p.connected);
-    if (!gp) { this.padState = null; this.padAxes = null; this.padPrev = {}; this.padEdges = {}; this.padLook.x = this.padLook.y = 0; return; }
-    const dz = this.settings.deadzone, ax = (v) => (Math.abs(v) < dz ? 0 : (Math.sign(v) * (Math.abs(v) - dz)) / (1 - dz));
+    const gp = selectGamepad(pads);
+    if (!gp) { this.padState = null; this.padActive = false; this.padAxes = null; this.padLook.x = this.padLook.y = 0; return; }
+    const dz = this.settings.deadzone;
+    if (this.padIndex !== gp.index) { this.padIndex = gp.index; this.padActive = false; }
+    // um pad recém-conectado/ocioso não sequestra teclado e mouse até produzir uma entrada deliberada
+    if (!this.padActive) { if (padHasInput(gp, Math.max(dz, 0.15))) this.padActive = true; else { this.padState = null; this.padLook.x = this.padLook.y = 0; this.padAxes = null; return; } }
+    const ax = (v) => (Math.abs(v) < dz ? 0 : (Math.sign(v) * (Math.abs(v) - dz)) / (1 - dz));
     this.padState = {}; this.padEdges ||= {};
     for (const [a, b] of Object.entries(PAD)) {
       const pressed = !!gp.buttons[b]?.pressed; this.padState[a] = pressed;
       if (pressed && !this.padPrev[a]) { if (SIM_EDGE.includes(a)) this.simEdges.add(a); if (FRAME_EDGE.includes(a)) this.padEdges[a] = true; this.lastDevice = 'pad'; }
       this.padPrev[a] = pressed;
     }
+    { const pr = !!gp.buttons[PAD_WEAPON_PREV]?.pressed; if (pr && !this.padPrev.weaponPrevAlt) { this.simEdges.add('weaponNext'); this.lastDevice = 'pad'; } this.padPrev.weaponPrevAlt = pr; }
     this.navEdges ||= []; this.navPrev ||= {};
     for (const [n, b] of Object.entries({ up: 12, down: 13, left: 14, right: 15, accept: 0, back: 1 })) { const pr = !!gp.buttons[b]?.pressed; if (pr && !this.navPrev[n]) this.navEdges.push(n); this.navPrev[n] = pr; }
     this.padAxes = { x: ax(gp.axes[0] ?? 0), y: ax(gp.axes[1] ?? 0) };
@@ -104,11 +102,11 @@ export class Input {
     const h = (a) => this.held(a);
     let mx = (h('right') ? 1 : 0) - (h('left') ? 1 : 0), my = (h('forward') ? 1 : 0) - (h('back') ? 1 : 0);
     if (this.padAxes && (this.padAxes.x || this.padAxes.y)) { mx = this.padAxes.x; my = -this.padAxes.y; }
-    if (this.touchMove.x || this.touchMove.y) { mx = this.touchMove.x; my = this.touchMove.y; }
     const e = (a) => this.simEdges.delete(a);
     return {
       moveX: mx, moveY: my, run: h('run'), aim: h('aim'), fireHeld: h('fire'),
       firePressed: e('fire'), dodgePressed: e('dodge'), reloadPressed: e('reload'), utilityPressed: e('utility'),
+      weaponSlot: e('weapon1') ? 1 : e('weapon2') ? 2 : 0, weaponNext: e('weaponNext'),
       medkitPressed: e('medkit'), hemoPressed: e('hemo'), interactPressed: e('interact'), interactHeld: h('interact'),
     };
   }

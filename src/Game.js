@@ -5,7 +5,6 @@ import { GameLoop } from './core/GameLoop.js';
 import { StateMachine, S } from './core/StateMachine.js';
 import { loadSettings, saveSettings, QUALITY } from './core/Settings.js';
 import { lerp } from './core/math.js';
-import { TouchControls } from './input/TouchControls.js';
 import { Input } from './input/Input.js';
 import { AudioEngine } from './audio/Audio.js';
 import { Hud } from './ui/Hud.js';
@@ -14,7 +13,9 @@ import * as Screens from './ui/Screens.js';
 import { TerminalUI } from './ui/TerminalUI.js';
 import { drawMap } from './ui/MapView.js';
 import { Dialogue } from './gameplay/Dialogue.js';
-import { ChapterRuntime, chapterData } from './gameplay/ChapterRuntime.js';
+import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
+import { getChapter, CHAPTER_IDS } from './chapters/index.js';
+import { advanceToChapter, nextChapterId, exitCheckpoint } from './gameplay/ChapterTransition.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -23,15 +24,18 @@ import { buildScenery } from './world/SectorScenery.js';
 import { FX } from './world/FX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
+import { resolveDifficultyOffer } from './gameplay/DifficultyOffer.js';
 import { DinosaurAgent, AttackCoordinator, AI } from './actors/DinosaurAgent.js';
 import { CreatureView } from './actors/CreatureView.js';
-import { resolveShot, reticleState } from './actors/Combat.js';
+import { K1Agent, K1 } from './actors/K1Agent.js';
+import { resolveShot, reticleState, shouldInterrupt, applyImpact } from './actors/Combat.js';
 import { EconomyLedger } from './gameplay/EconomyLedger.js';
 import { ComboSystem } from './gameplay/ComboSystem.js';
 import { difficulty } from './gameplay/DifficultyManager.js';
 import { purchase } from './gameplay/ShopSystem.js';
 import { SaveManager } from './gameplay/SaveManager.js';
-import { createNewSave, WEAPONS, UTILITY } from './gameplay/GameState.js';
+import { createNewSave, WEAPONS, UTILITY, SCHEMA_VERSION } from './gameplay/GameState.js';
+import { activeInventory, getCharacter } from './gameplay/Characters.js';
 import { RunStats, scoreChapter } from './gameplay/ScoringSystem.js';
 import { RecordBook } from './gameplay/RecordBook.js';
 import { CollectibleManager } from './gameplay/SecretManager.js';
@@ -69,23 +73,18 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.Fog(0x0a1719, 8, 80);
     this.threeCam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 150);
-    this.world = new CollisionWorld(chapterData.bounds);
-    this.scenery = buildScenery({ world: this.world, data: chapterData, quality: this.settings.quality });
-    this.scene.add(this.scenery.group);
-    this.scenery.onLightning = () => this.audio.play('thunder');
-    this.camera = new ShoulderCameraController(this.world);
+    this.loadChapter(CHAPTER_IDS[0]);
+    this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
     this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
     this.fx = new FX(this.scene);
     this.coordinator = new AttackCoordinator(2);
     this.hud = new Hud(this.hudRoot); this.dialogue = new Dialogue(this.hud);
     this.audio = new AudioEngine();
     this.input = new Input(this.canvas, this.settings);
-    this.touchControls = new TouchControls(this.input, this.appEl);
     this.input.onLockLost = () => { if (this.sm.is(S.PLAYING)) this.pause(); };
     this.saveManager = new SaveManager();
     this.records = await new RecordBook(this.saveManager.adapter).load().catch(() => new RecordBook(this.saveManager.adapter));
     this.profile = (await this.saveManager.loadProfile().catch(() => null)) ?? CollectibleManager.newProfile();
-    this.chapter = new ChapterRuntime(this);
     this.terminalUI = new TerminalUI(this);
     this.ledger = new EconomyLedger(); this.save = null;
     this.diffPreset = { id: 'standard', ...difficulty.get('standard') };
@@ -103,6 +102,27 @@ export class Game {
     this.loop.start();
     if (new URLSearchParams(location.search).has('debug')) this._installDebug();
     return this;
+  }
+
+  /** Número do capítulo carregado (loja: itens liberados por capítulo). */
+  get chapterNumber() { return this.chapterDef?.data.chapter ?? 1; }
+
+  /** Carrega o capítulo `id`: descarta cenário, colisão, props e runtime anteriores e cria os novos. */
+  loadChapter(id) {
+    if (this.scenery) { this.scene.remove(this.scenery.group); this.props?.dispose?.(); this.scenery.dispose(); }
+    this.chapter?.dispose();
+    this.terminal = null; this.chapterId = id; this.chapterDef = getChapter(id);
+    const data = this.chapterDef.data, script = this.chapterDef.script;
+    this.world = new CollisionWorld(data.bounds);
+    this.scenery = buildScenery({ world: this.world, data, quality: this.settings.quality });
+    this.scene.add(this.scenery.group);
+    this.scenery.onLightning = () => this.audio?.play('thunder');
+    this.props = script.buildProps?.({ scene: this.scene, world: this.world, data, quality: this.settings.quality, scenery: this.scenery }) ?? { update() {}, dispose() {} };
+    this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
+    if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
+    if (this.player) this.player.world = this.world;
+    this.chapter = new ChapterRuntime(this, this.chapterDef);
+    if (this.settings && this.audio) this.applySettings();
   }
 
   _wireBus() {
@@ -149,12 +169,12 @@ export class Game {
       this.audio.suspend();
     } else if (!this.sm.is(S.PAUSED, S.SHOP)) this.audio.resume();
   }
-  onBlur() { if (this.sm.is(S.PLAYING)) this.pause(); if (this.sm.is(S.BENCHMARK) && this.bench?.collector.phase !== 'done') this.bench.collector.invalidate('janela perdeu o foco'); }
+  onBlur() { if (this.sm.is(S.BENCHMARK) && this.bench?.collector.phase !== 'done') this.bench.collector.invalidate('janela perdeu o foco'); }
   onKey(e) {
     if (this.sm.is(S.CUTSCENE) && (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space')) { this.skipCutscene(); return; }
     if (this.sm.is(S.BENCHMARK) && e.code === 'Escape') { this.bench.collector.cancel(); return; }
     if (this.sm.is(S.SHOP) && e.code === 'Escape') { this.closeTerminal(); return; }
-    if (this.sm.is(S.PAUSED) && !e.repeat && (e.code === 'Escape' || (this.mapOpen && e.code === this.settings.bindings.map)) && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { this.resume(); }
+    if (this.sm.is(S.PAUSED) && (e.code === 'Escape') && !this.input.rebinding && !this.uiRoot.querySelector('.panel h2')?.textContent.match(/Op/)) { if (this.mapOpen) this.resume(); }
   }
 
   // ---------------------------------------------------------------- UI helpers
@@ -165,6 +185,9 @@ export class Game {
     return {
       menu() { if (!g.sm.is(S.MAIN_MENU)) g.sm.go(S.MAIN_MENU); g.hud.hide(); g.appEl.classList.remove('playing'); g.setScreen(Screens.mainMenu(g, { hasSave: g.hasSave })); },
       difficulty() { g.sm.go(S.DIFFICULTY_SELECT); g.setScreen(Screens.difficultyScreen(g, g.profile)); },
+      /** Oferta de dificuldade no início do capítulo seguinte (aumentar é permitido aqui). */
+      nextChapterDifficulty() { g.setScreen(Screens.difficultyScreen(g, g.profile, { current: g.save.difficulty.current, label: `Iniciar Capítulo ${String(g.chapterNumber + 1).padStart(2, '0')}`, onConfirm: (id) => g.startChapter(nextChapterId(g.chapterId), { difficultyId: id }), onBack: () => g.ui.results() })); },
+      results() { if (g._results) g.setScreen(Screens.resultsScreen(g, g._results)); },
       async loadSlots() { const metas = await Promise.all([0, 1, 2, 3].map(async (n) => (await g.saveManager.meta(n)) ?? { slot: n, empty: true })); metas.forEach((m, i) => { m.slot = i; }); g.setScreen(Screens.loadScreen(g, metas)); },
       extras() { if (g.sm.is(S.MAIN_MENU, S.BENCH_RESULTS, S.BENCHMARK)) g.sm.go(S.EXTRAS); g.setScreen(Screens.extrasScreen(g, { records: g.records.data, profile: g.profile })); },
       options(back) { if (g.sm.is(S.MAIN_MENU, S.PAUSED)) { g._optBack = g.sm.state; g.sm.go(S.OPTIONS); } g.setScreen(Screens.optionsScreen(g, () => { if (g.sm.is(S.OPTIONS)) g.sm.go(g._optBack); back(); })); },
@@ -185,23 +208,40 @@ export class Game {
     const slotId = 1;
     this.save = createNewSave({ slot: slotId, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });
     this.save.cameraSettings.preferredShoulder = this.settings.shoulder;
+    if (this.save.chapterId !== this.chapterId) this.loadChapter(this.save.chapterId);
     this.camera.preferredSide = this.settings.shoulder; this.camera.sideCur = this.settings.shoulder === 'right' ? 1 : -1;
-    this.stats = new RunStats({ objectivesTotal: chapterData.objectives.length });
+    this.stats = new RunStats({ objectivesTotal: this.chapterDef.data.objectives.length });
     this._startRun(true);
+    this.startCutscene('intro');
+  }
+  /**
+   * Avança a campanha para o capítulo `id` a partir do save atual (tela de resultados → Continuar):
+   * `advanceToChapter`, dificuldade opcional (início de capítulo novo), autosave no slot 0 e cutscene `intro`.
+   */
+  async startChapter(id, { difficultyId = null } = {}) {
+    this.audio.ensure(); this.audio.play('ui');
+    await this._loading();
+    const s = advanceToChapter(this.save, id);
+    const offer = resolveDifficultyOffer(s, difficultyId, this.profile); if (!offer.ok) this.hud.toast(offer.message, 'warn');
+    this.save = s;
+    this.stats = new RunStats({ objectivesTotal: getChapter(id).data.objectives.length });
+    this._startRun(true);
+    try { this.syncSaveFromRuntime(); await this.saveManager.save(0, this.save); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.startCutscene('intro');
   }
   /** Prepara uma execução a partir de this.save (nova ou carregada). */
   _startRun(fresh) {
     const s = this.save;
+    if (s.chapterId !== this.chapterId) this.loadChapter(s.chapterId);
     this.diffPreset = { id: s.difficulty.current, ...difficulty.get(s.difficulty.current) };
     this.coordinator.setMax(this.diffPreset.maxContactAttackers); this.coordinator.clear();
     this.ledger = new EconomyLedger(s.economyLedger);
     this.combo?.dispose();
-    this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => this.save.inventory.upgrades.includes('chain_module') });
+    this.combo = new ComboSystem({ bus: this.bus, ledger: this.ledger, getRunId: () => this.save.runId, getSimMs: () => this.simMs, hasChainModule: () => activeInventory(this.save).upgrades.includes('chain_module') });
     if (s.stats) { this.stats = new RunStats(s.stats); this.combo.style.restore(this.stats.style); this.combo.chain.maxCount = this.stats.maxChain; }
-    this.stats.objectivesTotal = chapterData.objectives.length;
+    this.stats.objectivesTotal = this.chapterDef.data.objectives.length;
     this.simMs = 0; this.deathAt = null; this.mapOpen = false; this.rng = createRng(0x9e3779b1 ^ (s.attempts * 7919) ^ s.playtimeSeconds | 0);
-    this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
+    this.playerView.setCharacter(s.playerId); this.player.loadFromSave(s); this.player.teleport(s.checkpoint.pos[0], s.checkpoint.pos[1], s.checkpoint.yaw ?? 0);
     const r = this.world.resolveCircle(this.player.x, this.player.z, 0.4); this.player.teleport(r.x, r.z, s.checkpoint.yaw ?? 0);
     this._clearAgents(); this.chapter.exiting = false; this.chapter._roared = false; this.chapter.load();
     this.dialogue.clear(); this.hud.toasts.replaceChildren(); this.hud.feedEl.replaceChildren();
@@ -215,7 +255,8 @@ export class Game {
   _clearAgents() { for (const a of this.agents) { this.scene.remove(a.view.mesh); a.view.dispose(); } this.agents = []; }
   spawnAgent(def, encounterId) {
     const species = bestiary.species[def.type];
-    const agent = new DinosaurAgent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
+    const Agent = species.boss ? K1Agent : DinosaurAgent;
+    const agent = new Agent({ id: def.id, encounterId, species, pos: def.pos, patrol: def.patrol ?? [], hpMult: difficulty.get(this.diffPreset.id).enemyHpMult, yaw: this.rng.range(0, 6.28) });
     const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
@@ -254,7 +295,7 @@ export class Game {
       const r = await this.saveManager.load(n);
       this.save = r.save; this.stats = new RunStats(this.save.stats ?? {}); this._startRun(false);
       this.combo.resetForLoad();
-      this.hud.toast(r.migrated ? `Save migrado (v${r.from} → v4) com backup.` : 'Progresso carregado.', 'good');
+      this.hud.toast(r.migrated ? `Save migrado (v${r.from} → v${SCHEMA_VERSION}) com backup.` : 'Progresso carregado.', 'good');
       this.enterPlaying();
     } catch (e) { this.sm.go(S.MAIN_MENU); this.ui.menu(); this.hud.show(); alert(`Não foi possível carregar: ${e.message}`); this.hud.hide(); }
   }
@@ -284,12 +325,12 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', 'Mapa — Selva Norte'), cv, h('p.dim.small', 'Losango = objetivo · quadrados = terminais · “?” = área suspeita · toque no mapa ou use a tecla de mapa para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · “?” = área suspeita (aproximada) · clique ou M para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {
-    const susp = this.save.secretFlags.SEC_01 ? [this.chapter.suspiciousCenter] : [];
-    drawMap(cv, { data: chapterData, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: chapterData.terminals, gateOpen: this.save.persistentWorldFlags.gateOpen });
+    const susp = this.save.secretFlags.SEC_01 && this.chapter.suspiciousCenter ? [this.chapter.suspiciousCenter] : [];
+    drawMap(cv, { data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
@@ -309,7 +350,7 @@ export class Game {
   async buy(itemId) {
     this.syncSaveFromRuntime();
     const tx = `tx_${this.save.runId}_${++this.txCounter}_${Date.now().toString(36)}`;
-    const r = await purchase(this.save, itemId, tx, async (next) => { next.checkpointId = this.save.checkpointId; await this.saveManager.save(0, next); }, 1);
+    const r = await purchase(this.save, itemId, tx, async (next) => { next.checkpointId = this.save.checkpointId; await this.saveManager.save(0, next); }, this.chapterNumber);
     if (r.ok && !r.duplicate) { this.save = r.save; this.syncRuntimeFromSave(); this.checkpointSnap = JSON.stringify(structuredClone(this.save)); await this.refreshHasSave(); }
     return r;
   }
@@ -324,7 +365,7 @@ export class Game {
     this.sm.go(S.GAME_OVER); this.input.setEnabled(false); this.input.unlock(); this.appEl.classList.remove('playing'); this.hud.setPrompt(null);
     this.stats.deaths++; this.save.attempts++;
     const canLower = difficulty.rank(this.save.difficulty.current) > 0;
-    this.setScreen(Screens.gameOverScreen(this, { attempts: this.stats.deaths + 1, canLower, hint: this.stats.deaths >= 2 ? 'Dica: o salto do R-4 tem direção travada depois do agachar — esquive de lado no último instante. Tiros durante o agachar o interrompem.' : null }));
+    this.setScreen(Screens.gameOverScreen(this, { attempts: this.stats.deaths + 1, canLower, hint: this.stats.deaths >= 2 ? (this.chapter.script.deathHint ?? null) : null }));
   }
   async retry(lower = false) {
     await this._loading();
@@ -347,73 +388,61 @@ export class Game {
   }
   async completeChapter() {
     const s = this.save; this.combo.settleSector(s.sectorId); this.syncSaveFromRuntime();
-    const st = this.stats, wf = s.persistentWorldFlags, z = new Set(wf.zonesVisited);
+    const st = this.stats;
     st.objectivesDone = s.completedObjectives.length;
-    st.explorationVisited = ['tower_visited', 'beacon_area', 'east_trail', 'west_trail', 'recon_camp'].filter((n) => z.has(n)).concat(z.has('bridge_cross') || z.has('detour_cross') ? ['route_taken'] : []);
+    st.explorationVisited = this.chapter.script.explorationVisited(s);
     st.dossiersFound = s.dossiersInRun.length;
-    const score = scoreChapter(st, 'ch01');
+    const cid = s.chapterId, score = scoreChapter(st, cid);
     const eligibility = computeEligibility(s, { debug: this.debugUsed });
-    s.chapterStats.ch01 = { maxChain: st.maxChain, activeSeconds: Math.round(st.activeSeconds), deaths: st.deaths, score: score.total, grade: score.grade };
-    const rec = await this.records.submit({ runId: s.runId, attempt: 0, chapterId: 'ch01', difficulty: s.difficulty.current, protagonist: 'lia', mode: s.runRules.mode, assists: this.settings.assist, score: score.total, grade: score.grade, time: st.activeSeconds, eligibility, eventsDigest: { k: st.kills, cc: st.ccEarned, ch: st.maxChain, d: Math.round(st.damageTaken) } });
-    s.checkpointId = 'chapter_complete'; s.checkpoint = { pos: [0, -38], yaw: 0 };
+    s.chapterStats[cid] = { maxChain: st.maxChain, activeSeconds: Math.round(st.activeSeconds), deaths: st.deaths, score: score.total, grade: score.grade };
+    const rec = await this.records.submit({ runId: s.runId, attempt: 0, chapterId: cid, difficulty: s.difficulty.current, protagonist: s.playerId, mode: s.runRules.mode, assists: this.settings.assist, score: score.total, grade: score.grade, time: st.activeSeconds, eligibility, eventsDigest: { k: st.kills, cc: st.ccEarned, ch: st.maxChain, d: Math.round(st.damageTaken) } });
+    s.checkpointId = 'chapter_complete'; s.checkpoint = exitCheckpoint(this.chapterDef.data);
     try { await this.saveManager.save(0, s); await this.saveManager.saveProfile(this.profile); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.sm.go(S.CHAPTER_COMPLETE); this.hud.hide(); this.appEl.classList.remove('playing'); this.input.setEnabled(false); this.input.unlock();
-    this.setScreen(Screens.resultsScreen(this, { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters.ch01.explorationNodes.length }));
+    this._results = { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length, chapterNumber: this.chapterNumber, title: this.chapterDef.data.title, nextChapter: nextChapterId(cid) };
+    this.setScreen(Screens.resultsScreen(this, this._results));
   }
 
   // ---------------------------------------------------------------- cutscenes
   startCutscene(kind) {
     this.sm.go(S.CUTSCENE); this.input.setEnabled(false); this.input.unlock(); this.appEl.classList.remove('playing'); this.hud.hide(); this.audio.ensure();
     this.setScreen(h('div', h('div.letterbox.top'), h('div.letterbox.bot'), h('button#skip', { onclick: () => this.skipCutscene() }, 'Pular (Enter)')));
-    const c = this.cine = { kind, t: 0, heli: null };
+    const def = this.chapter.script.cutscenes[kind];
+    const c = this.cine = { kind, t: 0, dur: def.dur, def };
     this.dialogue.clear();
-    if (kind === 'intro') {
-      const heli = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 4.2), new THREE.MeshLambertMaterial({ color: 0x22292b })); heli.add(body);
-      const rotor = new THREE.Mesh(new THREE.BoxGeometry(7, 0.04, 0.2), new THREE.MeshLambertMaterial({ color: 0x111111 })); rotor.position.y = 0.7; heli.add(rotor);
-      const lamp = new THREE.PointLight(0xfff2cc, 40, 30); lamp.position.set(0, -0.6, -2); heli.add(lamp);
-      heli.position.set(-8, 14, 32); this.scene.add(heli); c.heli = heli; c.rotor = rotor;
-      this.dialogue.play('ch01_intro_radio'); this.player.teleport(0, 36, 0); this.playerView.root.visible = true; c.dur = 15.8;
-    } else {
-      this.scenery.coroPattern.active = true; this.scenery.coroPattern.t = 0; this.audio.play('coro', 14, -34);
-      this.dialogue.play('ch01_coro_tower'); c.dur = 9.2;
-    }
+    def.start(this, c);
   }
   skipCutscene() { if (this.cine) { this.cine.t = this.cine.dur + 1; this.dialogue.clear(); } }
   _updateCutscene(dt) {
     const c = this.cine; if (!c) return; c.t += dt; this.dialogue.update(dt);
-    const cam = this.threeCam;
-    if (c.kind === 'intro') {
-      const t = c.t; c.heli.position.set(-8 + t * 3.2, 14 + t * 1.2, 32 - t * 3.4); c.heli.rotation.y = 0.6 + t * 0.03; c.rotor.rotation.y += dt * 40;
-      cam.position.set(5.5 - t * 0.04, 2.0 + Math.sin(t * 0.4) * 0.05, 41.5); cam.lookAt(c.heli.position.x * 0.3, 8 + t * 0.2, 30); cam.fov = 64; cam.updateProjectionMatrix();
-      this.playerView.sync(1, dt, 1);
-    } else {
-      const a = c.t * 0.18; cam.position.set(14 + Math.cos(a + 0.6) * 15, 3.2 + c.t * 0.1, -34 + Math.sin(a + 0.6) * 15); cam.lookAt(14, 5.5 + c.t * 0.12, -34); cam.fov = 60; cam.updateProjectionMatrix();
-    }
+    c.def.update(this, c, dt);
     if (c.t >= c.dur) this._endCutscene();
   }
   _endCutscene() {
     const c = this.cine; this.cine = null; this.dialogue.clear();
-    if (c.heli) { this.scene.remove(c.heli); }
+    c.def.end?.(this, c);
     if (c.kind === 'intro') { this.camera.snapBehind(this.player.yaw); this.enterPlayingFromCutscene(); }
-    else { this.scenery.coroPattern.active = false; this.completeChapter(); }
+    else this.completeChapter();
   }
   enterPlayingFromCutscene() {
     const f = $('#fade'); void f;
     this.threeCam.fov = 68; this.threeCam.updateProjectionMatrix();
     this.sm.go(S.PLAYING); this.setScreen(null); this.hud.show(); this.appEl.classList.add('playing'); this.input.setEnabled(true); this.input.clearEdges(); this.input.lock(); this.loop.acc = 0;
     this.camera.snapBehind(this.player.yaw); this.camera.pivot = { x: this.player.x, y: 1.5, z: this.player.z };
-    this.hud.toast('Capítulo 01 — O Sinal na Mata', 'good');
+    if (this.chapter.script.introToast) this.hud.toast(this.chapter.script.introToast, 'good');
   }
 
   // ---------------------------------------------------------------- simulação (passo fixo)
+  /** Zona `narrow` do capítulo em (x,z)? Usada pelo coordenador de ataques (corredor/passagem → 1 atacante). */
+  narrowAt(x, z) { for (const q of this.chapterDef.data.zones ?? []) if (q.narrow && Math.hypot(x - q.pos[0], z - q.pos[1]) <= q.r) return true; return false; }
   aiCtx() {
-    return { player: this.player, world: this.world, noises: this.noises, coordinator: this.coordinator, diff: this.diffPreset, diffMgr: difficulty, bus: this.bus, sim: this.simMs, rng: this.rng, allies: this.agents.map((a) => a.agent), tick: this.loop.tick, runId: this.save.runId };
+    return { player: this.player, world: this.world, noises: this.noises, coordinator: this.coordinator, narrowAt: (x, z) => this.narrowAt(x, z), diff: this.diffPreset, diffMgr: difficulty, bus: this.bus, sim: this.simMs, rng: this.rng, allies: this.agents.map((a) => a.agent), tick: this.loop.tick, runId: this.save.runId };
   }
   step(dt) {
     const p = this.player, tick = this.loop.tick; this.simMs += dt * 1000;
     const inp = this.input.snapshot();
     this.noises.length = 0;
-    const evs = p.step(dt, this.simMs, inp, this.camera.yaw, this.save.inventory.consumables);
+    const evs = p.step(dt, this.simMs, inp, this.camera.yaw, activeInventory(this.save).consumables);
     p.simShooting = this.simMs / 1000 - p.lastFireT < 0.45;
     for (const e of evs) this.onPlayerEvent(e);
     const nr = p.noiseRadius(); if (nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
@@ -425,9 +454,9 @@ export class Game {
     this.fx.update(dt);
     this.stats.activeSeconds += dt; this.save.playtimeSeconds += dt;
     // áudio de tensão: ameaça real (CHASE/WINDUP) aumenta camada; calmaria recua
-    let threat = 0; for (const a of this.agents) { const s = a.agent.state; if (a.agent.dead) continue; const d = Math.hypot(a.agent.x - p.x, a.agent.z - p.z); if (d < 30) threat = Math.max(threat, s === AI.CHASE || s === AI.ATTACK_WINDUP || s === AI.ATTACK ? 1 : s === AI.STALK ? 0.6 : s === AI.INVESTIGATE ? 0.3 : 0); }
+    let threat = 0; for (const a of this.agents) { const s = a.agent.state; if (a.agent.dead) continue; const d = Math.hypot(a.agent.x - p.x, a.agent.z - p.z); if (d < 30) threat = Math.max(threat, s === AI.CHASE || s === AI.ATTACK_WINDUP || s === AI.ATTACK || s === K1.CHARGE_WINDUP || s === K1.CHARGE || s === K1.TAIL_WINDUP ? 1 : s === AI.STALK ? 0.6 : s === AI.INVESTIGATE ? 0.3 : 0); }
     this._threat = lerp(this._threat ?? 0, threat, 0.04); this.audio.setThreat(this._threat);
-    if (p.dead && this.deathAt == null) { this.deathAt = this.simMs; this.combo.endChain('death'); this.audio.play('hurt'); this.hud.toast('Lia caiu…', 'warn'); }
+    if (p.dead && this.deathAt == null) { this.deathAt = this.simMs; this.combo.endChain('death'); this.audio.play('hurt'); this.hud.toast(`${getCharacter(this.save.playerId).name} caiu…`, 'warn'); }
     if (this.deathAt != null && this.simMs - this.deathAt > 1800) this.gameOver();
   }
   onPlayerEvent(e) {
@@ -436,10 +465,12 @@ export class Game {
       case 'fire': this.shoot(); break;
       case 'dryFire': this.audio.play('dry'); this.hud.toast('Sem munição', 'warn'); break;
       case 'reloadStart': this.audio.play('reload'); break;
+      case 'shellLoaded': this.audio.play('reload'); break;
+      case 'weaponSwitch': this.audio.play('ui'); this.hud.toast(p.weapon.name, ''); break;
       case 'dodge': this.audio.play('lunge', p.x, p.z); break;
       case 'itemStart': this.audio.play('ui'); break;
       case 'itemUsed': {
-        const c = this.save.inventory.consumables; c[e.kind] = Math.max(0, (c[e.kind] ?? 0) - 1); if (e.kind !== 'hemostatic') this.stats.healsUsed++;
+        const c = activeInventory(this.save).consumables; c[e.kind] = Math.max(0, (c[e.kind] ?? 0) - 1); if (e.kind !== 'hemostatic') this.stats.healsUsed++;
         this.hud.toast(e.kind === 'hemostatic' ? 'Sangramento estancado.' : 'Vida recuperada.', 'good'); this.audio.play('pickup'); break;
       }
       case 'itemDenied': this.hud.toast(`Não é possível: ${e.reason}`, 'warn'); this.audio.play('deny'); break;
@@ -455,6 +486,19 @@ export class Game {
     this.stats.shotsFired++; this.audio.play('shot', p.x, p.z); this.playerView.muzzleFlash();
     cam.kick(w.recoilKickDeg); cam.shake(0.35);
     this.noises.push({ x: p.x, z: p.z, r: w.noiseRadius });
+    if (res.kind === 'spread') {
+      for (const t of res.tracers) this.fx.tracer(t.from, t.point);
+      for (const pt of res.impacts) this.fx.burst(pt, 0xffd98a, 3, 2.4, 0.2);
+      if (res.hits.length) { this.stats.shotsHit++; this.hud.hitMarker(); }
+      for (const hit of res.hits) {
+        const ag = hit.enemy; this.audio.play('hit', ag.x, ag.z);
+        this.fx.burst(hit.point, 0x9a1c1c, 7, 3.4);
+        const ctx = { ...this.aiCtx(), sim: this.simMs };
+        const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx, hit.damageByPart);
+        if (!r.dead && shouldInterrupt(w, hit, !!ag.species.boss)) ag.interrupt(ctx);
+      }
+      return;
+    }
     this.fx.tracer(res.tracerFrom, res.point);
     if (res.kind === 'enemy') {
       const ag = res.enemy; this.stats.shotsHit++; this.hud.hitMarker(); this.audio.play('hit', ag.x, ag.z);
@@ -463,6 +507,7 @@ export class Game {
     } else if (res.kind === 'world') this.fx.burst(res.point, 0xffd98a, 4, 2.4, 0.2);
   }
   useUtility() {
+    if (getCharacter(this.save.playerId).utility === 'impact_tool') return this.useImpact();
     const p = this.player, ut = UTILITY.electric_tool, ctx = this.aiCtx();
     let best = null;
     for (const a of this.liveAgents()) {
@@ -477,6 +522,24 @@ export class Game {
     best.a.stun(ut.stunMs, ctx);
     const others = this.liveAgents().filter((o) => o !== best.a && Math.hypot(o.x - p.x, o.z - p.z) < 14).length;
     this.bus.emit('groupControl', { eventId: `gc:${best.a.id}:${Math.round(this.simMs)}`, enemyId: best.a.id, encounterId: best.a.encounterId, othersAlive: others > 0, tick: this.loop.tick });
+  }
+
+  useImpact() {
+    const p = this.player, ut = UTILITY.impact_tool, ctx = this.aiCtx(), fx = -Math.sin(this.camera.yaw), fz = -Math.cos(this.camera.yaw);
+    this.noises.push({ x: p.x, z: p.z, r: ut.noiseRadius });
+    const targets = this.liveAgents().filter((a) => { const dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz); return d <= ut.range + a.radius && (dx * fx + dz * fz) / (d || 1) >= 0.35; });
+    const broke = this.chapter.breakAt(p.x + fx * 1.2, p.z + fz * 1.2, ut.range);
+    if (!targets.length && !broke) { p.utilityCd = 0.6; this.hud.toast('Nada ao alcance do golpe.', 'warn'); this.audio.play('deny'); return; }
+    this.camera.shake(0.6); this.audio.play('hit', p.x, p.z);
+    for (const a of targets) {
+      this.fx.burst({ x: a.x, y: 1, z: a.z }, 0xe8d8a8, 10, 4);
+      applyImpact(a, p, ut, this.world, { ...ctx, sim: this.simMs });
+    }
+    const first = targets.find((a) => !a.species.boss);
+    if (first) {
+      const others = this.liveAgents().filter((o) => o !== first && Math.hypot(o.x - p.x, o.z - p.z) < 14).length;
+      this.bus.emit('groupControl', { eventId: `gc:${first.id}:${Math.round(this.simMs)}`, enemyId: first.id, encounterId: first.encounterId, othersAlive: others > 0, tick: this.loop.tick });
+    }
   }
 
   // ---------------------------------------------------------------- render
@@ -520,8 +583,8 @@ export class Game {
     this.audio.setListener(cam.pos.x, cam.pos.z, cam.yaw);
     // oclusão localizada: só os objetos que bloqueiam a vista
     const occ = new Set(this.world.occluders(cam.pos.x, cam.pos.y, cam.pos.z, cam.pivot.x, cam.pivot.y, cam.pivot.z).map((c) => c.id));
-    const inShelter = p.x > -30 && p.x < -24 && p.z > 1 && p.z < 7;
-    for (const id of this.scenery.fadeMats.keys()) this.scenery.setFade(id, (occ.has(id) && cam.dist > 0.3) || (inShelter && id === 'shelter_roof') ? 0.16 : 1);
+    const forceFade = this.chapter.script.forceFade;
+    for (const id of this.scenery.fadeMats.keys()) this.scenery.setFade(id, (occ.has(id) && cam.dist > 0.3) || forceFade?.(this, id) ? 0.16 : 1);
     this.playerView.sync(alpha, frameDt, cam.playerOpacity);
     for (const a of this.agents) a.view.sync(alpha, frameDt);
     this.updateHud(frameDt);
@@ -530,21 +593,23 @@ export class Game {
     const p = this.player, cam = this.camera, w = p.weapon, hud = this.hud;
     const muzzle = p.muzzle(cam.yaw), live = this.liveAgents();
     const retic = reticleState({ world: this.world, enemies: live, camera: cam, muzzle, weapon: w });
-    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), fov: cam.fov, reticle: retic, consumables: this.save.inventory.consumables, infinite: p.infiniteAmmo }, frameDt);
+    hud.update({ hp: p.hp, maxHp: p.maxHp, bleeding: p.bleeding, mag: p.mag, reserve: p.reserve, reloading: p.reloading, using: !!p.using, aiming: p.aiming, spreadDeg: p.spreadDeg(), pellets: w.pellets ?? 1, weaponName: w.name, fov: cam.fov, reticle: retic, consumables: activeInventory(this.save).consumables, infinite: p.infiniteAmmo }, frameDt);
     const ch = this.combo.chain;
     hud.setChain(ch.count, ch.remainingMs(this.simMs), ch.windowMs, ch.count >= 10 ? 'EXTINÇÃO' : ch.count >= 6 ? 'IMPLACÁVEL' : ch.count >= 4 ? 'PREDADOR' : 'CADEIA', this.settings.hideComboHud);
-    const obj = this.chapter.currentObjective(); hud.setObjective(obj ? obj.text : 'Capítulo concluído.');
-    hud.setNavigation(this.chapter.objectiveTarget(), p, cam.yaw, this.save.completedObjectives.length, chapterData.objectives.length);
+    const obj = this.chapter.currentObjective(), extra = this.chapter.script.objectiveStatus?.(this.chapter); hud.setObjective((obj ? obj.text : 'Capítulo concluído.') + (extra ? ` — ${extra}` : ''));
     // ameaças reais fora da tela
     const fwd = { x: -Math.sin(cam.yaw), z: -Math.cos(cam.yaw) }, rgt = { x: Math.cos(cam.yaw), z: -Math.sin(cam.yaw) }, hf = 2 * Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect);
     const th = [];
     for (const a of live) {
-      if (![AI.CHASE, AI.ATTACK_WINDUP, AI.ATTACK, AI.STALK].includes(a.state)) continue;
+      if (![AI.CHASE, AI.ATTACK_WINDUP, AI.ATTACK, AI.STALK, K1.CHARGE_WINDUP, K1.CHARGE, K1.TAIL_WINDUP].includes(a.state)) continue;
       const dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz); if (d > 16) continue;
       const ang = Math.atan2(dx * rgt.x + dz * rgt.z, dx * fwd.x + dz * fwd.z);
       if (Math.abs(ang) > hf / 2 * 0.92) th.push(ang);
     }
     hud.setThreats(th.slice(0, 4));
+    // barra do chefe: enquanto houver um chefe vivo (ex.: K-1 do encontro ch02_k1)
+    const boss = live.find((a) => a.species.boss);
+    hud.setBossBar(boss ? `${boss.species.code} — ${boss.species.name}` : null, boss ? Math.max(0, boss.hp) / boss.maxHp : null);
   }
 
   // ---------------------------------------------------------------- menus por gamepad
@@ -563,6 +628,7 @@ export class Game {
   // ---------------------------------------------------------------- benchmark B01 (isolado da campanha)
   startBenchmark(mode) {
     if (!this.sm.is(S.EXTRAS, S.BENCH_RESULTS)) return;
+    if (this.chapterId !== 'ch01') this.loadChapter('ch01');   // o benchmark B01 pertence ao Cap. 01
     this.sm.go(S.LOADING); this.hud.hide(); this.setScreen(null); this.audio.ensure();
     this.chapter.dispose(); this._clearAgents();
     const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player);
@@ -641,6 +707,29 @@ export class Game {
       press: (code) => { this.input._press(code); }, release: (code) => { this.input._release(code); },
       hold: (code, ms) => { this.input._press(code); setTimeout(() => this.input._release(code), ms); },
       skip: () => this.skipCutscene(),
+      /** Atalho de depuração: começa um capítulo direto (ex.: `startChapter('ch02')` → Caio no Posto Norte), sem passar pelo Cap. 01. */
+      startChapter: async (id = 'ch02', difficultyId = 'standard') => {
+        this.audio.ensure(); await this._loading();
+        const d = getChapter(id).data, s = createNewSave({ slot: 1, profileId: this.profile.profileId, difficultyId, mode: 'campaign' });
+        Object.assign(s, { chapterId: id, sectorId: d.id, playerId: d.protagonist, checkpointId: 'start', checkpoint: { pos: [...d.spawn.pos], yaw: d.spawn.yaw } });
+        s.cameraSettings.preferredShoulder = this.settings.shoulder; s.health[s.playerId] = getCharacter(s.playerId).maxHp;
+        this.save = s; mark();
+        this.stats = new RunStats({ objectivesTotal: d.objectives.length });
+        this._startRun(true); this.startCutscene('intro');
+      },
+      /** Encerra o capítulo atual (cutscene de saída → resultados). */
+      finishChapter: () => { mark(); this.finishChapter(); },
+      /** Vai a um checkpoint: `goto('ch02','pre_k1')` = defesa de Tomás concluída, K-1 em jogo; `goto(id)` reinicia o capítulo. */
+      goto: async (id = 'ch02', cp = 'start') => {
+        mark();
+        if (!this.sm.is(S.PLAYING) || this.chapterId !== id) { await window.__eden.startChapter(id); this.skipCutscene(); }
+        if (cp === 'pre_k1' && id === 'ch02') {
+          const m = await import('./chapters/ch02.js'); this.syncSaveFromRuntime(); m.completeTomasDefense(this.save);
+          this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint()); await this.retry(false);
+        }
+      },
+      /** Derruba o chefe vivo (K-1). */
+      killBoss: () => { mark(); const ctx = this.aiCtx(); for (const a of this.liveAgents()) if (a.species?.boss) a.takeDamage(99999, 'torso', ctx); },
     };
   }
 }
