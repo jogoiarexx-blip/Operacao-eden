@@ -607,6 +607,17 @@ export class Game {
         if (agent.state !== AI.SEARCH) agent.setState(AI.SEARCH, 1800);
       }
     }
+    // Cadáveres permanecem por 5 s de simulação e então são removidos
+    // tanto da cena quanto da lista de agentes. A flag de morte persiste no save.
+    for (let i = this.agents.length - 1; i >= 0; i--) {
+      const entry = this.agents[i];
+      if (!entry.agent.dead) continue;
+      if (!Number.isFinite(entry.agent.deadAt)) entry.agent.deadAt = this.simMs;
+      if (this.simMs - entry.agent.deadAt < 5000) continue;
+      this.scene.remove(entry.view.mesh);
+      entry.view.dispose();
+      this.agents.splice(i, 1);
+    }
     this.chapter.step(dt, this.simMs, inp);
     if (this._stepBacktrack(inp)) return;
     this.combo.flush(tick, this.simMs);
