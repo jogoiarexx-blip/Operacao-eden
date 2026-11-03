@@ -143,7 +143,7 @@ export class Game {
     const b = this.bus;
     b.on('reward', (r) => { this.hud.feed(r, this.settings.hideStyleFeed); if (r.cc) this.audio.play('ui'); });
     b.on('playerDamaged', (e) => {
-      this.hud.damageFlash(); this.postfx?.pulseDamage(Math.min(1, (e.amount ?? 10) / 30)); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
+      this.hud.damageFlash(); this.postfx?.pulseDamage(Math.min(1, (e.amount ?? 10) / 30) * (this.settings.reduceFlash ? 0.25 : 1)); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
       if (e.bleeding && !this._bleedToldAt) { this._bleedToldAt = this.simMs; this.hud.toast('Você está sangrando — use um hemostático.', 'warn'); }
     });
     b.on('enemyNeutralized', (e) => {

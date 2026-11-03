@@ -176,6 +176,7 @@ export function buildScenery({ world, data, quality }) {
       bushes.count = Math.floor(bushes.userData.max * qc.foliage);
       rain.visible = qc.rain; flash.intensity = qc.flashlight ? 70 : 0; api.flashlightOn = qc.flashlight;
       moon.castShadow = !!qc.moonShadow;
+      if (!qc.moonShadow && moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; }
       if (qc.moonShadow) {
         if (moon.shadow.mapSize.x !== qc.shadowMap) { moon.shadow.mapSize.set(qc.shadowMap, qc.shadowMap); moon.shadow.map?.dispose(); moon.shadow.map = null; }
         const sc = moon.shadow.camera; sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 110; sc.updateProjectionMatrix(); moon.shadow.bias = -0.0008;

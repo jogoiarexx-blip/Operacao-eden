@@ -43,7 +43,7 @@ Data: 2026-11-03 · Base: `main` após R2 (commit 107750e) · GDD v4 §2.5 (dire
 - **Lanterna**: cone volumétrico falso (cone aditivo com gradiente e ruído) alinhado ao `SpotLight`; poeira em suspensão no feixe.
 - **Luzes do cenário** (baliza, postes, CORO, painéis) passam a materiais emissivos que alimentam o bloom.
 - **Relâmpago**: flash da hemisfera + sombra dura breve da lua (já há `lightning` — integrar).
-- **Gradação**: tom frio azul-esverdeado nas sombras, quente nas luzes, vinheta 0,25, grão 0,04 (Médio/Alto). Flash vermelho de dano pela mesma passada.
+- **Gradação**: tom frio azul-esverdeado nas sombras, quente nas luzes, vinheta 0,35 (cap. 1) / 0,40 (cap. 2), grão 0,012 / 0,014 no Médio/Alto e 0 no Baixo (valores ajustados: a gradação roda em espaço linear antes do ACES, então grão aditivo de 0,04 ficava muito visível nas sombras; vinheta 0,25 ficava fraca após o tone mapping). Flash vermelho de dano pela mesma passada.
 - Cada capítulo pode definir `render: { exposure, fogColor, fogDensity, grade }` no JSON.
 
 ### Etapa 2 — Personagens e dinos

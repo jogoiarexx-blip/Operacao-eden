@@ -30,21 +30,28 @@ export class PostFX {
     this.passNames = [];
     this.effectivePreset = 'grade';
     this.w = 1; this.h = 1; this.dpr = 1; this.time = 0; this.damage = 0;
-    this.gradeCfg = null;
+    this.gradeCfg = null; this.requested = 'grade';
+    this.rtKey = null;
   }
 
   _detectSoft() {
     this.soft = false;
-    try { const gl = this.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); this.soft = /swiftshader|llvmpipe|software/i.test(String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '')); } catch { /* ignora */ }
+    try { const gl = this.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); this.soft = /swiftshader|llvmpipe|software|basic render|warp/i.test(String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '')); } catch { /* ignora */ }
   }
 
-  _ensureComposer() {
-    if (this.composer || this.injected) return;
-    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+  /** Alvo do composer: 8-bit sem MSAA no Baixo e em renderizador por software; HalfFloat + MSAA 4x em bloom/full. */
+  _makeTarget(eff) {
     if (this.soft === undefined) this._detectSoft();
-    const soft = this.soft;
-    const rt = new THREE.WebGLRenderTarget(size.x || 1, size.y || 1, { type: soft ? THREE.UnsignedByteType : THREE.HalfFloatType, samples: soft ? 0 : 4 });
-    this.composer = new EffectComposer(this.renderer, rt);
+    const ldr = this.soft || eff === 'grade';
+    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    return new THREE.WebGLRenderTarget(size.x || 1, size.y || 1, { type: ldr ? THREE.UnsignedByteType : THREE.HalfFloatType, samples: ldr ? 0 : 4 });
+  }
+
+  _ensureComposer(eff = 'grade') {
+    if (this.injected) return;
+    const key = this.soft || eff === 'grade' ? 'ldr' : 'hdr';
+    if (!this.composer) { this.composer = new EffectComposer(this.renderer, this._makeTarget(eff)); this.rtKey = key; if (this.renderer.info) this.renderer.info.autoReset = false; }
+    else if (this.rtKey !== key) { this.composer.reset(this._makeTarget(eff)); this.rtKey = key; }   // reset() descarta os alvos antigos
   }
 
   _defaultPass(name) {
@@ -63,6 +70,7 @@ export class PostFX {
   setPreset(qualityId) {
     let level = QUALITY[qualityId]?.postfx ?? qualityId;
     if (this.soft === undefined && !this.injected) this._detectSoft();
+    this.requested = level;
     if (this.soft && level !== 'grade') level = 'grade';   // software: sem bloom/SAO (inviável e instável)
     let names = passesFor(level), eff = names.includes('sao') ? 'full' : names.includes('bloom') ? 'bloom' : 'grade';
     const built = this._build(names);
@@ -77,7 +85,6 @@ export class PostFX {
 
   /** Cria os passes que faltam; devolve false (descartando os novos) se algum falhar. */
   _build(names) {
-    this._ensureComposer();
     const fresh = [];
     try {
       for (const n of names) if (!this.passes.has(n) && !fresh.find((f) => f[0] === n)) fresh.push([n, this.createPass(n)]);
@@ -93,6 +100,7 @@ export class PostFX {
   _apply(names, eff) {
     for (const [n, p] of [...this.passes]) if (!names.includes(n)) { p.dispose?.(); this.passes.delete(n); }
     this.passNames = names; this.effectivePreset = eff;
+    if (names.length) this._ensureComposer(eff);
     if (this.composer && this.composer.passes) {
       this.composer.passes.length = 0;
       for (const n of names) this.composer.addPass(this.passes.get(n));
@@ -111,7 +119,7 @@ export class PostFX {
     this.gradeCfg = { vignette, grain, tint };
     const u = this.passes.get('grade')?.uniforms; if (!u) return;
     if (vignette != null) u.uVignette.value = vignette;
-    if (grain != null) u.uGrain.value = grain;
+    if (grain != null) u.uGrain.value = this.requested === 'grade' ? 0 : grain;   // grão só no Médio/Alto
     if (tint?.shadow != null) u.uTintShadow.value = toColor(tint.shadow);
     if (tint?.light != null) u.uTintLight.value = toColor(tint.light);
   }
@@ -123,6 +131,7 @@ export class PostFX {
     this.damage = Math.max(0, this.damage - dt / DAMAGE_DECAY_S);
     const u = this.passes.get('grade')?.uniforms;
     if (u) { u.uDamage.value = this.damage; u.uTime.value = this.time; }
+    if (this.renderer?.info) this.renderer.info.reset();   // autoReset=false: contadores cobrem o quadro inteiro
     if (this.composer && this.passNames.length) this.composer.render(dt);
     else this.renderer?.render(this.scene, this.camera);
   }

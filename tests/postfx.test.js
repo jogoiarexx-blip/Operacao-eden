@@ -56,4 +56,17 @@ describe('PostFX', () => {
     expect(a).toBeGreaterThan(0.8);
     fx.render(0.5); expect(grade.uniforms.uDamage.value).toBeLessThan(0.05);
   });
+  it('grão é 0 no Baixo e aplicado no Médio', () => {
+    const f = makeFactory(); const fx = new PostFX(null, null, null, { createPass: f.createPass });
+    fx.setPreset('low'); fx.setGrade({ grain: 0.012 });
+    expect(f.created.find((p) => p.name === 'grade').uniforms.uGrain.value).toBe(0);
+    fx.setPreset('medium');
+    expect(f.created.find((p) => p.name === 'grade').uniforms.uGrain.value).toBe(0.012);
+  });
+  it('renderer.info é zerado a cada quadro (autoReset desligado no composer)', () => {
+    const f = makeFactory(); const reset = vi.fn(); const direct = vi.fn();
+    const fx = new PostFX({ info: { reset }, render: direct }, null, null, { createPass: f.createPass });
+    fx.setPreset('low'); fx.render(0.016);
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
 });
