@@ -205,7 +205,7 @@ export default {
     if (n.type === 'gate_panel') {
       if (!STORY(g.save, 'beacon_repaired')) { g.hud.toast('Painel sem energia: religue a baliza primeiro.', 'warn'); g.audio.play('deny'); }
       else if (!STORY(g.save, 'recon_found')) { g.hud.toast('Sem sinal verde do grupo de reconhecimento: ouça o rádio do acampamento antes.', 'warn'); g.audio.play('deny'); }
-      else { rt.flag('outpost_access'); wf.chapter.ch01.gateOpen = true; g.props.setGateOpen(true); g.world.setEnabled('gate_leaf', false); g.audio.play('gate'); g.dialogue.play('ch01_gate_open'); }
+      else { rt.flag('outpost_access'); wf.chapter.ch01.gateOpen = true; g.props.setGateOpen(true); g.world.setEnabled('gate_leaf', false); g.audio.play('gate'); g.dialogue.play('ch01_gate_open'); rt.revealArea('outpost_gate_opened'); }
       return true;
     }
     return false;
