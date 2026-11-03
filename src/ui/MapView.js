@@ -1,5 +1,5 @@
 /** Mapa de setor em canvas 2D: layout, objetivo atual, área SUSPEITA aproximada (nunca o ponto exato do segredo). */
-export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, suspicious, visited, terminals, gateOpen }) {
+export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, suspicious, visited, terminals, gateOpen, backtrackPortal = null }) {
   const [x0, z0, x1, z1] = data.bounds, W = x1 - x0, H = z1 - z0;
   const maxH = Math.min(innerHeight * 0.78, 760), scale = Math.min((innerWidth * 0.86) / W, maxH / H);
   canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale);
@@ -34,6 +34,13 @@ export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, s
   for (const t of terminals) { c.fillStyle = '#57e6e0'; c.fillRect(tx(t.pos[0]) - 4, tz(t.pos[1]) - 4, 8, 8); }
   // área suspeita
   for (const s of suspicious) { c.strokeStyle = 'rgba(255,179,71,.85)'; c.setLineDash([6, 5]); c.lineWidth = 2; c.beginPath(); c.arc(tx(s.x), tz(s.z), s.r * scale, 0, 7); c.stroke(); c.setLineDash([]); c.fillStyle = 'rgba(255,179,71,.9)'; c.font = `${Math.max(14, scale * 2.4)}px sans-serif`; c.textAlign = 'center'; c.fillText('?', tx(s.x), tz(s.z) + 5); }
+  // Passagem de ida e volta, descoberta após a conclusão do primeiro capítulo.
+  if (backtrackPortal) {
+    const x = tx(backtrackPortal.pos[0]), z = tz(backtrackPortal.pos[1]);
+    c.beginPath(); c.arc(x, z, 10, 0, Math.PI * 2);
+    c.fillStyle = '#102f30'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#57e6e0'; c.stroke();
+    c.fillStyle = '#d7e7e4'; c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.fillText('P', x, z + 4);
+  }
   // objetivo
   if (objectiveTarget) { const x = tx(objectiveTarget.x), z = tz(objectiveTarget.z); c.fillStyle = '#ffb347'; c.beginPath(); c.moveTo(x, z - 9); c.lineTo(x + 8, z); c.lineTo(x, z + 9); c.lineTo(x - 8, z); c.closePath(); c.fill(); }
   // jogador

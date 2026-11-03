@@ -16,7 +16,7 @@ import { Dialogue } from './gameplay/Dialogue.js';
 import { ChapterRuntime } from './gameplay/ChapterRuntime.js';
 import { getChapter, CHAPTER_IDS } from './chapters/index.js';
 import { advanceToChapter, nextChapterId, exitCheckpoint } from './gameplay/ChapterTransition.js';
-import { availableBacktrackPortal, travelBacktrack } from './gameplay/Backtrack.js';
+import { availableBacktrackPortal, travelBacktrack, BACKTRACK_PORTALS } from './gameplay/Backtrack.js';
 import bestiary from './data/bestiary.json';
 import rankTargets from './data/rankTargets.json';
 import { ShoulderCameraController, forwardVec } from './world/ShoulderCameraController.js';
@@ -357,12 +357,13 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · “?” = área suspeita (aproximada) · clique ou M para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · P = passagem entre cenários · “?” = área suspeita · clique ou M para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {
     const susp = this.save.secretFlags.SEC_01 && this.chapter.suspiciousCenter ? [this.chapter.suspiciousCenter] : [];
-    drawMap(cv, { data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
+    const portal = this.save.chapterStats?.ch01 && this.save.storyFlags?.outpost_access ? BACKTRACK_PORTALS[this.save.chapterId] : null;
+    drawMap(cv, { backtrackPortal: portal, data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
