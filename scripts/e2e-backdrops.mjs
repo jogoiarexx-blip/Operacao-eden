@@ -32,9 +32,11 @@ try {
       bg.setQuality(g.scenery.group.userData.q ?? { foliage: 0.8 });
       g.renderer.render(g.scene, g.threeCam);
       const b = g.chapterDef.data.bounds;
+      // Os centros dos cilindros ficam dentro do mapa; as superfícies (raios) não.
+      const halfDiagonal = Math.hypot((b[2] - b[0]) / 2, (b[3] - b[1]) / 2);
       const inaccessible = meshes.every(m =>
-        m.position.x < b[0] || m.position.x > b[2] ||
-        m.position.z < b[1] || m.position.z > b[3]);
+        m.geometry.parameters.radiusTop > halfDiagonal + 10 &&
+        m.geometry.parameters.radiusBottom > halfDiagonal + 10);
       const allTexturesReady = bg.textures.every(t => t.isTexture && t.image?.width === 1024 && t.image?.height === 256 && t.version > 0);
       const unlit = meshes.every(m => !m.castShadow && !m.receiveShadow && m.material.depthWrite === false && m.material.fog === false);
       const cylinders = meshes.every(m => m.geometry.type === 'CylinderGeometry' &&
