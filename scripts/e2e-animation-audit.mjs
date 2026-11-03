@@ -28,6 +28,15 @@ try {
       return rig.model.worldToLocal(w).toArray().map(x => +x.toFixed(4));
     };
     const idle = { left:pos(hand('Left')), right:pos(hand('Right')) };
+    const weapon = rig.weapon;
+    const muzzle = weapon?.children.find(n => n.geometry?.type === 'BoxGeometry');
+    rig.model.updateMatrixWorld(true);
+    const muzzleForward = weapon
+      ? weapon.getWorldDirection(new (rig.model.position.constructor)()).normalize()
+        .dot(rig.model.getWorldDirection(new (rig.model.position.constructor)()).normalize())
+      : null;
+    const walkClip = rig.actions.walk?.getClip();
+    const legKeys = walkClip?.tracks.find(t=>t.name==='LeftUpLeg.quaternion')?.times.length ?? 0;
     const states = [];
     for (const [name, overrides] of [
       ['walk',{speed:3.2,vz:-3.2}],
@@ -57,11 +66,17 @@ try {
       }
       arm.quaternion.copy(start);
     }
-    return {ready:rig.ready, sourceClips:rig.sourceClipCount, bones:boneNames, idle, states, armSignTrials};
+    return {ready:rig.ready, sourceClips:rig.sourceClipCount, bones:boneNames, idle, states, armSignTrials,
+      muzzleForward, hasWeapon:!!weapon, hasGun:!!muzzle, legKeys};
   });
   console.log('ANIMATION_AUDIT',JSON.stringify(animation));
   if(!animation.ready || errors.length)throw Error('Falha no Chromium: '+JSON.stringify(errors));
   if(animation.states.some(s=>s.actual!==s.name || !s.tracks))throw Error('Estados não executados');
+  if(!animation.hasWeapon || !animation.hasGun || animation.muzzleForward < 0.98 || animation.legKeys < 60)
+    throw Error('Cano invertido ou ciclo de marcha incompleto: '+JSON.stringify({
+      hasWeapon:animation.hasWeapon,hasGun:animation.hasGun,
+      muzzleForward:animation.muzzleForward,legKeys:animation.legKeys,
+    }));
   const corpse = await page.evaluate(() => {
     const g=window.__game;
     if(!g.agents.length) {
