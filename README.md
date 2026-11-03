@@ -18,6 +18,16 @@ Armas e itens (R2): **1** pistola · **2** escopeta · **roda do mouse** (ou dir
 ## Depuração
 `?debug=1` expõe `window.__eden`; qualquer uso marca a execução como "Livre" (fora do ranking). Atalhos extras: `finishChapter()`, `goto('ch02','pre_k1')`, `killBoss()`, `startChapter('ch02')`.
 
+## Gráficos
+Estilo "low-poly caprichado" com três presets (Opções → Qualidade; o benchmark B01 recomenda um):
+- **Baixo** — materiais Lambert, gradação de cor/vinheta (`postfx: grade`, render direto), sem sombras, chuva, grama, lanterna volumétrica nem luz de disparo; 80 partículas e 12 decalques.
+- **Médio** — materiais PBR (`pbr`), sombra da lua (`moonShadow`), bloom (`postfx: bloom`), grama a 60 % (`grass`), chuva, lanterna/feixes volumétricos (`volumetric`), sem chão texturizado nem luz de disparo (só no Alto); 220 partículas e 40 decalques.
+- **Alto** — tudo do Médio com bloom + SAO (`postfx: full`), grama a 100 %, chão texturizado, luz de disparo (clarão no cano), sombras 2048 com PCF suave, 400 partículas e 80 decalques.
+
+Bloom e SAO exigem GPU real: sob SwiftShader (Chromium headless) o pós-processamento cai para `grade` em todos os presets, então os scripts de captura/benchmark não medem esses passes.
+
+Ferramentas: com `?debug=1`, `__eden.setQuality('low'|'medium'|'high')` troca o preset e `__eden.cameraShot(x, z, yaw, pitch)` posiciona a câmera. `node scripts/shots-visual.mjs <rótulo>` gera as capturas (7 cenas × 3 presets em `shots/<rótulo>/`), `node scripts/bench.mjs <rótulo>` roda o B01 em Baixo/Médio (`shots/<rótulo>/bench.json`) e `node scripts/e2e-memory.mjs` verifica vazamento de recursos GPU na troca de capítulo/preset.
+
 ## Testes de fumaça (Playwright)
 Servir `dist` em :4177 (`npm run build && npx vite preview --port 4177 --strictPort`) e rodar:
 - `scripts/e2e.mjs`, `scripts/e2e2.mjs` — Cap. 01 (fluxo geral, loja, save, benchmark).
