@@ -2088,6 +2088,40 @@
       ]
     },
     {
+      "id": "ch02_admin_hunter",
+      "title": "Caçador no corredor do rádio",
+      "deferred": "radio_online",
+      "enemies": [
+        {
+          "id": "r4j_admin",
+          "type": "forest_runner_juvenile",
+          "spawnCandidates": [
+            [
+              -25,
+              8
+            ],
+            [
+              -23,
+              15
+            ],
+            [
+              -18,
+              6
+            ],
+            [
+              -19,
+              15
+            ],
+            [
+              -15,
+              11
+            ]
+          ],
+          "patrol": []
+        }
+      ]
+    },
+    {
       "id": "ch02_generator",
       "title": "Atraídos pelo gerador",
       "deferred": "outpost_generator",
