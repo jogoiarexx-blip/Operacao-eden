@@ -34,6 +34,7 @@ jobs:
           mkdir -p qa-shots
           npx vite preview --config vite.single.config.js --host 127.0.0.1 --port 4177 --strictPort > /tmp/eden-preview.log 2>&1 &
           for i in $(seq 1 40); do curl -fsS http://127.0.0.1:4177/ >/dev/null && break; sleep 1; done
+          URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-regina.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e3.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-area-transitions.mjs
           URL='http://127.0.0.1:4177/?debug=1' SHOT_DIR=qa-shots node scripts/e2e-portals.mjs
