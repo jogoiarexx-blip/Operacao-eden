@@ -20,7 +20,7 @@ export function keepDinosaurOutside(data, world, x, z, radius = 0.6) {
   for (const room of safeRooms(data)) {
     const dx = nx - room.center[0], dz = nz - room.center[1], d = Math.hypot(dx, dz);
     const limit = room.radius + Math.max(0, radius) + 0.1;
-    if (d >= limit) continue;
+    if (d + 1e-6 >= limit) continue; // tolerância evita correção repetida na borda
     const base = d > 0.001 ? Math.atan2(dz, dx) : 0;
     for (let k = 0; k < 16; k++) {
       const offset = k === 0 ? 0 : Math.ceil(k / 2) * (k % 2 ? 1 : -1) * (Math.PI / 8);
