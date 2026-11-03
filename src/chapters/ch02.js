@@ -180,8 +180,16 @@ function spawnAdminHunter(rt) {
   if (rt.wf.defeatedEnemies.includes(def.id) || liveById(g, def.id)) {
     rt.flag('ch02_admin_hunter_triggered'); return true;
   }
-  // Nunca força um ponto na câmera: a ameaça espera o jogador desviar o olhar.
-  const pt = pickSpawn(g, def.spawnCandidates, { minDist: 5 });
+  // Primeiro tenta surgir fora da câmera. Depois de 3,5 s, resolve um ponto
+  // transitável mais distante para evitar encontro permanentemente bloqueado.
+  const force = !!rt.adminAmbushAt && g.simMs - rt.adminAmbushAt >= 3500;
+  let pt = pickSpawn(g, def.spawnCandidates, { minDist: 5, force });
+  if (!pt && force && g.world.resolveCircle) {
+    pt = def.spawnCandidates
+      .map(([x, z]) => g.world.resolveCircle(x, z, 0.7))
+      .filter((p) => !g.world.blockedAt(p.x, p.z, 0.7))
+      .sort((a, b) => dist(g.player.x, g.player.z, b.x, b.z) - dist(g.player.x, g.player.z, a.x, a.z))[0] ?? null;
+  }
   if (!pt) return false;
   spawnAt(rt, enc, def, pt, { x: g.player.x, z: g.player.z });
   rt.flag('ch02_admin_hunter_triggered');
