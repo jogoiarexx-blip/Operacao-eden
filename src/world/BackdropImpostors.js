@@ -5,20 +5,22 @@ import * as THREE from 'three';
  * painting dos survival horrors clássicos. Desenho realizado uma vez no Canvas:
  * NÃO usa rede, GLB, colisões, IA, raycasts ou timers.
  *
- * As imagens ficam em 2 CanvasTextures reutilizadas por quatro planos cada.
- * O jogador não alcança esses planos: todos ficam fora de data.bounds.
+ * Cada capítulo usa apenas 2 CanvasTextures de 1024×256 sobre cilindros 360°.
+ * O jogador não alcança esses cilindros: a superfície fica fora de data.bounds.
  */
 export const BACKDROP_TEXTURE_SIZE = Object.freeze({ width: 1024, height: 256 });
 export const BACKDROP_OFFSETS = Object.freeze({ near: 15, far: 29 });
 
 const THEMES = {
   1: {
-    sky: '#233538', haze: '#405b5c', ridge: '#263b3f', distant: '#1a3535',
-    silhouette: '#102b29', trunks: '#132724', glint: '#84968b',
+    sky: '#233538', haze: '#435d5b', ridge: '#415d5a',
+    distant: '#2e4b48', silhouette: '#17332f', trunks: '#243a34',
+    glint: '#a7b5a2', mid: '#33534b', canopy: '#24433b',
   },
   2: {
-    sky: '#25363f', haze: '#56676b', ridge: '#303e47', distant: '#24373e',
-    silhouette: '#1b3036', trunks: '#213037', glint: '#b3a88b',
+    sky: '#25363f', haze: '#56676b', ridge: '#4a626b',
+    distant: '#344c54', silhouette: '#20383e', trunks: '#304a4e',
+    glint: '#c6b69a', mid: '#3f5459', canopy: '#2b4447',
   },
 };
 
@@ -27,124 +29,213 @@ const randomFrom = (seed) => () => {
   return seed / 4294967296;
 };
 
-/** Curva periódica de montanhas: o valor em 0 é igual ao valor na largura inteira. */
+/** Perfil com bordas e tangentes contínuas em 360 graus (sem degrau no mipmap). */
 export function panoramicRidgeY(x, width, baseline, amplitude) {
-  const angle = x / width * Math.PI * 2;
-  return baseline - (Math.sin(angle * 3) * .7 + Math.cos(angle * 7) * .3 + Math.sin(angle * 13) * .14) * amplitude;
+  const a = x / width * Math.PI * 2;
+  const broad = Math.cos(2 * a) * .41 + Math.cos(5 * a) * .22;
+  const crags = Math.cos(9 * a) * .12 + Math.cos(16 * a) * .055;
+  // Assimetria interna que converge suavemente a zero na costura.
+  const asymmetry = Math.sin(3 * a) * (1 - Math.cos(a)) * .13;
+  return baseline - (broad + crags + asymmetry) * amplitude;
 }
 
 function mountainPath(ctx, y, amplitude, random, width, height, color) {
-  ctx.beginPath();
-  ctx.moveTo(0, height);
+  ctx.beginPath(); ctx.moveTo(0, height);
   ctx.lineTo(0, panoramicRidgeY(0, width, y, amplitude));
-  for (let x = 12; x < width; x += 12) {
+  for (let x = 6; x < width; x += 6) {
     ctx.lineTo(x, panoramicRidgeY(x, width, y, amplitude));
   }
   ctx.lineTo(width, panoramicRidgeY(width, width, y, amplitude));
-  ctx.lineTo(width, height);
-  ctx.closePath();
+  ctx.lineTo(width, height); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  // Pequena luz fria no divisor rocha/céu, já pré-pintada.
+  ctx.beginPath();
+  for (let x = 0; x <= width; x += 8) {
+    const yy = panoramicRidgeY(x, width, y, amplitude);
+    if (!x) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+  }
+  ctx.strokeStyle = 'rgba(174,195,181,.10)'; ctx.lineWidth = .85; ctx.stroke();
+}
+
+// Repete só os elementos que tocam x=0/x=largura: não fica emenda nos 360 graus.
+function wrapDraw(width, x, margin, draw) {
+  for (const shift of [-width, 0, width]) {
+    const px = x + shift;
+    if (px >= -margin && px <= width + margin) draw(px);
+  }
+}
+
+function drawCanopy(ctx, cx, cy, size, color, random) {
   ctx.fillStyle = color;
-  ctx.fill();
+  // Copas irregulares: volumes arredondados em vez de 3 triângulos repetidos.
+  for (let l = 0; l < 4; l++) {
+    const dx = (l - 1.5) * size * .43 + (random() - .5) * size * .16;
+    const dy = (l % 2) * size * .14 - size * .10;
+    ctx.beginPath();
+    ctx.arc(cx + dx, cy + dy, size * (.43 + random() * .18), 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function paintForest(ctx, { width: w, height: h }, random, colors, near) {
   if (!near) {
-    mountainPath(ctx, 163, 29, random, w, h, colors.ridge);
-    mountainPath(ctx, 192, 18, random, w, h, colors.distant);
+    // Três planos atmosféricos, sem novas texturas, montanhas com massa e relevo.
+    mountainPath(ctx, 137, 28, random, w, h, colors.ridge);
+    mountainPath(ctx, 168, 21, random, w, h, colors.mid);
+    mountainPath(ctx, 198, 13, random, w, h, colors.distant);
+    ctx.strokeStyle = 'rgba(147,175,170,.10)'; ctx.lineWidth = 1;
+    // Estrias discretas em paredes rochosas longínquas.
+    for (let i = 0; i < 35; i++) {
+      const x = random() * w;
+      const y = panoramicRidgeY(x, w, 137, 28) + 7 + random() * 12;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4 - random() * 12, y + 8 + random() * 11); ctx.stroke();
+    }
   }
-  // Muitas árvores pequenas pintadas na MESMA textura, sem geometria 3D extra.
-  const amount = near ? 95 : 145;
+  // Em primeiro plano predominam árvores tropicais de copa larga, mescladas
+  // com palmeiras e coníferas distantes; nenhuma árvore extra na GPU.
+  const amount = near ? 70 : 126;
   for (let i = 0; i < amount; i++) {
     const x = random() * w;
-    const baseY = (near ? 215 : 200) + random() * 48;
-    const height = (near ? 31 : 20) + random() * (near ? 76 : 55);
-    const width = height * (0.13 + random() * .12);
-    ctx.globalAlpha = near ? .52 + random() * .30 : .52 + random() * .40;
-    ctx.fillStyle = i % 3 ? colors.silhouette : colors.distant;
-    // Desenhar também as cópias além da borda fecha a costura na textura 360°.
-    for (const wrap of [-w, 0, w]) {
-      const px = x + wrap;
-      if (px < -width || px > w + width) continue;
-      ctx.fillRect(px - width * .075, baseY - height * .3, width * .15, height * .4);
-      for (let layer = 0; layer < 3; layer++) {
-        const yy = baseY - height + layer * height * .19;
-        const ww = width * (0.45 + layer * .22);
-        ctx.beginPath();
-        ctx.moveTo(px, yy);
-        ctx.lineTo(px - ww, baseY - height * .31 + layer * height * .10);
-        ctx.lineTo(px + ww, baseY - height * .31 + layer * height * .10);
-        ctx.closePath();
-        ctx.fill();
+    const base = (near ? 235 : 217) + random() * (near ? 33 : 28);
+    const height = (near ? 35 : 16) + random() * (near ? 64 : 46);
+    const radius = height * (.18 + random() * .11);
+    const trunk = Math.max(1.2, radius * .16);
+    const color = i % 5 === 0 ? colors.mid : (i % 3 === 0 ? colors.distant : colors.canopy);
+    const alpha = near ? .70 : .57;
+    ctx.globalAlpha = alpha + random() * .18;
+    wrapDraw(w, x, radius * 2.5, px => {
+      ctx.fillStyle = colors.trunks;
+      ctx.fillRect(px - trunk / 2, base - height * .64, trunk, height * .64);
+      ctx.strokeStyle = colors.trunks; ctx.lineWidth = Math.max(1, trunk * .4);
+      ctx.beginPath();
+      ctx.moveTo(px, base - height * .4);
+      ctx.lineTo(px - radius * .62, base - height * .60);
+      ctx.moveTo(px, base - height * .48);
+      ctx.lineTo(px + radius * .66, base - height * .68);
+      ctx.stroke();
+      if (i % 11 === 0) {
+        // Copa aguda rara no horizonte; não repetir uma floresta inteira de cones.
+        ctx.fillStyle = color;
+        for (let t = 0; t < 3; t++) {
+          const yy = base - height + t * height * .15, rr = radius * (.45 + t * .25);
+          ctx.beginPath(); ctx.moveTo(px, yy - 4); ctx.lineTo(px - rr, yy + height * .27);
+          ctx.lineTo(px + rr, yy + height * .27); ctx.closePath(); ctx.fill();
+        }
+      } else {
+        drawCanopy(ctx, px, base - height * .76, radius, color, random);
+        ctx.globalAlpha *= .77;
+        drawCanopy(ctx, px + radius * .22, base - height * .87, radius * .57, colors.glint, random);
       }
-    }
+    });
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
   if (!near) {
-    // Reflexos longínquos do posto e da mata úmida, discretos para não gerar ruído.
-    for (let i = 0; i < 18; i++) {
-      const x = random() * w, y = 193 + random() * 36;
-      ctx.fillStyle = 'rgba(151,173,156,0.13)';
-      ctx.fillRect(x, y, 1 + random() * 2, 1);
+    // Manchas de umidade no fundo pintado, sem partículas nem brilho dinâmico.
+    for (let i = 0; i < 28; i++) {
+      const x = random() * w, y = 206 + random() * 36;
+      ctx.fillStyle = 'rgba(155,190,170,.12)';
+      ctx.fillRect(x, y, 1 + random() * 3, 1);
     }
+  } else {
+    // Folhagem baixa suaviza o encontro da pintura com os objetos 3D.
+    for (let i = 0; i < 85; i++) {
+      const x = random() * w, y = 236 + random() * 21;
+      ctx.globalAlpha = .33 + random() * .22;
+      wrapDraw(w, x, 7, px => drawCanopy(ctx, px, y, 5 + random() * 4, colors.canopy, random));
+    }
+    ctx.globalAlpha = 1;
   }
 }
 
 function paintFacility(ctx, { width: w, height: h }, random, colors, near) {
   if (!near) {
-    mountainPath(ctx, 155, 22, random, w, h, colors.ridge);
-    mountainPath(ctx, 191, 9, random, w, h, colors.distant);
-    // Silhuetas de galpões e prédios técnicos em segundo plano.
-    for (let i = 0; i < 18; i++) {
-      const x = i * 60 + random() * 16 - 15;
-      const width = 37 + random() * 55, y = 173 + random() * 33, roof = 8 + random() * 15;
-      for (const wrap of [-w, 0, w]) {
-        const px = x + wrap;
-        if (px + width < 0 || px > w) continue;
-        ctx.fillStyle = colors.silhouette;
-        ctx.fillRect(px, y, width, h - y);
+    mountainPath(ctx, 143, 21, random, w, h, colors.ridge);
+    mountainPath(ctx, 175, 15, random, w, h, colors.mid);
+    mountainPath(ctx, 202, 9, random, w, h, colors.distant);
+    // Galpões com telhados assimétricos, venezianas e exaustores: tudo é tinta.
+    for (let i = 0; i < 14; i++) {
+      const x = i * (w / 14) + (random() - .5) * 17;
+      const bw = 40 + random() * 51;
+      const y = 164 + random() * 31, roof = 7 + random() * 13;
+      wrapDraw(w, x, bw + 10, px => {
+        ctx.fillStyle = i % 3 ? colors.silhouette : colors.mid;
+        ctx.fillRect(px, y, bw, h - y);
         ctx.beginPath();
-        ctx.moveTo(px - 4, y); ctx.lineTo(px + width * .45, y - roof);
-        ctx.lineTo(px + width + 6, y); ctx.closePath(); ctx.fill();
-        // Janelas distantes, todas na pintura 2D (sem luzes reais).
-        for (let n = 0; n < 3; n++) {
-          ctx.fillStyle = 'rgba(205,166,99,0.24)';
-          ctx.fillRect(px + 7 + n * 12, y + 10, 4, 2);
+        ctx.moveTo(px - 3, y); ctx.lineTo(px + bw * .33, y - roof);
+        ctx.lineTo(px + bw * .72, y - roof * .70);
+        ctx.lineTo(px + bw + 3, y); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(163,183,183,.18)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px + 2, y + 3);
+        ctx.lineTo(px + bw - 2, y + 3); ctx.stroke();
+        for (let n = 0; n < 4; n++) {
+          ctx.fillStyle = n % 3 === 0 ? 'rgba(212,172,111,.35)' : 'rgba(115,147,155,.22)';
+          ctx.fillRect(px + 6 + n * (bw - 12) / 4, y + 12, Math.min(7, bw / 9), 3);
         }
-      }
+        // Faixas de chapa nas paredes.
+        ctx.strokeStyle = 'rgba(116,146,151,.18)';
+        for (let n = 1; n <= 3; n++) {
+          const lx = px + n * bw / 4;
+          ctx.beginPath(); ctx.moveTo(lx, y + 22); ctx.lineTo(lx, h); ctx.stroke();
+        }
+        if (i % 3 === 0) {
+          ctx.fillStyle = colors.trunks;
+          ctx.fillRect(px + bw * .65, y - roof - 13, 4, 15);
+          ctx.fillRect(px + bw * .65 - 5, y - roof - 14, 14, 3);
+        }
+      });
     }
-    // Torres de vigilância e antenas: só linhas 2D no mapa.
-    ctx.strokeStyle = 'rgba(24,42,47,.96)';
-    ctx.lineWidth = 3;
-    for (const x of [123, 421, 761, 922]) {
-      const y = 166 + random() * 17, top = y - 46 - random() * 34;
-      ctx.beginPath(); ctx.moveTo(x - 13, y + 41); ctx.lineTo(x, top);
-      ctx.lineTo(x + 13, y + 41); ctx.moveTo(x - 10, y - 3); ctx.lineTo(x + 10, y - 3);
-      ctx.moveTo(x - 5, y - 29); ctx.lineTo(x + 5, y - 29);
-      ctx.stroke();
-      ctx.fillStyle = '#536363'; ctx.fillRect(x - 8, top - 3, 16, 5);
-      ctx.fillStyle = '#a15442'; ctx.fillRect(x - 2, top - 7, 3, 2);
+    // Depósitos cilíndricos, dutos e torres: escala maior, reconhecíveis no céu.
+    for (const [x, scale] of [[95, 1], [356, .7], [680, 1], [919, .75]]) {
+      wrapDraw(w, x, 32 * scale, px => {
+        const width = 31 * scale, y = 179 + (1 - scale) * 13;
+        ctx.fillStyle = colors.mid;
+        ctx.fillRect(px, y, width, h - y);
+        ctx.beginPath(); ctx.arc(px + width / 2, y, width / 2, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = 'rgba(163,187,187,.25)'; ctx.lineWidth = 1.5;
+        for (let n = 0; n < 3; n++) {
+          ctx.beginPath(); ctx.moveTo(px, y + 13 + n * 14); ctx.lineTo(px + width, y + 13 + n * 14); ctx.stroke();
+        }
+      });
+    }
+    ctx.strokeStyle = 'rgba(29,51,56,.94)'; ctx.lineWidth = 2.4;
+    for (const x of [129, 427, 754, 967]) {
+      const y = 177 + random() * 12, top = y - 58 - random() * 28;
+      wrapDraw(w, x, 16, px => {
+        ctx.beginPath();
+        ctx.moveTo(px - 14, y + 41); ctx.lineTo(px, top);
+        ctx.lineTo(px + 14, y + 41);
+        ctx.moveTo(px - 10, y - 2); ctx.lineTo(px + 10, y - 2);
+        ctx.moveTo(px - 6, y - 30); ctx.lineTo(px + 6, y - 30); ctx.stroke();
+        ctx.fillStyle = '#617777'; ctx.fillRect(px - 8, top - 4, 16, 6);
+        ctx.fillStyle = 'rgba(210,113,81,.75)'; ctx.fillRect(px - 1, top - 8, 3, 2);
+      });
     }
   } else {
-    // Cercas em perspectiva e canos/estruturas além do limite do posto.
-    ctx.fillStyle = colors.silhouette;
-    ctx.fillRect(0, 227, w, 29);
-    ctx.strokeStyle = '#253d43';
-    ctx.lineWidth = 2;
+    // Corredor externo do complexo: cerca cíclica e canos, sem bloqueio real.
+    ctx.fillStyle = colors.silhouette; ctx.fillRect(0, 233, w, 23);
+    ctx.strokeStyle = '#385357'; ctx.lineWidth = 2;
     for (let x = 0; x <= w; x += w / 32) {
-      ctx.beginPath(); ctx.moveTo(x, 189); ctx.lineTo(x, 245); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x - 7, 187); ctx.lineTo(x, 180); ctx.lineTo(x + 7, 187); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, 190); ctx.lineTo(x, 247);
+      ctx.moveTo(x - 6, 188); ctx.lineTo(x, 181); ctx.lineTo(x + 6, 188);
+      ctx.stroke();
     }
-    for (let y = 196; y <= 232; y += 14) {
+    for (let y = 198; y <= 238; y += 13) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(70,84,91,.45)';
-    ctx.lineWidth = 1;
-    for (let x = -w / 32; x <= w; x += w / 32) {
-      ctx.beginPath(); ctx.moveTo(x, 196); ctx.lineTo(x + 26, 228); ctx.stroke();
+    ctx.strokeStyle = 'rgba(111,138,143,.36)'; ctx.lineWidth = .8;
+    for (let x = -32; x <= w; x += 32) {
+      ctx.beginPath(); ctx.moveTo(x, 199); ctx.lineTo(x + 32, 238); ctx.stroke();
     }
-    for (const x of [220, 635, 894]) {
-      ctx.fillStyle = '#263a3d'; ctx.fillRect(x, 160, 4, 66);
-      ctx.fillStyle = '#82918a'; ctx.fillRect(x - 7, 157, 18, 3);
+    for (const x of [208, 608, 871]) {
+      ctx.fillStyle = colors.trunks; ctx.fillRect(x, 156, 5, 72);
+      ctx.fillStyle = '#8e9d99'; ctx.fillRect(x - 7, 153, 19, 4);
+      ctx.strokeStyle = 'rgba(115,142,147,.5)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x + 3, 167); ctx.lineTo(x + 48, 167);
+      ctx.lineTo(x + 58, 178); ctx.stroke();
+    }
+    // Lâmpadas amarelas fixas na pintura, não criam iluminação dinâmica.
+    for (const x of [63, 319, 575, 831]) {
+      ctx.fillStyle = 'rgba(212,174,109,.48)'; ctx.fillRect(x, 199, 4, 2);
     }
   }
 }
