@@ -388,13 +388,13 @@ export class Game {
     this.mapOpen = false; this.$map?.remove(); this.$map = null; this.audio.resume(); this.enterPlaying();
   }
   _showMap() {
-    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · P = passagem entre cenários · S = sala segura · “?” = área suspeita · clique ou M para fechar')));
+    const cv = h('canvas'); this.$map = h('div#mapov', { onclick: () => this.resume() }, h('div', { style: { textAlign: 'center' } }, h('h2', `Mapa — ${this.chapterDef.data.mapTitle ?? this.chapterDef.data.title}`), cv, h('p.dim.small', 'Losango = objetivo · P = passagem · S = sala segura · setores visitados em contorno · clique ou M para fechar')));
     this.uiRoot.replaceChildren(this.$map); this.drawMapInto(cv);
   }
   drawMapInto(cv) {
     const susp = this.save.secretFlags.SEC_01 && this.chapter.suspiciousCenter ? [this.chapter.suspiciousCenter] : [];
     const portal = this.save.chapterStats?.ch01 && this.save.storyFlags?.outpost_access ? BACKTRACK_PORTALS[this.save.chapterId] : null;
-    drawMap(cv, { backtrackPortal: portal, data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
+    drawMap(cv, { backtrackPortal: portal, regionsSeen: Object.keys(this.save.backtrack?.regions ?? {}), activeRegion: this.chapter.regional?.activeId ?? null, data: this.chapterDef.data, playerPos: { x: this.player.x, z: this.player.z }, playerYaw: this.camera.yaw, objectiveTarget: this.chapter.objectiveTarget(), suspicious: susp, terminals: this.chapterDef.data.terminals, gateOpen: this.chapter.script.gateOpen?.(this.save) ?? false });
   }
   quitToMenu() {
     this.chapter.dispose(); this._clearAgents(); this.combo?.dispose(); this.combo = null; this.playerView.root.visible = false; this.dialogue.clear();
