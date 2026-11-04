@@ -36,7 +36,18 @@ try {
         .dot(rig.model.getWorldDirection(new (rig.model.position.constructor)()).normalize())
       : null;
     const walkClip = rig.actions.walk?.getClip();
-    const legKeys = walkClip?.tracks.find(t=>t.name==='LeftUpLeg.quaternion')?.times.length ?? 0;
+    const legTrack = walkClip?.tracks.find(t=>t.name==='LeftUpLeg.quaternion');
+    const legKeys = legTrack?.times.length ?? 0;
+    const values = legTrack?.values ?? [];
+    const times = legTrack?.times ?? [];
+    const legCycle = {
+      finite: Array.from(values).every(Number.isFinite) && Array.from(times).every(Number.isFinite),
+      increasing: Array.from(times).every((t, i) => i === 0 || t > times[i - 1]),
+      span: legKeys >= 2 ? times[legKeys - 1] - times[0] : 0,
+      loopDot: legKeys >= 2 ? Math.abs(Array.from({length:4}, (_,i) => values[i] * values[values.length - 4 + i]).reduce((a,b)=>a+b,0)) : 0,
+      movement: legKeys >= 2 ? Math.max(...Array.from({length:legKeys}, (_,k) =>
+        1 - Math.abs(Array.from({length:4}, (_,i) => values[i] * values[k*4+i]).reduce((a,b)=>a+b,0)))) : 0,
+    };
     const states = [];
     for (const [name, overrides] of [
       ['walk',{speed:3.2,vz:-3.2}],
@@ -69,7 +80,7 @@ try {
       arm.quaternion.copy(start);
     }
     return {ready:rig.ready, sourceClips:rig.sourceClipCount, bones:boneNames, idle, states, armSignTrials,
-      muzzleForward, hasWeapon:!!weapon, hasGun:!!muzzle, legKeys};
+      muzzleForward, hasWeapon:!!weapon, hasGun:!!muzzle, legKeys, legCycle};
   });
   console.log('ANIMATION_AUDIT',JSON.stringify(animation));
   // Recarregar/atirar andando: a perna continua oscilando enquanto a parte
@@ -128,10 +139,13 @@ try {
        state.support.after > state.support.before + 0.001))
       throw Error('Mão esquerda perdeu apoio da arma: '+JSON.stringify(state));
   }
-  if(!animation.hasWeapon || !animation.hasGun || animation.muzzleForward < 0.98 || animation.legKeys < 60)
+  if(!animation.hasWeapon || !animation.hasGun || animation.muzzleForward < 0.98 || animation.legKeys < 3 ||
+     !animation.legCycle.finite || !animation.legCycle.increasing ||
+     animation.legCycle.span < 0.1 || animation.legCycle.loopDot < 0.999 ||
+     animation.legCycle.movement < 0.001)
     throw Error('Cano invertido ou ciclo de marcha incompleto: '+JSON.stringify({
       hasWeapon:animation.hasWeapon,hasGun:animation.hasGun,
-      muzzleForward:animation.muzzleForward,legKeys:animation.legKeys,
+      muzzleForward:animation.muzzleForward,legKeys:animation.legKeys,legCycle:animation.legCycle,
     }));
   const reloadAudit = await page.evaluate(() => {
     const rig = window.__game.playerView.regina;
