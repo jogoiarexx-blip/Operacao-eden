@@ -134,7 +134,7 @@ export function journalScreen(game, { save, profile }, back) {
     h('div.row', { style: { marginTop: '12px' } }, btn('Voltar', back, 'primary'))));
 }
 
-const LATER = { 2: 'Capítulo 03 chega no marco R4 do roteiro.' };
+const LATER = { 3: 'O Capítulo 04 — Vale Partido (Caio) chega no próximo marco do roteiro.' };
 export function resultsScreen(game, r) {
   const nextNum = String((r.chapterNumber ?? 1) + 1).padStart(2, '0');
   const rows = [
@@ -147,7 +147,7 @@ export function resultsScreen(game, r) {
   return h('div.screen.solid.fade-in', h('div.panel',
     h('div.row.between', h('div', h('h2', `Capítulo ${String(r.chapterNumber ?? 1).padStart(2, '0')} concluído`), h('p.dim', r.title ?? 'O Sinal na Mata')), h('div', { style: { textAlign: 'center' } }, h('div.grade', r.score.grade), h('div.dim.small', `${r.score.total}/100`))),
     h('table.stats', ...rows.map(([a, b]) => h('tr', h('td', a), h('td', b)))),
-    r.nextChapter ? h('p.card.small.amber', 'Sinal de Lia no portão sul. Caio segue pelo acesso lateral do Posto Norte — a operação continua.') : null,
+    r.teaser ? h('p.card.small.amber', r.teaser) : null,
     det,
     h('div.row', { style: { marginTop: '16px' } },
       r.nextChapter

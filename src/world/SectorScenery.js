@@ -25,6 +25,8 @@ const COLORS = {
   tent: 0x5a6a46, crate: 0x6b5a3a, terminal: 0x2a3438, ravine: 0x050809, gate: 0x6a7176, dirt: 0x5b4a33,
   // Cap. 02 (posto avançado)
   slab: 0x3d4440, shed: 0x5d5a4c, container: 0x7a4a2e, truck: 0x4d5a3e, fence: 0x8a9196,
+  // Cap. 03 (Jardins de Pesquisa)
+  glass: 0x9fd6d0, planter: 0x4a3b2b, hedge: 0x2f5a2c, tile: 0x56605a,
 };
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 
@@ -123,10 +125,11 @@ uniform vec2 uDetailRep;
     wood, metal, rock: rockMat, concrete: mat(COLORS.concrete), shelter: mat(COLORS.shelter), shelter_roof: mat(0x3a3f35),
     tent: mat(COLORS.tent), crate: mat(COLORS.crate), terminal: mat(COLORS.terminal), ravine: mat(COLORS.ravine), gate: mat(COLORS.gate), radio: mat(0x3d4440), coro: mat(0x5c666b),
     slab: mat(COLORS.slab), shed: mat(COLORS.shed), container: mat(COLORS.container), truck: mat(COLORS.truck), fence: mat(COLORS.fence, { transparent: true, opacity: 0.55 }),
+    glass: mat(COLORS.glass, { transparent: true, opacity: 0.24, depthWrite: false }), planter: mat(COLORS.planter), hedge: mat(COLORS.hedge), tile: mat(COLORS.tile),
   }[v] || wood);
 
   // superfície de impacto por colisor (só efeitos: não toca ids/caixas dos colisores)
-  const SURF = { metal: 'metal', container: 'metal', truck: 'metal', gate: 'metal', terminal: 'metal', radio: 'metal', fence: 'metal', coro: 'metal', shed: 'metal', wood: 'wood', crate: 'wood', tent: 'wood', concrete: 'concrete', slab: 'concrete', shelter: 'concrete', shelter_roof: 'concrete', rock: 'concrete' };
+  const SURF = { metal: 'metal', container: 'metal', truck: 'metal', gate: 'metal', terminal: 'metal', radio: 'metal', fence: 'metal', coro: 'metal', shed: 'metal', wood: 'wood', crate: 'wood', tent: 'wood', concrete: 'concrete', slab: 'concrete', shelter: 'concrete', shelter_roof: 'concrete', rock: 'concrete', glass: 'metal', planter: 'wood', hedge: 'ground', tile: 'concrete' };
   const surfaces = new Map();
   for (const s of data.structures) {
     const y0 = s.y ?? 0;

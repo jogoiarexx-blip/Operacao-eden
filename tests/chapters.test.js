@@ -4,8 +4,8 @@ import { getChapter, CHAPTER_IDS } from '../src/chapters/index.js';
 
 const uniq = (a) => new Set(a).size === a.length;
 describe('registro de capítulos', () => {
-  it('CHAPTER_IDS inclui ch01 e ch02', () => { expect(CHAPTER_IDS).toEqual(['ch01', 'ch02']); });
-  for (const id of ['ch01', 'ch02']) {
+  it('CHAPTER_IDS inclui ch01, ch02 e ch03 em ordem de campanha', () => { expect(CHAPTER_IDS).toEqual(['ch01', 'ch02', 'ch03']); });
+  for (const id of ['ch01', 'ch02', 'ch03']) {
     describe(id, () => {
       const { data, script } = getChapter(id);
       it('ids únicos', () => {

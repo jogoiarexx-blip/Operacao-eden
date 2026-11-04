@@ -139,10 +139,10 @@ const cutscenes = {
   },
   ending: {
     // A câmera acompanha Lia no portão e revela a rota do Posto Norte, dando continuidade ao Cap. 02.
-    dur: 16.4,
+    dur: 18.2,
     start(g) { g.props.coroPattern.active = true; g.props.coroPattern.t = 0; g.audio.play('coro', 14, -34); g.dialogue.play('ch01_coro_tower'); },
     update(g, c, dt) {
-      const cam = g.threeCam, p = g.player, k = Math.min(1, c.t / 15);
+      const cam = g.threeCam, p = g.player, k = Math.min(1, c.t / 16.5);
       cam.position.set(p.x + 6 - 1.8 * k, 2.2 + 1.1 * k, p.z + 9 - 8 * k);
       cam.lookAt(p.x * (1 - k) + 14 * k, 1.65 + 4 * k, p.z * (1 - k) - 34 * k);
       cam.fov = 61 - 3 * k; cam.updateProjectionMatrix();

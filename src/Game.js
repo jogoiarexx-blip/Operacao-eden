@@ -205,7 +205,7 @@ export class Game {
       }
       const a = this.agents.find((x) => x.agent.id === e.enemyId); this.audio.play('death', a?.agent.x, a?.agent.z);
     });
-    b.on('creatureCue', (e) => { if (e.cue === 'spotted') this.audio.play('spotted', e.x, e.z); if (e.cue === 'roar') this.audio.play('roar', e.x, e.z); });
+    b.on('creatureCue', (e) => { if (e.cue === 'spotted') this.audio.play('spotted', e.x, e.z); if (e.cue === 'roar') this.audio.play('roar', e.x, e.z); if (e.cue === 'rustle') this.audio.play('rustle', e.x, e.z); });
     b.on('windupStart', (e) => { this.audio.play('windup', e.x, e.z); this.chapter.tutorial('tut_dodge'); });
     b.on('k1Impact', (e) => { this.fx.dustRing({ x: e.x, y: 0, z: e.z }, 2.6); this.camera.shakeVisual(1.0); });   // só visual: poeira + tremor da câmera renderizada
     b.on('chainEnded', () => {});
@@ -293,8 +293,9 @@ export class Game {
    */
   async startChapter(id, { difficultyId = null } = {}) {
     this.audio.ensure(); this.audio.play('ui');
-    await this._loading(id === 'ch02' ? 'Posto Norte — acesso lateral' : 'Carregando…');
-    if (id === 'ch02') await new Promise((resolve) => setTimeout(resolve, 800));
+    const nextData = getChapter(id).data;
+    await this._loading(nextData.loadingTitle ?? nextData.mapTitle ?? 'Carregando…');
+    await new Promise((resolve) => setTimeout(resolve, 800));
     const s = advanceToChapter(this.save, id);
     const offer = resolveDifficultyOffer(s, difficultyId, this.profile); if (!offer.ok) this.hud.toast(offer.message, 'warn');
     this.save = s;
@@ -553,7 +554,7 @@ export class Game {
     s.checkpointId = 'chapter_complete'; s.checkpoint = exitCheckpoint(this.chapterDef.data);
     try { await this.saveManager.save(0, s); await this.saveManager.saveProfile(this.profile); await this.refreshHasSave(); } catch (e) { this.hud.toast('Falha no autosave: ' + e.message, 'warn'); }
     this.sm.go(S.CHAPTER_COMPLETE); this.hud.hide(); this.appEl.classList.remove('playing'); this.input.setEnabled(false); this.input.unlock();
-    this._results = { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length, chapterNumber: this.chapterNumber, title: this.chapterDef.data.title, nextChapter: nextChapterId(cid) };
+    this._results = { stats: st, score, eligibility, newBest: !!rec.best, explorationTotal: rankTargets.chapters[cid].explorationNodes.length, chapterNumber: this.chapterNumber, title: this.chapterDef.data.title, nextChapter: nextChapterId(cid), teaser: this.chapterDef.data.resultsTeaser ?? null };
     this.setScreen(Screens.resultsScreen(this, this._results));
   }
 
@@ -609,6 +610,8 @@ export class Game {
     }
     const nr = p.noiseRadius();
     if (!safeRoom && nr > 0) this.noises.push({ x: p.x, z: p.z, r: nr });
+    // Fontes sonoras do cenário (ex.: irrigação do Cap. 03) — entram antes da percepção da IA.
+    for (const n of this.chapter.script.noiseSources?.(this.chapter, this.simMs) ?? []) this.noises.push(n);
     const ctx = this.aiCtx();
     if (safeRoom) {
       // Dentro do posto: cancelar ataques em andamento e silenciar a percepção de IA.

@@ -1,6 +1,20 @@
-# Projeto Extinção — Operação Éden (R0 + R1 + R2.5)
+# Projeto Extinção — Operação Éden (R0 + R1 + R2.5 + Cap. 03)
 
-Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) e o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados). Capítulos 03–10 seguem o roadmap do GDD v4.
+Jogo 3D de ação/sobrevivência em terceira pessoa (câmera sobre o ombro), jogável no navegador. Esta entrega cobre a fundação técnica (R0), o **Capítulo 01 — O Sinal na Mata** com Lia (R1) o **Capítulo 02 — A Ordem de Retirada** com Caio (R2: escopeta e pistola, ferramenta de impacto, defesa de Tomás, chefe K-1 e transição Cap. 01 → Cap. 02 pela tela de resultados) e o **Capítulo 03 — Jardim das Vozes** com Lia (estufas, espreitador S-2, distração por irrigação, chave biométrica da Dra. Elisa e calibração da torre CORO). Capítulos 04–10 seguem o roadmap do GDD v4.
+
+## Capítulo 03 — Jardim das Vozes (Lia)
+- **Fluxo (GDD 7.4):** estufa de entrada → estufa tropical (escritório da Dra. Elisa, chave biométrica e áudio "uma espécie não é uma arma" / segredo do E-0) → praça da torre CORO-J (puzzle de 3 canais) → comporta biométrica da ala de pesquisa. Flags: `biometric_key`, `elisa_log_01`, `coro_garden_off`, `coro_route_vale`, `research_wing_open`.
+- **S-2 Espreitador-pálido:** enxerga pouco e ouve muito; ao ver Lia, contorna pela lateral por ~3 s antes de investir e denuncia a manobra com farfalhar (aviso sonoro justo). Dossiê `BIO_04` no capítulo.
+- **Alternativa ao combate:** o painel de irrigação faz barulho fora da estufa por 9 s (recarga de 20 s) e atrai o S-2 para longe do escritório.
+- **Puzzle acessível:** cada console mostra a frequência atual e se está em sintonia; o anel correspondente da torre fica verde/âmbar; a Tabela de calibração (documento) traz a resposta. Nada falha nem trava.
+- **Gancho:** ao recalibrar, a torre transmite a última rota gravada — o Vale/estação de carga — e um segundo S-2 responde ao novo padrão (spawn fora da câmera, com aviso). Segredo `SEC_02` (Berçário Desativado, pista nas etiquetas), `CACHE_03` na trilha leste.
+- **QA:** `tests/ch03.test.js` e `scripts/e2e-ch03.mjs` (Cap. 02 → resultados → Cap. 03 → irrigação/S-2 → chave → puzzle → comporta → resultados).
+
+## Coerência narrativa (revisão)
+- Caio no rádio do Cap. 01 agora está "numa área cercada da estrada de serviço, perto do Posto Norte" (antes dizia estar cercado *no* posto e, minutos depois, que estava *chegando* ao posto).
+- "Portão sul" do Cap. 01 virou "portão norte da selva" (o portão fica no extremo norte e leva ao Posto Norte); a fala sobre o certificado agora bate com o DOC_01 ("pedi a revogação", pendente).
+- A tela de resultados usa um texto de gancho por capítulo (`resultsTeaser`) em vez de uma frase fixa sobre o Cap. 01; o carregamento usa `loadingTitle` de cada capítulo.
+- Segredos genéricos: a mensagem de segredo usa o nome do segredo (antes, qualquer segredo aparecia como "Abrigo do topógrafo").
 
 ## R2.5 — Panorama ilustrado 360° sem emendas
 - **Duas faixas cilíndricas por fase** (distante e próxima) substituem os 8 planos retos da R2.4. A câmera pode girar 360° sem encontrar cantos/quadrados de imagem ou uma lacuna nas diagonais.
@@ -77,6 +91,7 @@ Servir `dist-single` em :4177 (`npm run build:single && npx vite preview --confi
 - `scripts/e2e-portals.mjs` — LOD de detalhes, câmera dos portais e emboscada do rádio (Chromium + screenshots).
 - `scripts/e2e-vegetation.mjs` — vegetação setorial, qualidade, colisões e triângulos renderizados nos dois capítulos.
 - `scripts/e2e-backdrops.mjs` — panoramas 360° dos capítulos 1 e 2, costura, distância, névoa e presets de qualidade.
+- `scripts/e2e-ch03.mjs` — Cap. 02 → Cap. 03 completo (irrigação/S-2, chave, puzzle CORO, comporta, resultados).
 - `scripts/play-ch02.mjs` — partida do Cap. 02 com teclado/mouse reais (sem teleporte/god), relata até onde chegou.
 
 Jogo original, inspirado apenas em convenções do gênero.

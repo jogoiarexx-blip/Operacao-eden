@@ -53,8 +53,8 @@ describe('Transição Cap. 01 → Cap. 02', () => {
     expect(s.difficulty.current).toBe('veteran');
     expect(difficulty.change(advanceToChapter(fimCh01(), 'ch02'), 'veteran', {}).ok).toBe(false);
   });
-  it('capítulo seguinte: ch01 → ch02 → nenhum', () => {
-    expect(nextChapterId('ch01')).toBe('ch02'); expect(nextChapterId('ch02')).toBe(null);
+  it('capítulo seguinte: ch01 → ch02 → ch03 → nenhum', () => {
+    expect(nextChapterId('ch01')).toBe('ch02'); expect(nextChapterId('ch02')).toBe('ch03'); expect(nextChapterId('ch03')).toBe(null);
   });
   it('checkpoint de conclusão vem dos dados do capítulo, não de coordenada fixa', () => {
     for (const id of ['ch01', 'ch02']) {

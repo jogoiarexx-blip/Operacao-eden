@@ -10,6 +10,16 @@
       "hit": { "head": { "y": 1.3, "fwd": 0.62, "r": 0.3 }, "torso": { "y": 0.85, "fwd": 0.0, "r": 0.58 }, "legs": { "y": 0.38, "fwd": 0.0, "r": 0.42 } },
       "hurtRadius": 0.55
     },
+    "pale_stalker": {
+      "id": "pale_stalker", "code": "S-2", "name": "Espreitador-pálido", "dossier": "BIO_04",
+      "hp": 120, "baseCC": 380, "scale": 1.08, "color": "#a9a58f", "accent": "#5e5a4b",
+      "patrolSpeed": 1.5, "chaseSpeed": 5.4, "turnRate": 5.0,
+      "vision": { "range": 17, "fovDeg": 110 }, "hearingScale": 1.6,
+      "stalk": { "ms": 3200, "breakDist": 5.2, "ring": 9, "arc": 0.9, "speedMult": 1.7, "rustleEveryMs": 1300 },
+      "attack": { "windupMs": 760, "lungeMs": 360, "lungeDist": 4.8, "reach": 1.8, "damage": 22, "recoverMs": 1250, "triggerRange": 5.0, "bleedChance": 0.35 },
+      "hit": { "head": { "y": 1.35, "fwd": 0.66, "r": 0.3 }, "torso": { "y": 0.9, "fwd": 0.0, "r": 0.6 }, "legs": { "y": 0.4, "fwd": 0.0, "r": 0.44 } },
+      "hurtRadius": 0.6
+    },
     "forest_runner_juvenile": {
       "id": "forest_runner_juvenile", "code": "R-4J", "name": "Juvenil R-4J", "dossier": "BIO_02",
       "hp": 38, "baseCC": 100, "scale": 0.58, "color": "#4b6a43", "accent": "#d3a24a",

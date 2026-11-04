@@ -134,6 +134,19 @@ export class DinosaurAgent {
         break;
       }
       case AI.STALK: {           // postura de caça antes de correr: sinal claro para o jogador
+        const st = sp.stalk;
+        if (st) {
+          // Espreitador (S-2): contorna o jogador pela lateral, em silêncio relativo, antes de investir.
+          // Sinal justo: farfalhar periódico (cue 'rustle') e a investida só começa perto ou após `ms`.
+          const ang = Math.atan2(this.x - player.x, this.z - player.z) + this.circleDir * (st.arc ?? 0.9) * dt;
+          const ring = Math.max(st.breakDist + 1.5, Math.min(distP, st.ring ?? 9));
+          this._steer(player.x + Math.sin(ang) * ring, player.z + Math.cos(ang) * ring, sp.patrolSpeed * (st.speedMult ?? 1.6), dt, world);
+          this._faceTarget(player.x, player.z, dt, 0.8);
+          if (this.stateT - (this._rustleAt ?? -1e9) >= (st.rustleEveryMs ?? 1400)) { this._rustleAt = this.stateT; bus.emit('creatureCue', { cue: 'rustle', id: this.id, x: this.x, z: this.z }); }
+          if (!sees && sim - this.lastSeenAt > 2500) { this.noiseTarget = this.lastKnown ?? { x: this.x, z: this.z }; this.setState(AI.SEARCH, 3000); break; }
+          if (this.stateT >= st.ms || distP < st.breakDist) { this._rustleAt = null; this._beginChase(bus, allies); }
+          break;
+        }
         this._faceTarget(player.x, player.z, dt, 1.2);
         const d = this._steer(player.x, player.z, sp.patrolSpeed * 1.7, dt, world);
         void d;

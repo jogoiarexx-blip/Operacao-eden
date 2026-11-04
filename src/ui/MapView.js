@@ -22,7 +22,9 @@ export function drawMap(canvas, { data, playerPos, playerYaw, objectiveTarget, s
       if (s.visual === 'slab') c.fillStyle = 'rgba(70,80,76,.35)';
       else if (s.visual === 'ravine') c.fillStyle = '#020405';
       else if (s.visual === 'rock') c.fillStyle = '#4b4f4a';
-      else if (s.id === 'gate_leaf') c.fillStyle = gateOpen ? 'rgba(82,224,138,.5)' : '#c9a227';
+      else if (s.id === 'gate_leaf' || s.id === 'wing_gate') c.fillStyle = gateOpen ? 'rgba(82,224,138,.5)' : '#c9a227';
+      else if (s.visual === 'glass') c.fillStyle = 'rgba(159,214,208,.55)';
+      else if (s.visual === 'hedge' || s.visual === 'planter') c.fillStyle = 'rgba(60,110,60,.75)';
       else if (s.gate || s.visual === 'gate') c.fillStyle = '#c9a227';
       else if (s.visual === 'terminal') { continue; }
       else c.fillStyle = 'rgba(140,150,140,.7)';

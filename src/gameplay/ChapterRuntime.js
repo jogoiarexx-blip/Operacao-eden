@@ -231,7 +231,7 @@ export class ChapterRuntime {
       msg = `Dossiê de campo ${p.dossier} — ${getDossier(p.dossier).title}`; g.stats.dossiersFound = save.dossiersInRun.length; void r;
     } else if (p.kind === 'secret' || p.kind === 'cache') {
       const r = claimSecret(save, p.secret ?? p.cache, { ammoScale });
-      if (!r) taken = false; else { msg = (p.kind === 'secret' ? 'Segredo encontrado: Abrigo do topógrafo. ' : 'Cache encontrado. ') + r.summary.join(' · '); g.stats.secretsFound++; if (p.kind === 'secret') discover(save, 'SEC_01'); for (const w of Object.keys(inv.ammoReserve)) capAmmo(w); capCons('medkit'); capCons('hemostatic'); }
+      if (!r) taken = false; else { msg = (p.kind === 'secret' ? `Segredo encontrado: ${r.def.name ?? 'área secreta'}. ` : 'Cache encontrado. ') + r.summary.join(' · '); g.stats.secretsFound++; if (p.kind === 'secret') discover(save, p.secret); for (const w of Object.keys(inv.ammoReserve)) capAmmo(w); capCons('medkit'); capCons('hemostatic'); }
     }
     if (!taken) return;
     this.wf.pickedUp.push(p.id); this.pickups = this.pickups.filter((x) => x !== k); this.group.remove(k.mesh);

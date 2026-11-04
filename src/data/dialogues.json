@@ -43,7 +43,7 @@
   "ch01_beacon_revelation": [
     {
       "who": "Lia",
-      "text": "A baliza voltou. …Essa autenticação é o meu certificado de auditoria. Eu o revoguei há dois anos.",
+      "text": "A baliza voltou. …Essa autenticação é o meu certificado de auditoria. Pedi a revogação dele há dois anos.",
       "ms": 5200
     },
     {
@@ -67,8 +67,8 @@
   "ch01_recon_radio": [
     {
       "who": "Caio Neri (rádio)",
-      "text": "Lia? Aqui é Caio Neri. Estamos cercados no posto. Não suba pelo portão norte sem sinal da minha parte.",
-      "ms": 5200
+      "text": "Lia? Aqui é Caio Neri. Estou numa área cercada da estrada de serviço, perto do Posto Norte. Os bichos rondam a cerca.",
+      "ms": 5600
     },
     {
       "who": "Lia",
@@ -77,7 +77,7 @@
     },
     {
       "who": "Caio Neri (rádio)",
-      "text": "E aceitei arquivar. Depois a gente conversa. Abra o portão — eu cubro o resto.",
+      "text": "E aceitei arquivar. Depois a gente conversa. Abra o portão do setor — assim que der, eu entro no posto.",
       "ms": 4400
     }
   ],
@@ -101,13 +101,13 @@
     },
     {
       "who": "Lia",
-      "text": "Estou no portão sul. Há sinais de uma retirada às pressas do outro lado.",
-      "ms": 3700
+      "text": "Estou no portão norte da selva. Do outro lado, sinais de uma retirada às pressas.",
+      "ms": 4000
     },
     {
       "who": "Caio Neri (rádio)",
       "text": "Estou chegando ao Posto Norte pela estrada de serviço. Se o acesso principal estiver fechado, entro pela brecha lateral.",
-      "ms": 3600
+      "ms": 5200
     }
   ],
   "ch02_intro_radio": [
@@ -302,6 +302,146 @@
       "who": "Nádia Reis (rádio)",
       "text": "…Eu ouvi, Caio. Vou registrar tudo. Traga o técnico pelo portão de serviço norte.",
       "ms": 4200
+    }
+  ],
+  "ch03_intro_radio": [
+    {
+      "who": "Lia",
+      "text": "Reis, estou na estrada de serviço dos Jardins. O Caio saiu do posto com um sobrevivente — Tomás.",
+      "ms": 4600
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Confirmo. Eles seguem para a estação de carga do Vale. E você?",
+      "ms": 3800
+    },
+    {
+      "who": "Lia",
+      "text": "A comporta da ala de pesquisa só abre com a chave biométrica da Elisa. Se ela guardou provas, estão do outro lado.",
+      "ms": 5400
+    },
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "Lia, a torre dos Jardins está chamando bicho de novo. Mesmo padrão da selva. Cuidado com o que mora no vidro.",
+      "ms": 5200
+    },
+    {
+      "who": "Lia",
+      "text": "Vou desligar a torre. Depois a gente compara o que cada um encontrou.",
+      "ms": 3800
+    }
+  ],
+  "ch03_first_stalker": [
+    {
+      "who": "Lia",
+      "text": "Essas folhas mexeram sem vento. Tem algo claro andando entre os vasos…",
+      "ms": 4000
+    },
+    {
+      "who": "Lia",
+      "text": "Não vem direto. Está me contornando. Vou escutar antes de avançar.",
+      "ms": 3800
+    }
+  ],
+  "ch03_irrigation": [
+    {
+      "who": "Lia",
+      "text": "Irrigação ligada na ala norte. Barulho suficiente para chamar atenção — tomara que não a minha.",
+      "ms": 4400
+    }
+  ],
+  "ch03_elisa_log": [
+    {
+      "who": "Elisa Moura (gravação)",
+      "text": "Uma espécie não é uma arma. Repito isso para o Conselho toda semana e eles anotam 'eficiência de rota'.",
+      "ms": 5400
+    },
+    {
+      "who": "Lia",
+      "text": "Elisa… Você trancou a chave aqui para ninguém atravessar a comporta sem passar pela sua mesa.",
+      "ms": 4600
+    },
+    {
+      "who": "Elisa Moura (gravação)",
+      "text": "…o lote E-0 continua fora do catálogo. Melhor ninguém saber. Nem a Lia.",
+      "ms": 4600
+    },
+    {
+      "who": "Lia",
+      "text": "E-0. Você escondeu isso de mim. Do mesmo jeito que esconderam a minha assinatura.",
+      "ms": 4400
+    }
+  ],
+  "ch03_tower_plaza": [
+    {
+      "who": "Lia",
+      "text": "A torre está fora de sintonia. Três consoles, três canais. A tabela de repouso deve estar por aqui.",
+      "ms": 4400
+    }
+  ],
+  "ch03_coro_route": [
+    {
+      "who": "Lia",
+      "text": "Os três canais em repouso. A torre está… não. Ela acabou de transmitir.",
+      "ms": 4200
+    },
+    {
+      "who": "Lia",
+      "text": "Última rota armazenada: VALE, ESTAÇÃO DE CARGA. Não houve ordem de operação para isso.",
+      "ms": 4600
+    },
+    {
+      "who": "Caio Neri (rádio)",
+      "text": "Lia, o rádio da estação começou a apitar agora. Três pulsos, pausa, três pulsos.",
+      "ms": 4400
+    },
+    {
+      "who": "Lia",
+      "text": "É a mesma rota. Alguém gravou o Vale na malha antes da Noite Branca. Caio, tirem o Tomás de lá rápido.",
+      "ms": 5200
+    }
+  ],
+  "ch03_s2_reaction": [
+    {
+      "who": "Lia",
+      "text": "O novo padrão acordou outro. Agudo… o S-2 responde ao agudo.",
+      "ms": 3600
+    }
+  ],
+  "ch03_wing_denied": [
+    {
+      "who": "Lia",
+      "text": "A comporta pede a biometria da Elisa. Sem a chave, nada feito.",
+      "ms": 3200
+    }
+  ],
+  "ch03_wing_open": [
+    {
+      "who": "Lia",
+      "text": "Chave aceita. A ala de pesquisa está aberta. O que você deixou aqui, Elisa?",
+      "ms": 3800
+    }
+  ],
+  "ch03_ending": [
+    {
+      "who": "Lia",
+      "text": "Reis, estou dentro da ala de pesquisa. A torre do jardim mandou os animais para o Vale.",
+      "ms": 4600
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Recebido. Eu aviso o Caio. Isso é sabotagem ou falha?",
+      "ms": 3400
+    },
+    {
+      "who": "Lia",
+      "text": "Uma falha não grava destino. Alguém escolheu o Vale. E a Elisa sabia de mais coisa do que contou.",
+      "ms": 5200
+    },
+    {
+      "who": "Nádia Reis (rádio)",
+      "text": "Então junte provas, Lia. Evidência, não suspeita. A cadeia de comando só ouve isso.",
+      "ms": 4400
     }
   ]
 }

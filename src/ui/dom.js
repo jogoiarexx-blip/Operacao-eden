@@ -3,7 +3,8 @@ export function h(sel, attrs, ...kids) {
   const m = /^([a-z0-9]+)?((?:[.#][\w-]+)*)$/i.exec(sel) ?? [];
   const el = document.createElement(m[1] || 'div');
   for (const part of (m[2] || '').match(/[.#][\w-]+/g) ?? []) part[0] === '.' ? el.classList.add(part.slice(1)) : (el.id = part.slice(1));
-  if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs) || typeof attrs === 'string')) { kids.unshift(attrs); attrs = null; }
+  // Números (inclusive 0) e textos são filhos, não atributos: antes `h('td', 0)` sumia com o zero na tela de resultados.
+  if (attrs != null && attrs !== false && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
   for (const [k, v] of Object.entries(attrs ?? {})) {
     if (v === false || v == null) continue;
     if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);

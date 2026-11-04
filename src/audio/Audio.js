@@ -82,6 +82,11 @@ export class AudioEngine {
         case 'deny': this.tone(out, t, 220, 160, 0.14, 'square', 0.18); break;
         case 'buy': this.tone(out, t, 500, 1000, 0.12, 'triangle', 0.25); this.tone(out, t + 0.1, 1000, 1500, 0.18, 'triangle', 0.2); break;
         case 'coro': for (let i = 0; i < 3; i++) this.tone(out, t + i * 0.5, 196, 190, 0.34, 'sine', 0.4); for (let i = 0; i < 3; i++) this.tone(out, t + 2.1 + i * 0.5, 196, 190, 0.34, 'sine', 0.4); break;
+        case 'rustle': this.noiseBurst(out, t, 0.45, 2200, 7000, 0.22); this.noiseBurst(out, t + 0.28, 0.3, 1800, 6000, 0.14); break;
+        case 'freq_low': this.tone(out, t, 196, 196, 0.5, 'sine', 0.35); break;
+        case 'freq_mid': this.tone(out, t, 392, 392, 0.5, 'sine', 0.3); break;
+        case 'freq_high': this.tone(out, t, 784, 784, 0.5, 'sine', 0.25); break;
+        case 'sprinkler': this.noiseBurst(out, t, 2.2, 900, 5000, 0.45); this.tone(out, t, 140, 120, 1.8, 'square', 0.08); break;
         case 'creak': this.tone(out, t, 90, 70, 0.9, 'sawtooth', 0.15); this.noiseBurst(out, t, 0.9, 300, 900, 0.25); break;
         case 'zap': this.noiseBurst(out, t, 0.3, 1200, 8000, 0.5); this.tone(out, t, 1200, 200, 0.3, 'sawtooth', 0.25); break;
         case 'beacon': this.tone(out, t, 330, 660, 0.4, 'sine', 0.3); this.tone(out, t + 0.4, 660, 990, 0.5, 'sine', 0.3); break;

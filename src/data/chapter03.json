@@ -1,0 +1,195 @@
+{
+  "id": "research_gardens_03",
+  "chapter": 3,
+  "chapterId": "ch03",
+  "title": "Jardim das Vozes",
+  "mapTitle": "Jardins de Pesquisa",
+  "loadingTitle": "Jardins de Pesquisa — estufas da ala científica",
+  "resultsTeaser": "A torre do jardim transmitiu uma rota para o Vale sem ordem autorizada. Caio e Tomás seguem para a estação de carga — e os animais condicionados também.",
+  "protagonist": "lia",
+  "bounds": [-38, -42, 38, 42],
+  "render": { "exposure": 1.85, "fogColor": 661273, "fogDensity": 0.012, "grade": { "vignette": 0.38, "grain": 0.012, "tint": { "shadow": [0.9, 1.02, 1.04], "light": [1.02, 1.02, 0.94] } } },
+  "treeSeed": 3307,
+  "treeMaxZ": 34,
+  "exitCheckpoint": { "pos": [0, -31], "yaw": 0 },
+  "spawn": { "id": "garden_service_road", "pos": [0, 37], "yaw": 0 },
+  "camera": { "mode": "over_shoulder", "exploreDistance": 3.0, "aimDistance": 2.0, "shoulderOffset": 0.55, "collisionLayer": "camera_blockers", "pitchLimitsDeg": [-60, 65] },
+  "cameraZones": [
+    { "id": "cz_gh1", "rect": [-6, 13, 6, 23], "exploreDistance": 2.5, "aimDistance": 1.8 },
+    { "id": "cz_gh2", "rect": [-30, -2, -14, 14], "exploreDistance": 2.4, "aimDistance": 1.75 },
+    { "id": "cz_office", "rect": [-30, 8, -24, 14], "exploreDistance": 1.9, "aimDistance": 1.45 },
+    { "id": "cz_nursery", "rect": [18, 2, 30, 14], "exploreDistance": 2.1, "aimDistance": 1.6 },
+    { "id": "cz_wing", "rect": [-6, -37, 6, -31], "exploreDistance": 2.3, "aimDistance": 1.7 }
+  ],
+  "paths": [
+    { "id": "main", "w": 3.2, "pts": [[0, 38], [0, 28], [0, 23], [0, 13], [0, 6], [0, -4], [0, -20], [0, -32]] },
+    { "id": "west", "w": 2.4, "pts": [[-1, 8], [-8, 7], [-13, 6]] },
+    { "id": "west_north", "w": 2.2, "pts": [[-22, -2], [-22, -7], [-12, -9], [-6, -10]] },
+    { "id": "east", "w": 2.4, "pts": [[1, 8], [10, 9], [15, 11]] },
+    { "id": "east_loop", "w": 2.0, "pts": [[15, 11], [17, 17], [31, 17], [33, 7]] },
+    { "id": "east_trail", "w": 2.2, "pts": [[6, -12], [14, -16], [22, -21], [31, -24]] }
+  ],
+  "structures": [
+    { "id": "gate_pillar_w", "kind": "box", "visual": "concrete", "pos": [-3.6, 27], "size": [1.0, 3.6, 1.0], "flags": ["move", "bullet", "camera"] },
+    { "id": "gate_pillar_e", "kind": "box", "visual": "concrete", "pos": [3.6, 27], "size": [1.0, 3.6, 1.0], "flags": ["move", "bullet", "camera"] },
+    { "id": "gate_lintel", "kind": "box", "visual": "metal", "pos": [0, 27], "size": [8.2, 0.4, 0.6], "y": 3.6, "flags": [] },
+    { "id": "terminal_gardens_a", "kind": "box", "visual": "terminal", "pos": [5.6, 30.4], "size": [0.9, 1.3, 0.7], "flags": ["move", "bullet"] },
+    { "id": "supply_crates_a", "kind": "box", "visual": "crate", "pos": [-5.2, 31.5], "size": [1.6, 1.0, 1.2], "flags": ["move", "bullet", "camera"] },
+
+    { "id": "gh1_floor", "kind": "box", "visual": "tile", "pos": [0, 18], "size": [12, 0.1, 10], "y": -0.07, "flags": [] },
+    { "id": "gh1_s_w", "kind": "box", "visual": "glass", "pos": [-3.75, 23], "size": [4.5, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh1_s_e", "kind": "box", "visual": "glass", "pos": [3.75, 23], "size": [4.5, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh1_n_w", "kind": "box", "visual": "glass", "pos": [-3.75, 13], "size": [4.5, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh1_n_e", "kind": "box", "visual": "glass", "pos": [3.75, 13], "size": [4.5, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh1_w", "kind": "box", "visual": "glass", "pos": [-6, 18], "size": [0.25, 3.2, 10], "flags": ["move"] },
+    { "id": "gh1_e", "kind": "box", "visual": "glass", "pos": [6, 18], "size": [0.25, 3.2, 10], "flags": ["move"] },
+    { "id": "gh1_roof", "kind": "box", "visual": "glass", "pos": [0, 18], "size": [12.2, 0.12, 10.2], "y": 3.2, "flags": [] },
+    { "id": "gh1_planter_a", "kind": "box", "visual": "planter", "pos": [-3.2, 18], "size": [1.4, 0.9, 5.2], "flags": ["move", "bullet"] },
+    { "id": "gh1_planter_b", "kind": "box", "visual": "planter", "pos": [3.2, 18], "size": [1.4, 0.9, 5.2], "flags": ["move", "bullet"] },
+    { "id": "gh1_hedge_a", "kind": "box", "visual": "hedge", "pos": [-3.2, 18], "size": [1.2, 1.1, 5.0], "y": 0.9, "flags": [] },
+    { "id": "gh1_hedge_b", "kind": "box", "visual": "hedge", "pos": [3.2, 18], "size": [1.2, 1.1, 5.0], "y": 0.9, "flags": [] },
+
+    { "id": "gh2_floor", "kind": "box", "visual": "tile", "pos": [-22, 6], "size": [16, 0.1, 16], "y": -0.07, "flags": [] },
+    { "id": "gh2_n_w", "kind": "box", "visual": "glass", "pos": [-27, -2], "size": [6, 3.4, 0.25], "flags": ["move"] },
+    { "id": "gh2_n_e", "kind": "box", "visual": "glass", "pos": [-17, -2], "size": [6, 3.4, 0.25], "flags": ["move"] },
+    { "id": "gh2_s", "kind": "box", "visual": "glass", "pos": [-22, 14], "size": [16, 3.4, 0.25], "flags": ["move"] },
+    { "id": "gh2_w", "kind": "box", "visual": "glass", "pos": [-30, 6], "size": [0.25, 3.4, 16], "flags": ["move"] },
+    { "id": "gh2_e_n", "kind": "box", "visual": "glass", "pos": [-14, 1], "size": [0.25, 3.4, 6], "flags": ["move"] },
+    { "id": "gh2_e_s", "kind": "box", "visual": "glass", "pos": [-14, 11], "size": [0.25, 3.4, 6], "flags": ["move"] },
+    { "id": "gh2_roof", "kind": "box", "visual": "glass", "pos": [-22, 6], "size": [16.2, 0.12, 16.2], "y": 3.4, "flags": [] },
+    { "id": "gh2_hedge_a", "kind": "box", "visual": "hedge", "pos": [-18.5, 9.5], "size": [3.6, 2.2, 1.2], "fade": true, "flags": ["move", "bullet"] },
+    { "id": "gh2_hedge_b", "kind": "box", "visual": "hedge", "pos": [-21, 2.5], "size": [3.8, 2.2, 1.2], "fade": true, "flags": ["move", "bullet"] },
+    { "id": "gh2_hedge_c", "kind": "box", "visual": "hedge", "pos": [-26.8, 3.2], "size": [1.2, 2.2, 3.6], "fade": true, "flags": ["move", "bullet"] },
+    { "id": "gh2_hedge_d", "kind": "box", "visual": "hedge", "pos": [-17, 4.2], "size": [1.2, 2.0, 2.4], "fade": true, "flags": ["move", "bullet"] },
+    { "id": "office_n", "kind": "box", "visual": "concrete", "pos": [-27, 8], "size": [6, 3, 0.3], "fade": true, "flags": ["move", "bullet", "camera"] },
+    { "id": "office_e_a", "kind": "box", "visual": "concrete", "pos": [-24, 8.9], "size": [0.3, 3, 1.8], "fade": true, "flags": ["move", "bullet", "camera"] },
+    { "id": "office_e_b", "kind": "box", "visual": "concrete", "pos": [-24, 13.1], "size": [0.3, 3, 1.8], "fade": true, "flags": ["move", "bullet", "camera"] },
+    { "id": "office_roof", "kind": "box", "visual": "shelter_roof", "pos": [-27, 11], "size": [6.2, 0.3, 6.2], "y": 3, "fade": true, "flags": ["camera"] },
+    { "id": "elisa_desk", "kind": "box", "visual": "wood", "pos": [-28.6, 10.4], "size": [1.0, 0.8, 2.0], "flags": ["move"] },
+    { "id": "bio_locker", "kind": "box", "visual": "metal", "pos": [-26.2, 13.5], "size": [1.1, 1.9, 0.5], "flags": ["move", "bullet"] },
+    { "id": "irrigation_panel", "kind": "box", "visual": "terminal", "pos": [-12.6, 11.4], "size": [0.5, 1.2, 0.35], "flags": ["move"] },
+    { "id": "sprinkler_head", "kind": "cyl", "visual": "metal", "pos": [-22, -5], "r": 0.12, "h": 1.4, "flags": [] },
+
+    { "id": "gh3_floor", "kind": "box", "visual": "tile", "pos": [24, 8], "size": [12, 0.1, 12], "y": -0.07, "flags": [] },
+    { "id": "gh3_n", "kind": "box", "visual": "glass", "pos": [24, 2], "size": [12, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh3_s", "kind": "box", "visual": "glass", "pos": [24, 14], "size": [12, 3.2, 0.25], "flags": ["move"] },
+    { "id": "gh3_w", "kind": "box", "visual": "glass", "pos": [18, 8], "size": [0.25, 3.2, 12], "flags": ["move"] },
+    { "id": "gh3_e_n", "kind": "box", "visual": "glass", "pos": [30, 4], "size": [0.25, 3.2, 4], "flags": ["move"] },
+    { "id": "gh3_e_s", "kind": "box", "visual": "glass", "pos": [30, 11], "size": [0.25, 3.2, 6], "flags": ["move"] },
+    { "id": "gh3_roof", "kind": "box", "visual": "glass", "pos": [24, 8], "size": [12.2, 0.12, 12.2], "y": 3.2, "flags": [] },
+    { "id": "gh3_chain_door", "kind": "box", "visual": "fence", "pos": [24, 14.25], "size": [2.4, 2.6, 0.12], "flags": [] },
+    { "id": "incubator_a", "kind": "box", "visual": "metal", "pos": [21.5, 10], "size": [1.6, 1.0, 1.0], "flags": ["move", "bullet"] },
+    { "id": "incubator_b", "kind": "box", "visual": "metal", "pos": [25.5, 4.6], "size": [1.6, 1.0, 1.0], "flags": ["move", "bullet"] },
+    { "id": "incubator_e0", "kind": "box", "visual": "metal", "pos": [27.6, 10.8], "size": [1.2, 1.4, 1.2], "flags": ["move", "bullet"] },
+
+    { "id": "plaza_floor", "kind": "box", "visual": "slab", "pos": [0, -13], "size": [22, 0.1, 20], "y": -0.08, "flags": [] },
+    { "id": "coro_garden", "kind": "cyl", "visual": "coro", "pos": [0, -13], "r": 1.3, "h": 14, "flags": ["move", "bullet", "camera"] },
+    { "id": "console_a", "kind": "box", "visual": "terminal", "pos": [-6.2, -10.2], "size": [0.6, 1.2, 0.4], "flags": ["move"] },
+    { "id": "console_b", "kind": "box", "visual": "terminal", "pos": [6.2, -10.2], "size": [0.6, 1.2, 0.4], "flags": ["move"] },
+    { "id": "console_c", "kind": "box", "visual": "terminal", "pos": [0, -19.8], "size": [0.6, 1.2, 0.4], "flags": ["move"] },
+    { "id": "plaza_planter_a", "kind": "box", "visual": "planter", "pos": [-8, -16], "size": [1.4, 0.9, 3.2], "flags": ["move", "bullet"] },
+    { "id": "plaza_planter_b", "kind": "box", "visual": "planter", "pos": [8, -16], "size": [1.4, 0.9, 3.2], "flags": ["move", "bullet"] },
+    { "id": "plaza_planter_c", "kind": "box", "visual": "planter", "pos": [-4.5, -5], "size": [3.2, 0.9, 1.4], "flags": ["move", "bullet"] },
+    { "id": "plaza_planter_d", "kind": "box", "visual": "planter", "pos": [4.5, -5], "size": [3.2, 0.9, 1.4], "flags": ["move", "bullet"] },
+    { "id": "terminal_gardens_b", "kind": "box", "visual": "terminal", "pos": [10.6, -21.4], "size": [0.9, 1.3, 0.7], "flags": ["move", "bullet"] },
+    { "id": "kiosk_roof", "kind": "box", "visual": "shelter_roof", "pos": [10, -20.4], "size": [4, 0.25, 3.4], "y": 2.6, "flags": [] },
+
+    { "id": "wing_wall_w", "kind": "box", "visual": "concrete", "pos": [-11.25, -34], "size": [17.5, 3.6, 0.6], "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_wall_e", "kind": "box", "visual": "concrete", "pos": [11.25, -34], "size": [17.5, 3.6, 0.6], "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_gate", "kind": "box", "visual": "gate", "pos": [0, -34], "size": [5, 3.6, 0.7], "gate": true, "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_panel", "kind": "box", "visual": "terminal", "pos": [3.7, -32.9], "size": [0.6, 1.2, 0.4], "flags": ["move"] },
+    { "id": "wing_side_w", "kind": "box", "visual": "concrete", "pos": [-20, -38], "size": [0.6, 3.6, 8], "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_side_e", "kind": "box", "visual": "concrete", "pos": [20, -38], "size": [0.6, 3.6, 8], "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_facade", "kind": "box", "visual": "concrete", "pos": [0, -41.2], "size": [40, 6, 1.6], "flags": ["move", "bullet", "camera"] },
+    { "id": "wing_door", "kind": "box", "visual": "metal", "pos": [0, -40.3], "size": [3.2, 3.2, 0.2], "flags": [] },
+
+    { "id": "cache_crate", "kind": "box", "visual": "crate", "pos": [32.4, -25.4], "size": [1.2, 0.9, 1.0], "flags": ["move", "bullet"] },
+    { "id": "east_rock_a", "kind": "box", "visual": "rock", "pos": [26, -27], "size": [2.4, 1.4, 1.8], "flags": ["move", "bullet", "camera"] },
+    { "id": "west_rock_a", "kind": "box", "visual": "rock", "pos": [-12, -18], "size": [2.6, 1.6, 2.0], "flags": ["move", "bullet", "camera"] }
+  ],
+  "ribbons": [[14, 10], [16, 13], [17, 16], [24, 17]],
+  "clawMarks": [[-12.2, 5.2], [-11.6, 7.1], [-13.3, 9.0], [-9.5, -8.6]],
+  "clearings": [
+    { "pos": [0, 34], "r": 6 }, { "pos": [0, 18], "r": 7.5 }, { "pos": [-22, 6], "r": 10 }, { "pos": [24, 8], "r": 8 },
+    { "pos": [0, -13], "r": 12 }, { "pos": [0, -30], "r": 7 }, { "pos": [31, -24], "r": 4 }, { "pos": [-12, 7], "r": 4 },
+    { "pos": [-20, -7], "r": 4 }, { "pos": [24, 17], "r": 4 }, { "pos": [33, 7], "r": 3 }
+  ],
+  "lamps": [[0, 28], [-12, 4], [12, 10], [-7, -9], [7, -9], [0, -28]],
+  "terminals": [
+    { "id": "terminal_gardens_a", "name": "Terminal Éden J1", "pos": [5.6, 30.4], "safe": [4.6, 29.6], "checkpointId": "terminal_J1" },
+    { "id": "terminal_gardens_b", "name": "Terminal Éden J2 (praça CORO)", "pos": [10.6, -21.4], "safe": [9.8, -20.4], "checkpointId": "terminal_J2" }
+  ],
+  "safeRooms": [
+    { "id": "safe_gardens_entry", "name": "Posto de Entrada dos Jardins", "center": [4.6, 29.6], "radius": 3.6, "terminalId": "terminal_gardens_a", "kind": "camp" },
+    { "id": "safe_gardens_kiosk", "name": "Quiosque da Praça CORO", "center": [9.8, -20.4], "radius": 2.6, "terminalId": "terminal_gardens_b", "kind": "camp" }
+  ],
+  "pickups": [
+    { "id": "ammo_garden_gate", "kind": "supplies", "pos": [-4.2, 30], "ammo": { "pistol": 12 }, "label": "Munição de pistola" },
+    { "id": "doc_cond_gh1", "kind": "document", "pos": [1.4, 16.2], "doc": "DOC_COND", "label": "Relatório de teste" },
+    { "id": "ammo_gh1", "kind": "supplies", "pos": [-4.8, 14.2], "ammo": { "pistol": 10 }, "label": "Munição de pistola" },
+    { "id": "BIO_04", "kind": "dossier", "pos": [-28.6, 0.4], "dossier": "BIO_04", "label": "Dossiê de campo" },
+    { "id": "hemostatic_gh2", "kind": "supplies", "pos": [-15.2, 12.8], "consumable": { "hemostatic": 1 }, "label": "Hemostático" },
+    { "id": "doc_calib_plaza", "kind": "document", "pos": [2.2, -8.4], "doc": "DOC_CALIB", "label": "Tabela de calibração" },
+    { "id": "medkit_plaza", "kind": "supplies", "pos": [-9.4, -20.2], "consumable": { "medkit": 1 }, "label": "Kit médico" },
+    { "id": "ammo_wing", "kind": "supplies", "pos": [-6.4, -30.6], "ammo": { "pistol": 12 }, "label": "Munição de pistola" },
+    { "id": "SEC_02", "kind": "secret", "secret": "SEC_02", "pos": [27.4, 8.8], "label": "Incubadora isolada" },
+    { "id": "CACHE_03", "kind": "cache", "cache": "CACHE_03", "pos": [31.4, -24], "label": "Caixa de suprimentos lacrada" }
+  ],
+  "interactables": [
+    { "id": "bio_locker", "kind": "bio_locker", "pos": [-26.2, 12.6], "r": 1.7, "holdMs": 2600, "label": "Abrir o armário biométrico da Dra. Elisa" },
+    { "id": "irrigation_panel", "kind": "irrigation_panel", "pos": [-12.6, 10.6], "r": 1.8, "label": "Ligar a irrigação da ala norte da estufa" },
+    { "id": "console_a", "kind": "coro_console", "channel": 0, "pos": [-6.2, -9.4], "r": 1.7, "label": "Console CORO — canal 1" },
+    { "id": "console_b", "kind": "coro_console", "channel": 1, "pos": [6.2, -9.4], "r": 1.7, "label": "Console CORO — canal 2" },
+    { "id": "console_c", "kind": "coro_console", "channel": 2, "pos": [0, -19], "r": 1.7, "label": "Console CORO — canal 3" },
+    { "id": "wing_panel", "kind": "wing_panel", "pos": [3.7, -32.2], "r": 2.2, "label": "Comporta biométrica da ala de pesquisa" }
+  ],
+  "zones": [
+    { "id": "garden_gate", "pos": [0, 27], "r": 3.5 },
+    { "id": "enter_gardens", "pos": [0, 18], "r": 4.5 },
+    { "id": "gh2_door", "pos": [-13, 6], "r": 2.6, "narrow": true },
+    { "id": "gh2_inside", "pos": [-21, 6], "r": 6.5 },
+    { "id": "elisa_office", "pos": [-27, 11], "r": 2.6, "narrow": true },
+    { "id": "nursery_hint", "pos": [15, 11], "r": 4 },
+    { "id": "nursery_inside", "pos": [24, 8], "r": 4.5 },
+    { "id": "tower_plaza", "pos": [0, -13], "r": 9 },
+    { "id": "east_trail_03", "pos": [30, -24], "r": 5 },
+    { "id": "wing_gate_area", "pos": [0, -29.5], "r": 5 },
+    { "id": "wing_exit", "pos": [0, -37.2], "r": 2.2 }
+  ],
+  "encounters": [
+    { "id": "ch03_s2_first", "title": "Espreitador da estufa tropical", "enemies": [
+      { "id": "s2_a", "type": "pale_stalker", "pos": [-20, 7], "patrol": [[-20, 7], [-24.5, 5.5], [-22, 11.4], [-16.4, 7.4]] }
+    ] },
+    { "id": "ch03_r4j_pair", "title": "Juvenis na trilha leste", "enemies": [
+      { "id": "r4j_g1", "type": "forest_runner_juvenile", "pos": [18, -15], "patrol": [[18, -15], [24, -20], [14, -21]] },
+      { "id": "r4j_g2", "type": "forest_runner_juvenile", "pos": [20, -18], "patrol": [[20, -18], [13, -14], [25, -22]] }
+    ] },
+    { "id": "ch03_r4_wing", "title": "Corredor na comporta", "enemies": [
+      { "id": "r4_wing", "type": "forest_runner", "pos": [9, -28], "patrol": [[9, -28], [-9, -28], [-11, -23], [11, -24]] }
+    ] },
+    { "id": "ch03_s2_reaction", "title": "Resposta ao novo padrão da torre", "late": true, "enemies": [
+      { "id": "s2_b", "type": "pale_stalker", "spawnCandidates": [[-30, -20], [30, -8], [-26, -30], [24, -32], [-32, -6]], "patrol": [] }
+    ] }
+  ],
+  "objectives": [
+    { "id": "enter_gardens", "text": "Entre nos Jardins pela estufa de entrada.", "doneWhen": { "zone": "enter_gardens" }, "target": [0, 18] },
+    { "id": "get_key", "text": "Recupere a chave biométrica no escritório da Dra. Elisa, na estufa tropical (oeste).", "doneWhen": { "flag": "biometric_key" }, "target": [-26.2, 12.6] },
+    { "id": "calibrate_coro", "text": "Calibre a torre CORO do jardim: sintonize os três consoles da praça.", "doneWhen": { "flag": "coro_garden_off" }, "target": [0, -13] },
+    { "id": "open_wing", "text": "Abra a comporta biométrica da ala de pesquisa, ao norte.", "doneWhen": { "flag": "research_wing_open" }, "target": [3.7, -32.2] },
+    { "id": "exit_wing", "text": "Atravesse a comporta da ala de pesquisa.", "doneWhen": { "flag": "campaign_chapter_exit" }, "target": [0, -37] }
+  ],
+  "tutorials": [
+    { "id": "ch03_tut_listen", "when": "start", "text": "Escute: o S-2 denuncia a manobra com farfalhar antes de investir · {aim} mire e atire durante o agachar" },
+    { "id": "ch03_tut_distract", "when": "nearIrrigation", "text": "{interact} no painel de irrigação faz barulho do outro lado da estufa — o S-2 vai investigar" },
+    { "id": "ch03_tut_calib", "when": "zone:tower_plaza", "text": "{interact} em cada console troca a frequência · o anel da torre fica verde quando o canal entra em sintonia" },
+    { "id": "ch03_tut_dodge", "when": "firstWindup", "text": "O animal agachou: {dodge} esquiva para o lado antes do salto" },
+    { "id": "ch03_tut_terminal", "when": "zone:terminal", "text": "{interact} no terminal: salvar é gratuito; CC compram munição e cura" }
+  ],
+  "areaTransitions": [
+    { "id": "ch03_greenhouse", "trigger": "enter_gardens", "tag": "JARDINS DE PESQUISA", "title": "ESTUFA DE ENTRADA", "subtitle": "Vidro embaçado, vasos derrubados. Algo passou por aqui." },
+    { "id": "ch03_tropical", "trigger": "gh2_inside", "tag": "ALA OESTE", "title": "ESTUFA TROPICAL", "subtitle": "As folhas estão quietas demais.", "tone": "danger", "sound": "creak" },
+    { "id": "ch03_plaza", "trigger": "tower_plaza", "tag": "REDE CORO", "title": "PRAÇA DA TORRE", "subtitle": "A torre do jardim repete um padrão fora de sintonia." },
+    { "id": "ch03_wing", "trigger": "wing_gate_area", "tag": "ACESSO RESTRITO", "title": "ALA DE PESQUISA", "subtitle": "Comporta biométrica. Ninguém do outro lado responde." }
+  ],
+  "puddles": [[1.6, 25.4, 1.1], [-9.6, 7.4, 1.2], [6.4, -24.2, 1.3], [16, 12.4, 1]]
+}

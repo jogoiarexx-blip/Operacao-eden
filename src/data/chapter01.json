@@ -1554,7 +1554,7 @@
       "id": "ch01_gate",
       "trigger": "outpost_gate_opened",
       "tag": "ACESSO LIBERADO",
-      "title": "PORTÃO SUL",
+      "title": "PORTÃO NORTE DA SELVA",
       "subtitle": "A trilha continua até o Posto Norte.",
       "sound": "creak"
     }
@@ -1625,5 +1625,6 @@
       18.8,
       1
     ]
-  ]
+  ],
+  "resultsTeaser": "O portão da selva está aberto. Caio segue pela estrada de serviço até o Posto Norte — a operação continua."
 }
