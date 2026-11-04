@@ -11,6 +11,27 @@
     40,
     44
   ],
+  "render": {
+    "exposure": 1.9,
+    "fogColor": 661273,
+    "fogDensity": 0.011,
+    "grade": {
+      "vignette": 0.35,
+      "grain": 0.012,
+      "tint": {
+        "shadow": [
+          0.9,
+          1,
+          1.06
+        ],
+        "light": [
+          1.04,
+          1,
+          0.94
+        ]
+      }
+    }
+  },
   "treeSeed": 1042,
   "exitCheckpoint": {
     "pos": [
@@ -1577,5 +1598,32 @@
       "terminalId": "terminal_b",
       "kind": "camp"
     }
+  ],
+  "puddles": [
+    [
+      5.6,
+      24,
+      1.2
+    ],
+    [
+      8.8,
+      2,
+      1.4
+    ],
+    [
+      0.8,
+      -26,
+      1.1
+    ],
+    [
+      17,
+      14.5,
+      1
+    ],
+    [
+      -9.4,
+      18.8,
+      1
+    ]
   ]
 }

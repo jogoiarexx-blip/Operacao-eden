@@ -11,6 +11,27 @@
     40,
     40
   ],
+  "render": {
+    "exposure": 1.8,
+    "fogColor": 661273,
+    "fogDensity": 0.01,
+    "grade": {
+      "vignette": 0.4,
+      "grain": 0.014,
+      "tint": {
+        "shadow": [
+          0.92,
+          0.98,
+          1.06
+        ],
+        "light": [
+          1.06,
+          1,
+          0.92
+        ]
+      }
+    }
+  },
   "treeSeed": 2207,
   "treeMaxZ": 33,
   "spawn": {
@@ -2497,5 +2518,32 @@
       "doorWidth": 3,
       "requiresBroken": "crates_shed"
     }
+  ],
+  "puddles": [
+    [
+      0.5,
+      -14,
+      1.6
+    ],
+    [
+      -3,
+      -22,
+      1.3
+    ],
+    [
+      -6,
+      33.5,
+      1.4
+    ],
+    [
+      4.5,
+      16,
+      1.2
+    ],
+    [
+      2,
+      12.2,
+      1
+    ]
   ]
 }

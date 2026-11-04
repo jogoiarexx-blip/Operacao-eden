@@ -43,6 +43,26 @@ describe('Streaming setorial: árvore, arbusto, buffer e câmera', () => {
     expect(() => selectVegetationIndices(cell, new Set(), { x: 0, z: 0 }, { showDistance: 32, hideDistance: 20 })).toThrow();
   });
 
+  it('malhas por espécie (userData.items) só recebem as suas árvores, com a cor por instância junto', () => {
+    const trees = [{ x: -52, z: 0 }, { x: -20, z: 0 }, { x: 24, z: 0 }, { x: 104, z: 0 }];
+    const species = (globals) => {
+      const sub = globals.map((gi) => trees[gi]);
+      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), sub.length);
+      sub.forEach((t, k) => { mesh.setMatrixAt(k, new THREE.Matrix4().makeTranslation(t.x, 0, t.z)); mesh.setColorAt(k, new THREE.Color(globals[k] / 10, 0, 0)); });
+      mesh.userData.items = globals.map((gi) => [trees[gi], gi]); return mesh;
+    };
+    const pine = species([0, 3]), palm = species([1, 2]);
+    const bushMesh = fakeInstance([{ x: 0, z: 0 }]);
+    const stream = createVegetationSectorStream({ trees, bushes: [{ x: 0, z: 0 }], treeMeshes: [pine, palm], bushMesh, cellSize: 16 });
+    stream.update({ x: 104, z: 0 }, { showDistance: 22, hideDistance: 34 });
+    expect(pine.count).toBe(1); expect(palm.count).toBe(0);
+    const m = new THREE.Matrix4(), c = new THREE.Color(); pine.getMatrixAt(0, m); pine.getColorAt(0, c);
+    expect(m.elements[12]).toBe(104); expect(c.r).toBeCloseTo(0.3);
+    stream.update({ x: -30, z: 0 }, { showDistance: 22, hideDistance: 34 });
+    expect(pine.count).toBe(1); expect(palm.count).toBe(1);
+    pine.getMatrixAt(0, m); expect(m.elements[12]).toBe(-52); palm.getMatrixAt(0, m); expect(m.elements[12]).toBe(-20);
+  });
+
   it('compacta instâncias preservando todas as matrizes originais ao retornar', () => {
     const trees = [{ x: -52, z: 0 }, { x: -20, z: 0 }, { x: 24, z: 0 }, { x: 104, z: 0 }];
     const bushes = Array.from({ length: 20 }, (_, i) => ({ x: i * 8 - 70, z: i % 3 }));

@@ -1,97 +1,119 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math.js';
+import weaponsData from '../data/weapons.json';
+import { HumanRig } from './HumanRig.js';
 import { ReginaRig } from './ReginaRig.js';
+import { QUALITY } from '../core/Settings.js';
 
-/** Lia (1,70 m): malha low-poly com animação procedural (idle/walk/run/aim/shoot/reload/dodge/hurt/death). */
+/** A lanterna (Médio/Alto) a ~3 m, com ACES + exposição ~1,9 + bloom, estoura a pele do GLB da Regina. Medido em GPU contra a
+ *  versão publicada (sem tone mapping): 0,42 devolve o brilho dela. Sem lanterna (Baixo) o brilho já bate, então fica 1. */
+export const REGINA_FLASHLIGHT_ALBEDO = 0.42;
+
+const NEG_Y = new THREE.Vector3(0, -1, 0), DOWN = NEG_Y;
+const _d = new THREE.Vector3(), _u = new THREE.Vector3(), _ax = new THREE.Vector3(), _xw = new THREE.Vector3(), _n = new THREE.Vector3(), _c = new THREE.Vector3();
+const _qa = new THREE.Quaternion(), _qt = new THREE.Quaternion();
+const mix = (a, b, t) => a + (b - a) * t;
+const RAD = Math.PI / 180;
+
+/** Cinemática inversa de 2 ossos no espaço da coluna: ombro `sh` (posição S) e cotovelo `el` alcançam o alvo T (clamp ao alcance). */
+function solveArm(sh, el, T, L1, L2) {
+  _d.copy(T).sub(sh.position); let D = _d.length(); if (D < 1e-5) return; _d.divideScalar(D);
+  D = clamp(D, Math.abs(L1 - L2) + 0.02, (L1 + L2) * 0.999);
+  const e = Math.PI - Math.acos(clamp((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2), -1, 1));
+  const a = Math.acos(clamp((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D), -1, 1));
+  _ax.crossVectors(_d, DOWN); if (_ax.lengthSq() < 1e-6) _ax.set(1, 0, 0); _ax.normalize();
+  _u.copy(_d).applyAxisAngle(_ax, a);
+  sh.quaternion.setFromUnitVectors(NEG_Y, _u);
+  // alinha o eixo x local (eixo do cotovelo) com o normal do plano do braço
+  _n.copy(_ax).negate(); _xw.set(1, 0, 0).applyQuaternion(sh.quaternion);
+  const phi = Math.atan2(_u.dot(_c.crossVectors(_xw, _n)), _xw.dot(_n));
+  sh.quaternion.premultiply(_qt.setFromAxisAngle(_u, phi)); el.rotation.x = e;
+}
+
+/** Lia (1,70 m) e Caio: rig procedural (HumanRig) com animação (respiração, passada, mira alinhada à arma, recuo, rolamento, dano). Só visual. */
 export class PlayerView {
-  constructor(player) {
-    this.player = player;
-    const g = this.root = new THREE.Group();
-    const skin = new THREE.MeshLambertMaterial({ color: 0xc58b62, flatShading: true });
-    const jacket = new THREE.MeshLambertMaterial({ color: 0x2f6f73, flatShading: true });
-    const pants = new THREE.MeshLambertMaterial({ color: 0x2b2f3a, flatShading: true });
-    const hair = new THREE.MeshLambertMaterial({ color: 0x1d1512, flatShading: true });
-    const gear = new THREE.MeshLambertMaterial({ color: 0x3a3d3a, flatShading: true });
-    this.mats = [skin, jacket, pants, hair, gear]; this.liaColors = this.mats.map((m) => m.color.getHex()); this.baseColors = this.mats.map((m) => m.color.getHex());
-    const body = this.body = new THREE.Group(); g.add(body);
-    this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.56, 0.26), jacket); this.torso.position.set(0, 1.2, 0); body.add(this.torso);
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.16), gear); pack.position.set(0, 1.22, 0.2); body.add(pack);
-    this.head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), skin); this.head.position.set(0, 1.62, 0); body.add(this.head);
-    const hairM = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.62), hair); hairM.position.set(0, 1.64, 0.01); body.add(hairM);
-    const tail = this.tail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.07), hair); tail.position.set(0, 1.5, 0.17); tail.rotation.x = 0.4; body.add(tail);
-    this.legs = [];
-    for (const sx of [-1, 1]) {
-      const hip = new THREE.Group(); hip.position.set(sx * 0.12, 0.92, 0); g.add(hip);
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.9, 0.2), pants); leg.position.y = -0.45; hip.add(leg);
-      const boot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.14, 0.3), gear); boot.position.set(0, -0.86, -0.04); hip.add(boot);
-      this.legs.push(hip);
-    }
-    this.arms = [];
-    for (const sx of [-1, 1]) {
-      const sh = new THREE.Group(); sh.position.set(sx * 0.31, 1.42, 0); body.add(sh);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), jacket); arm.position.y = -0.24; sh.add(arm);
-      const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skin); hand.position.y = -0.5; sh.add(hand);
-      this.arms.push(sh);
-    }
-    this.gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.11, 0.3), gear); this.gun.position.set(0, -0.5, -0.14); this.arms[1].add(this.gun);
-    this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); this.flash.position.set(0, -0.5, -0.34); this.flash.visible = false; this.arms[1].add(this.flash);
-    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    this.t = 0; this.flashT = 0; this.deadT = 0; this.charId = 'lia';
-    this.proceduralParts = [...g.children];
-    this.regina = new ReginaRig(g);
+  constructor(player, quality = 'medium') {
+    this.player = player; const rig = this.rig = new HumanRig(quality);
+    this.root = rig.root; this.body = rig.body; this.torso = rig.chest; this.head = rig.head; this.arms = rig.arms; this.legs = rig.legs; this.gun = rig.gun; this.flash = rig.flash;
+    this.t = 0; this.flashT = 0; this.deadT = 0; this.charId = 'lia'; this.recoil = 0; this.kick = 0; this.first = true;
+    this.k = { aim: 0, sprint: 0, tuck: 0, reload: 0 }; this.tgt = new THREE.Vector3(); this.pt = new THREE.Vector3();
+    // Regina (GLB) substitui a Lia procedural quando carrega; Caio e o fallback usam o HumanRig.
+    this.proceduralParts = [...this.root.children];
+    this.regina = new ReginaRig(this.root);
     // Pré-carrega sem atrasar a tela inicial. Falhas preservam o modelo procedural.
-    this.regina.load().then(() => this._applyAppearance());
+    this.reginaK = QUALITY[quality]?.flashlight ? REGINA_FLASHLIGHT_ALBEDO : 1;
+    this.regina.load().then(() => { this._toneRegina(); this._applyAppearance(); });
   }
-  /** Lia (padrão) ou Caio: mais largo, jaqueta ocre, cabelo curto, esquiva em rolamento pesado. */
-  setCharacter(id) {
-    const caio = id === 'caio'; this.charId = caio ? 'caio' : 'lia';
-    const cols = caio ? [0x8a5a3c, 0x9a5a22, 0x30343a, 0x120e0c, 0x3a3d3a] : this.liaColors;
-    this.mats.forEach((m, i) => m.color.setHex(cols[i])); this.baseColors = cols.slice();
-    this.body.scale.set(caio ? 1.25 : 1, caio ? 1.05 : 1, caio ? 1.2 : 1);
-    this.legs.forEach((l) => l.scale.set(caio ? 1.2 : 1, 1, caio ? 1.15 : 1));
-    this.tail.visible = !caio;
-    this._applyAppearance();
+  /** Lia (padrão) ou Caio: mais largo, ombreiras, jaqueta ocre, cabelo curto, esquiva em rolamento pesado. */
+  setCharacter(id) { this.rig.setCharacter(id); this.charId = this.rig.charId; this.first = true; this._applyAppearance(); }
+  /** Troca de qualidade (Game.applySettings): as cópias dos materiais são recriadas a partir de getMaterial na hora. */
+  setQuality(q) { this.rig.setQuality(q); this.reginaK = QUALITY[q]?.flashlight ? REGINA_FLASHLIGHT_ALBEDO : 1; this._toneRegina(); }
+  /** Escala a cor dos materiais do GLB (clonados uma vez, base guardada) por `reginaK`. */
+  _toneRegina() {
+    this.regina.model?.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData.reginaMaterialCloned) { o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); o.userData.reginaMaterialCloned = true; }
+      for (const m of [].concat(o.material)) { if (!m.color || m.isMeshBasicMaterial) continue;   // clarão do tiro (sem luz) fica intacto
+        m.userData.reginaBase ??= m.color.clone(); m.color.copy(m.userData.reginaBase).multiplyScalar(this.reginaK); }
+    });
   }
+  dispose() { this.rig.dispose(); }
   _applyAppearance() {
     const useRegina = this.charId === 'lia' && this.regina.ready;
     this.proceduralParts.forEach((obj) => { obj.visible = !useRegina; });
     this.regina.setActive(useRegina);
   }
-  muzzleFlash() { this.flashT = 0.05; this.regina.triggerShot(); }
+  muzzleFlash() { this.flashT = 0.05; this.recoil = 1; this.kick = (weaponsData.weapons[this.player.weaponId]?.recoilKickDeg ?? 1) * RAD; this.regina.triggerShot(); }
   sync(alpha, dt, opacity = 1) {
-    const p = this.player, g = this.root;
+    const p = this.player, g = this.root, R = this.rig, P = R.P, k = this.k;
     this.t += dt;
     g.position.set(p.px + (p.x - p.px) * alpha, 0, p.pz + (p.z - p.pz) * alpha);
     let dy = p.yaw - p.pYaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
     g.rotation.y = p.pYaw + dy * alpha;
-    const sp = clamp(p.speed / 3.7, 0, 1.5), sw = Math.sin(p.walkPhase * 3.2) * 0.9 * sp;
-    this.legs[0].rotation.x = sw; this.legs[1].rotation.x = -sw;
-    this.body.position.y = Math.abs(Math.sin(p.walkPhase * 3.2)) * 0.04 * sp;
-    this.body.rotation.set(0, 0, 0); this.body.rotation.x = p.sprinting ? -0.18 : 0;
-    // braços
-    const aim = p.aiming || p.simShooting ? 1 : 0;
-    this.arms[1].rotation.x = aim ? -1.5 : -0.5 + Math.sin(p.walkPhase * 3.2) * 0.4 * sp * -1;
-    this.arms[0].rotation.x = aim ? -1.35 : Math.sin(p.walkPhase * 3.2) * 0.5 * sp;
-    this.arms[0].rotation.z = aim ? 0.25 : 0; this.arms[1].rotation.z = 0;
-    const sg = p.weaponId === 'shotgun'; this.gun.scale.set(1, 1, sg ? 2.6 : 1); this.gun.position.z = sg ? -0.3 : -0.14; this.flash.position.z = sg ? -0.62 : -0.34;
-    if (p.switchT > 0) { this.arms[1].rotation.x = -0.2 - p.switchT * 2; }
-    if (p.reloading) { this.arms[0].rotation.x = -0.9; this.arms[1].rotation.x = -0.8; this.arms[0].rotation.z = -0.5; }
-    if (p.using) { this.arms[0].rotation.x = -1.1; this.arms[1].rotation.x = -1.0; }
-    this.head.position.y = 1.62; this.body.rotation.z = 0;
-    // esquiva: rolamento
+    const sg = p.weaponId === 'shotgun', sp = clamp(p.speed / 3.7, 0, 1.5), ph = p.walkPhase * 3.2, sw = Math.sin(ph) * 0.9 * sp;
+    const dodging = p.dodging, aim = p.aiming || p.simShooting ? 1 : 0;
+    // alvos de pose suavizados (só visual)
+    const f = this.first ? 1 : 1 - Math.exp(-dt * 16); this.first = false;
+    k.aim += ((aim && !dodging ? 1 : 0) - k.aim) * f; k.sprint += ((p.sprinting ? 1 : 0) - k.sprint) * f;
+    k.tuck += (((p.using || dodging) ? 1 : 0) - k.tuck) * f; k.reload += ((p.reloading && !p.using ? 1 : 0) - k.reload) * f;
+    this.recoil = Math.max(0, this.recoil - dt * 9); const rc = this.recoil, rk = this.kick;
+    // pernas (passada + joelhos) e quadril
+    R.legs[0].rotation.x = sw; R.legs[1].rotation.x = -sw;
+    R.knees[0].rotation.x = -Math.max(0, Math.cos(ph)) * 0.9 * sp - 0.04; R.knees[1].rotation.x = -Math.max(0, Math.cos(ph + Math.PI)) * 0.9 * sp - 0.04;
+    R.body.position.y = R.hipY + Math.abs(Math.sin(ph)) * 0.04 * sp - 0.03 * k.aim;
+    R.body.rotation.set(0, 0, 0);
+    // coluna: respiração, inclinação, torção da passada, recuo, dano
+    const breath = Math.sin(this.t * 1.9), calm = 1 - Math.min(1, sp) * 0.6, hurt = clamp(p.hurtT / 0.35, 0, 1);
+    R.spine.rotation.set(-(0.18 * k.sprint + 0.05 * Math.min(sp, 1)) + 0.012 * breath * calm + rc * rk * 3 + 0.22 * hurt, Math.sin(ph) * 0.12 * sp * (1 - 0.7 * k.aim), Math.sin(this.t * 45) * 0.05 * hurt);
+    R.chest.scale.y = 1 + 0.014 * breath * calm; R.headG.rotation.set(-R.spine.rotation.x * 0.7 + 0.2 * hurt, -R.spine.rotation.y * 0.8, 0);
+    // arma: poses ready -> sprint -> mira -> recarga -> guardada (uso/esquiva), com recuo e troca
+    const gun = R.gun, lerpPose = (t, x, y, z, pitch, roll) => { gun.position.set(mix(gun.position.x, x, t), mix(gun.position.y, y, t), mix(gun.position.z, z, t)); gun.rotation.x = mix(gun.rotation.x, pitch, t); gun.rotation.z = mix(gun.rotation.z, roll, t); };
+    gun.position.set(0.17, 0.2, -0.22); gun.rotation.set(sg ? -0.55 : -0.65, 0, 0);
+    lerpPose(k.sprint, 0.2, 0.1, -0.12, -1.1, 0.15); lerpPose(k.aim, 0.13, 0.36, sg ? -0.25 : -0.38, 0, 0);
+    lerpPose(k.reload, 0.1, 0.3, -0.25, 0.45, 0.35); lerpPose(k.tuck, 0.15, 0.05, -0.1, -1.4, 0);
+    const sk = clamp(p.switchT * 3, 0, 1); gun.position.y -= 0.25 * sk; gun.rotation.x -= 0.8 * sk;
+    gun.position.y += Math.sin(this.t * 1.7) * 0.003 + Math.sin(ph * 2) * 0.01 * sp * (1 - k.aim); gun.position.z += rc * (sg ? 0.07 : 0.035); gun.rotation.x += rc * rk * 6;
+    R.pistol.visible = !sg; R.shotgun.visible = sg; R.flash.position.set(0, 0, sg ? -0.33 : -0.2);
+    gun.updateMatrix();
+    // mãos: direita na empunhadura, esquerda no apoio (ou no carregador ao recarregar)
+    this.tgt.set(0, 0, 0).applyMatrix4(gun.matrix); solveArm(R.arms[1], R.elbows[1], this.tgt, R.armL1, R.armL2);
+    this.pt.set(sg ? 0 : -0.03, sg ? -0.04 : -0.075, sg ? -0.16 : 0.02).applyMatrix4(gun.matrix);
+    if (k.reload > 0.01) this.pt.lerp(this.tgt.set(0.0, 0.2 + Math.sin(this.t * 9) * 0.02, -0.22), k.reload);
+    solveArm(R.arms[0], R.elbows[0], this.pt, R.armL1, R.armL2);
+    // esquiva: rolamento (Caio mais pesado, mais baixo e com balanço)
     g.position.y = 0;
-    if (p.dodging) { const k = clamp(p.dodgeT / 0.34, 0, 1), heavy = this.charId === 'caio'; this.body.rotation.x = -k * Math.PI * 2; this.body.position.y = (heavy ? 0.12 : 0.3) * Math.sin(k * Math.PI) - 0.25 + (heavy ? 0.3 : 0.4); if (heavy) this.body.rotation.z = Math.sin(k * Math.PI) * 0.25; this.legs.forEach((l) => { l.rotation.x = -1.2; }); }
-    // dano
-    const hurt = p.hurtT > 0;
-    this.mats.forEach((m, i) => m.color.setHex(hurt && i !== 0 ? 0xcc6666 : this.baseColors[i]));
+    if (dodging) {
+      const kk = clamp(p.dodgeT / 0.34, 0, 1), heavy = this.charId === 'caio', s = Math.min(1, Math.sin(kk * Math.PI) * 2.2);
+      R.body.rotation.x = -kk * Math.PI * 2; if (heavy) R.body.rotation.z = Math.sin(kk * Math.PI) * 0.25;
+      R.body.position.y = mix(R.hipY, heavy ? 0.78 : 0.74, s) + (heavy ? 0.05 : 0.12) * Math.sin(kk * Math.PI);
+      R.spine.rotation.x -= 1.2 * s; R.legs.forEach((l) => { l.rotation.x = 1.4 * s; }); R.knees.forEach((n) => { n.rotation.x = -1.9 * s; });
+    }
+    R.setTint(p.hurtT > 0);
     if (p.dead) { this.deadT = Math.min(1, this.deadT + dt * 1.8); g.rotation.x = -this.deadT * (Math.PI / 2 - 0.1); g.position.y = 0.12 * this.deadT; }
     else this.deadT = 0, g.rotation.x = 0;
     this.flashT = Math.max(0, this.flashT - dt); this.flash.visible = this.flashT > 0;
     this.regina.sync(p, dt, this.flashT, opacity);
-    g.visible = opacity > 0.05 || p.dead;
     // Não altere materiais do GLB aqui: o rig tem seu próprio gerenciamento de material.
-    this.proceduralParts.forEach((part) => part.traverse((o) => {
-      if (o.isMesh && o.material !== this.flash.material) { o.material.transparent = opacity < 0.99; o.material.opacity = opacity; }
-    }));
+    g.visible = opacity > 0.05 || p.dead; R.setOpacity(opacity);
   }
 }

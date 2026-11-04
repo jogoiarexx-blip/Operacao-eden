@@ -37,11 +37,11 @@ try {
 
       // Comparação de carga geométrica no mesmo enquadramento (não é medição de FPS).
       stream.update({ x: game.player.x, z: game.player.z });
-      game.renderer.render(game.scene, game.threeCam);
+      game.renderer.info.reset(); game.renderer.render(game.scene, game.threeCam);   // info.autoReset=false (PostFX): zerar por medição
       const nearTriangles = game.renderer.info.render.triangles;
 
       stream.update({ x: 2000, z: 2000 });
-      game.renderer.render(game.scene, game.threeCam);
+      game.renderer.info.reset(); game.renderer.render(game.scene, game.threeCam);   // info.autoReset=false (PostFX): zerar por medição
       const farTriangles = game.renderer.info.render.triangles;
       const far = stream.stats();
 

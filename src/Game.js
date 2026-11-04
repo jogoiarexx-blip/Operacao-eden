@@ -25,7 +25,9 @@ import { CollisionWorld } from './world/CollisionWorld.js';
 import { buildScenery } from './world/SectorScenery.js';
 import { ChapterSceneCache } from './world/ChapterSceneCache.js';
 import { canUseServicePassage, crossedServicePassage } from './world/ServicePassage.js';
+import { createAtmosphere } from './render/Atmosphere.js';
 import { FX } from './world/FX.js';
+import { PostFX } from './render/PostFX.js';
 import { Player } from './actors/Player.js';
 import { PlayerView } from './actors/PlayerView.js';
 import { resolveDifficultyOffer } from './gameplay/DifficultyOffer.js';
@@ -78,12 +80,14 @@ export class Game {
       throw e;
     }
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.Fog(0x0a1719, 8, 80);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
+    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x0a1719); this.scene.fog = new THREE.FogExp2(0x0a1719, 0.02); this._fogBase = 0.02;
     this.threeCam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 150);
+    this.postfx = new PostFX(this.renderer, this.scene, this.threeCam);
     this.loadChapter(CHAPTER_IDS[0]);
     this.camera = new ShoulderCameraController(this.world); this.camera.setZones(this.chapterDef.data.cameraZones, this.chapterDef.data.zones);
-    this.player = new Player(this.world); this.playerView = new PlayerView(this.player); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
-    this.fx = new FX(this.scene);
+    this.player = new Player(this.world); this.playerView = new PlayerView(this.player, this.settings?.quality); this.scene.add(this.playerView.root); this.playerView.root.visible = false;
+    this.fx = new FX(this.scene, this.settings.quality);
     this.coordinator = new AttackCoordinator(2);
     this.hud = new Hud(this.hudRoot); this.dialogue = new Dialogue(this.hud);
     this.audio = new AudioEngine();
@@ -114,6 +118,18 @@ export class Game {
   /** Número do capítulo carregado (loja: itens liberados por capítulo). */
   get chapterNumber() { return this.chapterDef?.data.chapter ?? 1; }
 
+  /** Exposição, névoa e gradação de cor do capítulo (`data.render`). */
+  _applyChapterRender(r = {}) {
+    this.renderer.toneMappingExposure = r.exposure ?? 1.0;
+    const col = r.fogColor ?? 0x0a1719;
+    this.scene.background.set(col); this.scene.fog.color.set(col);
+    this._fogBase = r.fogDensity ?? 0.02; this._fogQuality();
+    this.postfx?.setGrade(r.grade ?? {});
+  }
+  /** Atmosfera (cone da lanterna, névoa rasteira): acompanha a câmera/jogador, usa o relâmpago do cenário. */
+  _atmo(dt, pos, dir, player) { this.atmosphere?.update(dt, { player, flashlight: !!this.scenery.flashlightOn, camera: { pos, dir }, lightning: this.scenery.lightBoost, moon: this.scenery.moon }); }
+  _fogQuality() { const q = QUALITY[this.settings?.quality] ?? QUALITY.medium; this.scene.fog.density = this._fogBase * (80 / q.fogFar); }
+
   /**
    * Liga um capítulo. No backtracking reutiliza o cenário 3D estático já
    * preparado; só o runtime dinâmico (pickups/NPCs/missões) é reconstruído.
@@ -125,6 +141,8 @@ export class Game {
     const cached = forceFresh ? null : this.sceneCache.take(id);
     this._lastSceneCacheHit = !!cached;
     this.chapter?.dispose();
+    // atmosfera (cone/névoa rasteira) é por capítulo; pools de partículas/decalques são recriados a cada troca
+    this.atmosphere?.dispose(); this.atmosphere = null; this.fx?.reset();
     if (this.scenery) {
       this.scene.remove(this.scenery.group);
       const outgoing = { world: this.world, scenery: this.scenery, props: this.props };
@@ -155,10 +173,14 @@ export class Game {
       }) ?? { update() {}, dispose() {} };
     }
     this.scene.add(this.scenery.group);
+    this.fxSurf = { surfaceOf: (c) => this.scenery.surfaceOf(c), colliderAt: (p) => this._colliderAt(p) };
     this.scenery.onLightning = () => this.audio?.play('thunder');
+    this._applyChapterRender(data.render);
+    this.atmosphere = createAtmosphere({ scene: this.scene, quality: this.settings.quality, data });
     this.scenery.onUpdate = (t, dt) => this.props.update(dt, t);
     if (this.camera) { this.camera.world = this.world; this.camera.setZones(data.cameraZones, data.zones); }
     if (this.player) this.player.world = this.world;
+    if (this.props) this.props.onGateLand = (p) => this.fx?.gateImpact(p);
     this.chapter = new ChapterRuntime(this, this.chapterDef);
     if (this.settings && this.audio) this.applySettings();
   }
@@ -167,7 +189,7 @@ export class Game {
     const b = this.bus;
     b.on('reward', (r) => { this.hud.feed(r, this.settings.hideStyleFeed); if (r.cc) this.audio.play('ui'); });
     b.on('playerDamaged', (e) => {
-      this.hud.damageFlash(); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
+      this.hud.damageFlash(); this.postfx?.pulseDamage(Math.min(1, (e.amount ?? 10) / 30) * (this.settings.reduceFlash ? 0.25 : 1)); this.audio.play('hurt'); this.stats.damageTaken += e.amount; this.lastDamageAt = this.simMs; this.camera.shake(1.2);
       if (e.bleeding && !this._bleedToldAt) { this._bleedToldAt = this.simMs; this.hud.toast('Você está sangrando — use um hemostático.', 'warn'); }
     });
     b.on('enemyNeutralized', (e) => {
@@ -185,6 +207,7 @@ export class Game {
     });
     b.on('creatureCue', (e) => { if (e.cue === 'spotted') this.audio.play('spotted', e.x, e.z); if (e.cue === 'roar') this.audio.play('roar', e.x, e.z); });
     b.on('windupStart', (e) => { this.audio.play('windup', e.x, e.z); this.chapter.tutorial('tut_dodge'); });
+    b.on('k1Impact', (e) => { this.fx.dustRing({ x: e.x, y: 0, z: e.z }, 2.6); this.camera.shakeVisual(1.0); });   // só visual: poeira + tremor da câmera renderizada
     b.on('chainEnded', () => {});
   }
 
@@ -198,15 +221,18 @@ export class Game {
     document.body.dataset.subs = s.subtitleSize; document.body.classList.toggle('hc', !!s.highContrastThreat);
     const q = QUALITY[s.quality] ?? QUALITY.medium;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); this.renderer.shadowMap.enabled = q.shadows;
+    const stype = s.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;   // PCF simples no Médio (menos amostras por fragmento)
+    if (this.renderer.shadowMap.type !== stype) { this.renderer.shadowMap.type = stype; this._lastShadows = null; }
     this.scenery.group.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined && this._lastShadows !== q.shadows) o.material.needsUpdate = true; });
     this._lastShadows = q.shadows;
-    this.scenery.setQuality(q); this.scene.fog.far = q.fogFar; this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
+    this.fx?.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.scenery.setQuality(q); this.playerView.setQuality(s.quality in QUALITY ? s.quality : 'medium'); for (const ag of this.agents) ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium'); this.bench?.agents.forEach((ag) => ag.view.setQuality(s.quality in QUALITY ? s.quality : 'medium')); this.atmosphere?.setQuality(s.quality); this._fogQuality(); this.postfx.setPreset(s.quality); this.threeCam.far = q.far; this.threeCam.updateProjectionMatrix();
     this.onResize(); saveSettings(s);
   }
   applyRecommendedQuality(preset) { this.settings.quality = preset; this.applySettings(); this.hud.toast(`Gráficos: ${QUALITY[preset].label}`, 'good'); }
   onResize() {
     if (!this.renderer) return;
     this.renderer.setSize(innerWidth, innerHeight, false); this.threeCam.aspect = innerWidth / innerHeight; this.camera.aspect = this.threeCam.aspect; this.threeCam.updateProjectionMatrix();
+    this.postfx?.setSize(innerWidth, innerHeight, this.renderer.getPixelRatio());
     if (this.bench?.collector && this.bench.collector.t0 != null) this.bench.collector.invalidate('janela redimensionada durante a coleta');
   }
   onVisibility() {
@@ -358,7 +384,7 @@ export class Game {
     this.camera.preferredSide = s.cameraSettings?.preferredShoulder ?? 'right'; this.camera.snapBehind(this.player.yaw);
     this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint());
     if (fresh) this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint());
-    this.playerView.root.visible = true; this.fx.update(1);
+    this.playerView.root.visible = true; this.fx.update(1); this.fx.clear();
     this.applySettings();
   }
   _snapshotForCheckpoint() { this.syncSaveFromRuntime(); return structuredClone(this.save); }
@@ -383,7 +409,7 @@ export class Game {
     }
     const outside = keepDinosaurOutside(this.chapterDef.data, this.world, agent.x, agent.z, agent.radius);
     if (outside.moved) { agent.x = agent.px = outside.x; agent.z = agent.pz = outside.z; }
-    const view = new CreatureView(agent); this.scene.add(view.mesh); this.agents.push({ agent, view });
+    const view = new CreatureView(agent, this.settings.quality in QUALITY ? this.settings.quality : 'medium'); this.scene.add(view.mesh); this.agents.push({ agent, view });
     if (this.agents.length > 14) { const dead = this.agents.findIndex((x) => x.agent.dead); if (dead >= 0) { const [d] = this.agents.splice(dead, 1); this.scene.remove(d.view.mesh); d.view.dispose(); } }
     return agent;
   }
@@ -638,6 +664,7 @@ export class Game {
     const p = this.player;
     switch (e.type) {
       case 'fire': this.shoot(); break;
+      case 'bleedTick': this.postfx?.pulseDamage(this.settings.reduceFlash ? 0.05 : 0.2); break;   // sangramento pulsa a vinheta (overlay no Baixo, passe grade no Médio/Alto)
       case 'dryFire': this.audio.play('dry'); this.hud.toast('Sem munição', 'warn'); break;
       case 'reloadStart': this.audio.play('reload'); break;
       case 'shellLoaded': this.audio.play('reload'); break;
@@ -662,24 +689,30 @@ export class Game {
     cam.kick(w.recoilKickDeg); cam.shake(0.35);
     this.noises.push({ x: p.x, z: p.z, r: w.noiseRadius });
     if (res.kind === 'spread') {
-      for (const t of res.tracers) this.fx.tracer(t.from, t.point);
-      for (const pt of res.impacts) this.fx.burst(pt, 0xffd98a, 3, 2.4, 0.2);
       if (res.hits.length) { this.stats.shotsHit++; this.hud.hitMarker(); }
       for (const hit of res.hits) {
         const ag = hit.enemy; this.audio.play('hit', ag.x, ag.z);
-        this.fx.burst(hit.point, 0x9a1c1c, 7, 3.4);
         const ctx = { ...this.aiCtx(), sim: this.simMs };
         const r = ag.takeDamage(hit.damage, hit.parts.head ? 'head' : 'torso', ctx, hit.damageByPart);
         if (!r.dead && shouldInterrupt(w, hit, !!ag.species.boss)) ag.interrupt(ctx);
       }
+      this.fx.shotEffects(res, mz, w.id, this.fxSurf);   // efeitos visuais DEPOIS do resultado de jogo, só leitura (rng próprio do FX)
       return;
     }
-    this.fx.tracer(res.tracerFrom, res.point);
     if (res.kind === 'enemy') {
       const ag = res.enemy; this.stats.shotsHit++; this.hud.hitMarker(); this.audio.play('hit', ag.x, ag.z);
-      this.fx.burst(res.point, 0x9a1c1c, 7, 3.4);
       ag.takeDamage(res.damage, res.part, { ...this.aiCtx(), sim: this.simMs });
-    } else if (res.kind === 'world') this.fx.burst(res.point, 0xffd98a, 4, 2.4, 0.2);
+    }
+    this.fx.shotEffects(res, mz, w.id, this.fxSurf);
+  }
+  /** Colisor de tiro que contém o ponto (com folga) — só para decalques/superfície dos pellets da escopeta. */
+  _colliderAt(p) {
+    for (const c of this.world.list) {
+      if (!c.enabled || !c.bullet || p.y < c.y0 - 0.1 || p.y > c.y1 + 0.1) continue;
+      if (c.type === 'cyl') { if (Math.hypot(p.x - c.x, p.z - c.z) <= c.r + 0.1) return c; }
+      else if (p.x >= c.x0 - 0.1 && p.x <= c.x1 + 0.1 && p.z >= c.z0 - 0.1 && p.z <= c.z1 + 0.1) return c;
+    }
+    return null;
   }
   useUtility() {
     if (getCharacter(this.save.playerId).utility === 'impact_tool') return this.useImpact();
@@ -727,7 +760,7 @@ export class Game {
     else if (st === S.CUTSCENE) { this._updateCutscene(frameDt); this.scenery.update(this.tAnim, frameDt, this.threeCam.position, { x: 0, y: 0, z: -1 }, this.player); this.agents.forEach((a) => a.view.sync(1, frameDt)); }
     else if (st === S.BENCHMARK) this.renderBench(frameDt, t0);
     else this.renderIdle(frameDt);
-    if (st !== S.BENCHMARK) this.renderer.render(this.scene, this.threeCam);
+    if (st !== S.BENCHMARK) { this.fx.setView(this.renderer.domElement.height, this.threeCam.fov); this.postfx.render(frameDt); }
     this.menuNav();
   }
   renderIdle(frameDt) {
@@ -735,10 +768,10 @@ export class Game {
     if (menuLike || !this.save) {
       const a = this.tAnim * 0.07, c = this.threeCam;
       c.position.set(Math.sin(a) * 9 + 2, 2.6 + Math.sin(this.tAnim * 0.2) * 0.3, 30 + Math.cos(a) * 7); c.lookAt(0, 1.6, 33); c.fov = 62; c.updateProjectionMatrix();
-      this.scenery.update(this.tAnim, frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 });
+      this.scenery.update(this.tAnim, frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 }); this._atmo(frameDt, c.position, { x: 0, y: 0, z: -1 }, { x: 0, z: 30 });
     } else {
       this.camera.writeTo(this.threeCam);
-      this.scenery.update(this.tAnim, frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player);
+      this.scenery.update(this.tAnim, frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player); this._atmo(frameDt, this.camera.pos, forwardVec(this.camera.yaw, this.camera.pitch), this.player);
       this.playerView.sync(1, 0, this.camera.playerOpacity); this.agents.forEach((a) => a.view.sync(1, 0));
     }
   }
@@ -754,7 +787,7 @@ export class Game {
     cam.update(frameDt, { lookX: p.dead ? 0 : look.x, lookY: p.dead ? 0 : look.y, aim }, { x: lerp(p.px, p.x, alpha), y: 0, z: lerp(p.pz, p.z, alpha) });
     cam.writeTo(this.threeCam);
     const dir = forwardVec(cam.yaw, cam.pitchEff);
-    this.scenery.update(this.tAnim, frameDt, cam.pos, dir, p);
+    this.scenery.update(this.tAnim, frameDt, cam.pos, dir, p); this._atmo(frameDt, cam.pos, dir, p);
     this.audio.setListener(cam.pos.x, cam.pos.z, cam.yaw);
     // oclusão localizada: só os objetos que bloqueiam a vista
     const occ = new Set(this.world.occluders(cam.pos.x, cam.pos.y, cam.pos.z, cam.pivot.x, cam.pivot.y, cam.pivot.z).map((c) => c.id));
@@ -806,13 +839,13 @@ export class Game {
     if (this.chapterId !== 'ch01') this.loadChapter('ch01');   // o benchmark B01 pertence ao Cap. 01
     this.sm.go(S.LOADING); this.hud.hide(); this.setScreen(null); this.audio.ensure();
     this.chapter.dispose(); this._clearAgents();
-    const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player);
+    const rng = createRng(BENCH.seed), cam = new ShoulderCameraController(this.world), player = new Player(this.world), view = new PlayerView(player, this.settings.quality);
     this.scene.add(view.root);
     const route = [[0, 30], [3, 24], [6, 18], [8, 10], [8, 2], [3, 6], [-6, 12], [-12, 9], [-4, 18], [1, 26]];
     const agents = [0, 1, 2].map((i) => {
       const sp = bestiary.species.forest_runner;
       const a = new DinosaurAgent({ id: `bench_${i}`, encounterId: 'bench', species: sp, pos: [route[(i * 3) % route.length][0] + 5, route[(i * 3) % route.length][1] - 6], patrol: route.map(([x, z]) => [x + (i - 1) * 4, z - 5 - i * 2]) });
-      a.scripted = { t: i * 1.7 }; const v = new CreatureView(a); this.scene.add(v.mesh); return { agent: a, view: v };
+      a.scripted = { t: i * 1.7 }; const v = new CreatureView(a, this.settings.quality in QUALITY ? this.settings.quality : 'medium'); this.scene.add(v.mesh); return { agent: a, view: v };
     });
     this.bench = { mode, collector: new BenchCollector({ mode }), cam, player, view, agents, route, rng, t: 0, seg: 0, lastShot: 0, swapAt: 12, preset: this.settings.quality, camMs: 0 };
     this.sm.go(S.BENCHMARK); this.appEl.classList.remove('playing');
@@ -839,10 +872,10 @@ export class Game {
     if (B.t - B.lastShot > 0.6) { B.lastShot = B.t; const mz = p.muzzle(B.cam.yaw); const r = resolveShot({ world: this.world, enemies: B.agents.map((q) => q.agent), camera: B.cam, muzzle: mz, weapon: WEAPONS.pistol, spreadDeg: 1, rng: B.rng }); this.fx.tracer(r.tracerFrom, r.point); this.fx.burst(r.point, 0xffd98a, 4, 2.4, 0.2); this.audio.play('shot', x, z); }
     this.fx.update(frameDt);
     B.cam.writeTo(this.threeCam);
-    this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
+    this.scenery.update(B.t, frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p); this._atmo(frameDt, B.cam.pos, forwardVec(B.cam.yaw, B.cam.pitchEff), p);
     B.view.sync(1, frameDt, B.cam.playerOpacity); B.agents.forEach((a) => a.view.sync(1, frameDt));
     const updateMs = performance.now() - u0;
-    const r0 = performance.now(); this.renderer.render(this.scene, this.threeCam); const renderMs = performance.now() - r0;
+    this.fx.setView(this.renderer.domElement.height, this.threeCam.fov); const r0 = performance.now(); this.postfx.render(frameDt); const renderMs = performance.now() - r0;
     const inf = this.renderer.info;
     col.frame(ts, { updateMs, renderMs, camMs, info: { calls: inf.render.calls, triangles: inf.render.triangles, geometries: inf.memory.geometries, textures: inf.memory.textures } });
     const e = col.elapsed, ph = col.phase;
@@ -854,12 +887,12 @@ export class Game {
   async _finishBench() {
     const B = this.bench; this.bench = null;
     if (B.collector.cancelled) {
-      this.scene.remove(B.view.root); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
+      this.scene.remove(B.view.root); B.view.dispose(); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
       this.sm.go(S.BENCH_RESULTS); this.sm.go(S.EXTRAS); this.ui.extras(); return;
     }
     const env = collectEnv({ renderer: this.renderer, canvas: this.canvas, preset: B.preset, dpr: this.renderer.getPixelRatio() });
     const rep = B.collector.report(env, BUILD); rep.sceneName = BENCH.sceneName;
-    this.scene.remove(B.view.root); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
+    this.scene.remove(B.view.root); B.view.dispose(); B.agents.forEach((a) => { this.scene.remove(a.view.mesh); a.view.dispose(); });
     this.sm.go(S.BENCH_RESULTS);
     const hist = await this.saveManager.loadBenchHistory().catch(() => []); hist.push(rep); await this.saveManager.saveBenchHistory(hist).catch(() => {});   // registro SEPARADO do save narrativo
     this.lastBench = rep;
@@ -903,6 +936,10 @@ export class Game {
           this.checkpointSnap = JSON.stringify(this._snapshotForCheckpoint()); await this.retry(false);
         }
       },
+      /** Linha de base gráfica: troca o preset de qualidade (low|medium|high) e reaplica. */
+      setQuality: (id) => { this.settings.quality = id; this.applySettings(); },
+      /** Posiciona jogador e câmera para uma captura fixa (x, z, yaw, pitch). */
+      cameraShot: (x, z, yaw = 0, pitch = 0.1) => { mark(); this.player.teleport(x, z, yaw); this.camera.snapBehind(yaw, pitch); },
       /** Derruba o chefe vivo (K-1). */
       killBoss: () => { mark(); const ctx = this.aiCtx(); for (const a of this.liveAgents()) if (a.species?.boss) a.takeDamage(99999, 'torso', ctx); },
     };

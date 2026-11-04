@@ -1,3 +1,4 @@
+import { getMaterial } from '../render/Materials.js';
 import * as THREE from 'three';
 import data from '../data/chapter02.json';
 import lines from '../data/dialogues.json';
@@ -244,14 +245,16 @@ function gateLabel(rt) {
 const lm = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
 const bm = (color) => new THREE.MeshBasicMaterial({ color });
 
-function buildProps({ scene, data: d, scenery }) {
+function buildProps({ scene, data: d, scenery, quality = 'medium' }) {
+  const lampMat = (hex) => getMaterial('emissiveLamp', quality, { color: hex, emissive: hex });
+  const setLamp = (m, hex) => { if (m) m.material = lampMat(hex); };
   const group = new THREE.Group(); (scenery?.group ?? scene).add(group);
   const meshOf = (id) => scenery?.meshes.get(id);
   const updaters = [];
   const steel = lm(0x4e575c), dark = lm(0x2a2f31);
 
   // sinalizadores vermelhos da equipe perdida (abertura)
-  const flareMat = bm(0xff3a2a);
+  const flareMat = lampMat(0xff3a2a);
   for (const [x, z] of d.flares ?? []) {
     const f = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 5), flareMat); f.rotation.z = Math.PI / 2; f.rotation.y = (x * 7 + z) % 3; f.position.set(x, 0.05, z); group.add(f);
   }
@@ -263,7 +266,7 @@ function buildProps({ scene, data: d, scenery }) {
   const lampHeads = [], lampOff = 0x2b2a24, lampOn = 0xffe2a0;
   for (const [x, z] of d.lamps ?? []) {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 4.2, 6), dark); post.position.set(x, 2.1, z); group.add(post);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.3), bm(lampOff)); head.position.set(x, 4.25, z); group.add(head); lampHeads.push(head);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.3), lampMat(lampOff)); head.position.set(x, 4.25, z); group.add(head); lampHeads.push(head);
   }
   const courtLight = new THREE.PointLight(0xffe2a0, 0, 26); courtLight.position.set(0, 5, 8); group.add(courtLight);
   const yardLight = new THREE.PointLight(0xffe2a0, 0, 26); yardLight.position.set(0, 5.5, -15); group.add(yardLight);
@@ -278,7 +281,7 @@ function buildProps({ scene, data: d, scenery }) {
   updaters.push((t, dt) => { for (const L of Object.values(leaves)) L.m.position.y += (L.base + L.target - L.m.position.y) * Math.min(1, dt * 1.8); });
 
   // luzes dos painéis: cercado, portão do pátio, portão de carga
-  const panelLamp = (id) => { const m = meshOf(id); if (!m) return null; const l = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), bm(0xd92d2d)); l.position.set(0, 0.72, 0); m.add(l); return l; };
+  const panelLamp = (id) => { const m = meshOf(id); if (!m) return null; const l = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), lampMat(0xd92d2d)); l.position.set(0, 0.72, 0); m.add(l); return l; };
   const penLamp = panelLamp('pen_lock_panel'), yardLamp = panelLamp('yard_gate_panel'), gateLamp = panelLamp('gate_drop_panel');
 
   // portão de carga: moldura + folha pesada que cai sobre a baia
@@ -289,10 +292,11 @@ function buildProps({ scene, data: d, scenery }) {
   const gateLeaf = new THREE.Mesh(new THREE.BoxGeometry(6.0, 2.6, 0.45), lm(0x6a7176)); gateLeaf.castShadow = true; frame.add(gateLeaf);
   for (let i = -2; i <= 2; i++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.42, 2.6, 0.05), lm(0xb08c22)); st.position.set(i * 1.2, 0, 0.25); st.rotation.z = 0.5; gateLeaf.add(st); }
   const UP = 4.7, DOWN = 1.3; gateLeaf.position.y = UP;
-  const drop = { t: -1 };
+  const drop = { t: -1, land: null }, _gp = new THREE.Vector3();   // land: gancho visual (poeira/faíscas) chamado quando a folha encosta no chão
   updaters.push((t, dt) => {
     if (drop.t < 0) return;
-    drop.t += dt; const k = drop.t;
+    const k0 = drop.t; drop.t += dt; const k = drop.t;
+    if (k0 < 0.22 && k >= 0.22 && drop.land) { gateLeaf.getWorldPosition(_gp); _gp.y = 0; drop.land(_gp); }
     gateLeaf.position.y = k < 0.22 ? UP - (UP - DOWN) * (k / 0.22) ** 2 : k < 1.6 ? DOWN : Math.min(UP, DOWN + (k - 1.6) * 0.9);
     if (gateLeaf.position.y >= UP) drop.t = -1;
   });
@@ -314,7 +318,7 @@ function buildProps({ scene, data: d, scenery }) {
   // pista do BIO_03: luminária de mesa acesa no arquivo
   const desk = d.structures.find((s) => s.id === 'archive_desk');
   if (desk) {
-    const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.22, 8, 1, true), bm(0xfff0b0)); lamp.position.set(desk.pos[0] - 0.3, 0.98, desk.pos[1]); lamp.rotation.x = Math.PI; group.add(lamp);
+    const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.22, 8, 1, true), lampMat(0xfff0b0)); lamp.position.set(desk.pos[0] - 0.3, 0.98, desk.pos[1]); lamp.rotation.x = Math.PI; group.add(lamp);
     const dl = new THREE.PointLight(0xffe7a0, 3, 5); dl.position.set(desk.pos[0] - 0.3, 1.3, desk.pos[1]); group.add(dl);
   }
   // pista do CACHE_02: porta da cabine entreaberta
@@ -322,28 +326,29 @@ function buildProps({ scene, data: d, scenery }) {
   if (cab) { const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 0.06), lm(0x5b6b4a)); door.position.set(cab.pos[0] + 0.5, 1.5, cab.pos[1] + cab.size[2] / 2 + 0.45); door.rotation.y = -0.9; group.add(door); }
   // LED do rádio (âmbar → verde)
   const rc = meshOf('radio_console'); let radioLed = null;
-  if (rc) { radioLed = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.3), bm(0x5a3a10)); radioLed.position.set(0.46, 0.3, 0); rc.add(radioLed); }
+  if (rc) { radioLed = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.3), lampMat(0x5a3a10)); radioLed.position.set(0.46, 0.3, 0); rc.add(radioLed); }
 
   return {
     group, leaves, gateLeaf, tomas,
+    set onGateLand(fn) { drop.land = fn; },
     setPowered(on) {
-      for (const h of lampHeads) h.material.color.setHex(on ? lampOn : lampOff);
+      for (const h of lampHeads) setLamp(h, on ? lampOn : lampOff);
       courtLight.intensity = on ? 22 : 0; yardLight.intensity = on ? 26 : 0;
-      if (radioLed && !this._radio) radioLed.material.color.setHex(on ? 0xffb347 : 0x5a3a10);
-      if (yardLamp && !this._yard) yardLamp.material.color.setHex(on ? 0xffb347 : 0xd92d2d);
+      if (radioLed && !this._radio) setLamp(radioLed, on ? 0xffb347 : 0x5a3a10);
+      if (yardLamp && !this._yard) setLamp(yardLamp, on ? 0xffb347 : 0xd92d2d);
     },
-    setRadio(on) { this._radio = on; if (radioLed && on) radioLed.material.color.setHex(0x38e07a); },
-    setPenLocked(on, instant) { penLamp?.material.color.setHex(on ? 0x38e07a : 0xd92d2d); this.setLeaf('pen_chute', !on, instant, 1.1); },
-    setLeaf(id, open, instant, up = 3.6) { const L = leaves[id]; if (!L) return; L.target = open ? up : 0; if (instant) L.m.position.y = L.base + L.target; if (id === 'yard_gate_leaf') { this._yard = open; yardLamp?.material.color.setHex(open ? 0x38e07a : 0xffb347); } },
+    setRadio(on) { this._radio = on; if (radioLed && on) setLamp(radioLed, 0x38e07a); },
+    setPenLocked(on, instant) { setLamp(penLamp, on ? 0x38e07a : 0xd92d2d); this.setLeaf('pen_chute', !on, instant, 1.1); },
+    setLeaf(id, open, instant, up = 3.6) { const L = leaves[id]; if (!L) return; L.target = open ? up : 0; if (instant) L.m.position.y = L.base + L.target; if (id === 'yard_gate_leaf') { this._yard = open; setLamp(yardLamp, open ? 0x38e07a : 0xffb347); } },
     dropGate() { drop.t = 0; },
-    setGatePanel(st, live) { if (gateLamp) gateLamp.material.color.setHex(!live ? 0x333333 : st.ready ? 0x38e07a : 0xffb347); },
+    setGatePanel(st, live) { if (gateLamp) setLamp(gateLamp, !live ? 0x333333 : st.ready ? 0x38e07a : 0xffb347); },
     setTomas({ retreat = false, working = false, visible = true, at = null, instant = false } = {}) {
       tomas.visible = visible; T.working = working;
       const p = at ?? (retreat ? d.tomas.retreat : d.tomas.pos); T.tx = p[0]; T.tz = p[1];
       if (instant) { T.x = p[0]; T.z = p[1]; tomas.position.set(T.x, 0, T.z); }
     },
     update(dt, t = 0) { for (const u of updaters) u(t, dt); },
-    dispose() { (scenery?.group ?? scene).remove(group); group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => m.dispose?.()); }); },
+    dispose() { (scenery?.group ?? scene).remove(group); group.traverse((o) => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach((m) => { if (!m.userData.shared) m.dispose?.(); }); }); },
   };
 }
 
