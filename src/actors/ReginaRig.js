@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import quaterniusWalk from './quaternius-walk.json';
 
 // O GLB original tem 17 clips experimentais (slots 00-14, 38 e 39).
 // Em vez de presumir que os slots TESTE são definitivos, usamos ações normalizadas
@@ -287,6 +288,17 @@ function createAnimations(scene) {
         : state === 'dodge' ? [0, -0.14, -0.28, -0.14, 0] : [0, 0.012, 0];
       const times = offsets.map((_, idx) => idx * duration / (offsets.length - 1));
       tracks.push(new THREE.VectorKeyframeTrack('Hips.position',times,offsets.flatMap(y=>[base.x,base.y+y,base.z])));
+    }
+    if (state === 'walk') {
+      // Pernas do ciclo Walk_Loop de Quaternius, ajustadas ao bind da Regina.
+      // A posição do quadril continua sob controle do jogo (sem root motion).
+      for (const [bone, values] of Object.entries(quaterniusWalk.tracks)) {
+        if (!bones[bone]) continue;
+        const index = tracks.findIndex(track => track.name === `${bone}.quaternion`);
+        const times = quaterniusWalk.times.map(time => time * duration / quaterniusWalk.duration);
+        const track = new THREE.QuaternionKeyframeTrack(`${bone}.quaternion`, times, values);
+        if (index >= 0) tracks[index] = track; else tracks.push(track);
+      }
     }
     clips[state] = new THREE.AnimationClip(`Regina_${state}`, duration, tracks);
   }
